@@ -4,6 +4,8 @@ import { getAuth, Auth } from 'firebase/auth';
 import { getDatabase, Database } from 'firebase/database';
 import { firebaseConfig } from './config';
 import { useUser } from './auth/use-user';
+import { useCollection } from './firestore/use-collection';
+import { useDoc } from './firestore/use-doc';
 
 export function initializeFirebase() {
   let app: FirebaseApp;
@@ -32,4 +34,4 @@ export function useDatabase() {
   return initializeFirebase().database;
 }
 
-export { useUser };
+export { useUser, useCollection, useDoc };
