@@ -1,15 +1,18 @@
 'use client';
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
-import { getDatabase } from 'firebase/database';
+import { getFirestore, Firestore } from 'firebase/firestore';
+import { getAuth, Auth } from 'firebase/auth';
+import { getDatabase, Database } from 'firebase/database';
 import { firebaseConfig } from './config';
 import { useUser } from './auth/use-user';
 import { useCollection } from './firestore/use-collection';
 import { useDoc } from './firestore/use-doc';
 import { useMemo } from 'react';
 
+/**
+ * Idempotent initialization of Firebase services.
+ */
 export function initializeFirebase() {
   let app: FirebaseApp;
   if (getApps().length === 0) {
@@ -25,9 +28,13 @@ export function initializeFirebase() {
   return { firebaseApp: app, firestore, auth, database };
 }
 
+// Re-export provider and hooks
 export * from './provider';
-export * from './client-provider';
+export { FirebaseClientProvider } from './client-provider';
 
+/**
+ * Memoize Firebase references to prevent unnecessary re-renders.
+ */
 export function useMemoFirebase<T>(factory: () => T, deps: any[]): T {
   return useMemo(factory, deps);
 }

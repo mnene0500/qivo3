@@ -12,7 +12,7 @@ import Link from "next/link"
 
 /**
  * @fileOverview Welcome / Auth Entry Page.
- * Replaced Fast Login with Google Authentication and matched styling to user screenshot.
+ * Implements standard Google and Email authentication flows with standard onboarding.
  */
 export default function WelcomePage() {
   const [mounted, setMounted] = useState(false)
@@ -26,7 +26,7 @@ export default function WelcomePage() {
     setMounted(true)
   }, [])
 
-  // Auto-redirect if already signed in
+  // Intelligence: Redirect users based on their onboarding status if already logged in
   useEffect(() => {
     if (isInitialized && user) {
       const checkRedirect = async () => {
@@ -36,7 +36,7 @@ export default function WelcomePage() {
           if (snap.exists() && snap.data().onboardingComplete) {
             router.replace("/home")
           } else {
-            // Google and Email users go to standard onboarding
+            // New users or incomplete profiles go to standard onboarding
             router.replace("/onboarding")
           }
         } catch (e) {
@@ -52,20 +52,21 @@ export default function WelcomePage() {
     try {
       const provider = new GoogleAuthProvider()
       await signInWithPopup(auth, provider)
-      // Redirection is handled by the useEffect above
+      // Redirection is handled by the intelligent useEffect above
     } catch (error: any) {
       console.error("Google Sign-In Error:", error)
       setLoading(false)
     }
   }
 
+  // Prevent flash of content during initialization
   if (!mounted || authLoading || !isInitialized || user) {
     return <div className="flex-1 bg-black min-h-screen" />
   }
 
   return (
     <div className="relative flex-1 flex flex-col min-h-screen bg-black overflow-hidden select-none">
-      {/* Background Image with Slow Pulse Animation */}
+      {/* Cinematic Background */}
       <div className="absolute inset-0 z-0 scale-105 animate-pulse-slow">
         <Image 
           src="https://picsum.photos/seed/matchlove/1000/1500" 
@@ -96,7 +97,7 @@ export default function WelcomePage() {
           </div>
         </div>
 
-        {/* Action Buttons Swapped to match screenshot priority */}
+        {/* Primary Auth Actions */}
         <div className="w-full max-w-sm space-y-4 animate-in fade-in slide-in-from-bottom-10 duration-1000">
           <Button 
             onClick={() => router.push("/auth")}
