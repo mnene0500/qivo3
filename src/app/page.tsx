@@ -7,6 +7,7 @@ import { useUser, useFirestore } from "@/firebase"
 
 /**
  * Root Redirector with Splash Screen.
+ * Handles intelligent routing based on authentication type and onboarding status.
  */
 export default function RootPage() {
   const router = useRouter()
@@ -20,20 +21,26 @@ export default function RootPage() {
           try {
             const userRef = doc(db, "users", user.uid)
             const snap = await getDoc(userRef)
+            
             if (snap.exists() && snap.data().onboardingComplete) {
+              // User has a profile and has finished setup
               router.replace("/home")
             } else {
-              // Direct users to different onboarding paths based on auth type
+              // User is authenticated but hasn't finished onboarding
               if (user.isAnonymous) {
+                // Anonymous users (Fast Login legacy)
                 router.replace("/fastonboard")
               } else {
+                // Standard users (Google or Email)
                 router.replace("/onboarding")
               }
             }
           } catch (e) {
+            console.error("Root redirection error:", e)
             router.replace("/welcome")
           }
         } else {
+          // No active session
           router.replace("/welcome")
         }
       }

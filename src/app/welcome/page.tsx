@@ -26,6 +26,7 @@ export default function WelcomePage() {
     setMounted(true)
   }, [])
 
+  // Auto-redirect if already signed in
   useEffect(() => {
     if (isInitialized && user) {
       const checkRedirect = async () => {
@@ -35,8 +36,8 @@ export default function WelcomePage() {
           if (snap.exists() && snap.data().onboardingComplete) {
             router.replace("/home")
           } else {
-            // Standard onboarding for regular users (Email/Google)
-            // Anonymous users (if any exist from old sessions) still go to fast setup
+            // Google and Email users go to full onboarding
+            // Anonymous users (legacy) go to fast setup
             if (user.isAnonymous) {
               router.replace("/fastonboard")
             } else {
@@ -56,7 +57,7 @@ export default function WelcomePage() {
     try {
       const provider = new GoogleAuthProvider()
       await signInWithPopup(auth, provider)
-      // Redirection is handled by the useEffect above
+      // Redirection is handled by the useEffect above once the auth state changes
     } catch (error: any) {
       console.error("Google Sign-In Error:", error)
       setLoading(false)
@@ -69,6 +70,7 @@ export default function WelcomePage() {
 
   return (
     <div className="relative flex-1 flex flex-col min-h-screen bg-black overflow-hidden select-none">
+      {/* Background Image with Slow Pulse Animation */}
       <div className="absolute inset-0 z-0 scale-105 animate-pulse-slow">
         <Image 
           src="https://picsum.photos/seed/matchlove/1000/1500" 
@@ -83,6 +85,7 @@ export default function WelcomePage() {
       </div>
 
       <div className="relative z-10 flex-1 flex flex-col px-8 pt-48 pb-16 justify-between items-center text-center">
+        {/* Branding Section */}
         <div className="flex flex-col items-center space-y-6 animate-in slide-in-from-top-10 duration-1000">
           <div className="space-y-3">
             <h1 className="text-5xl font-logo font-black text-white drop-shadow-2xl tracking-tight">
@@ -98,6 +101,7 @@ export default function WelcomePage() {
           </div>
         </div>
 
+        {/* Action Buttons */}
         <div className="w-full max-w-sm space-y-4 animate-in fade-in slide-in-from-bottom-10 duration-1000">
           <Button 
             disabled={loading}
