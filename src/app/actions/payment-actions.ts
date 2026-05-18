@@ -6,7 +6,7 @@ import { PESAPAL_CONFIG } from '@/lib/pesapal-config';
  * @fileOverview PesaPal integration actions for API v3.
  */
 
-interface TransactionStatusResponse {
+export interface TransactionStatusResponse {
   amount: number;
   currency: string;
   status_code: number;
@@ -159,11 +159,12 @@ export async function getTransactionStatus(orderTrackingId: string): Promise<Tra
     if (!response.ok) return null;
     
     const data = await response.json();
+    // Normalize data to a clean response object
     return {
-      amount: data.amount,
-      currency: data.currency,
-      status_code: data.status_code,
-      payment_method: data.payment_method
+      amount: Number(data.amount || 0),
+      currency: data.currency || 'KES',
+      status_code: Number(data.status_code),
+      payment_method: data.payment_method || 'Unknown'
     };
   } catch (error) {
     console.error("[PesaPal] Status Fetch Error:", error);
