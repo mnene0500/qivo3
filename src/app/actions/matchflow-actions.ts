@@ -23,7 +23,7 @@ import {
 } from 'firebase/database';
 
 /**
- * Awards coins to a user based on their numeric MatchFlow ID.
+ * Awards coins to a user based on their numeric QIVO ID.
  */
 export async function awardCoinsAction(callerUid: string, targetMatchFlowId: string, amount: number) {
   const { firestore: db, database: rtdb } = initializeFirebase();
@@ -63,7 +63,7 @@ export async function awardCoinsAction(callerUid: string, targetMatchFlowId: str
 
     const targetQuery = query(collection(db, "users"), where("matchFlowId", "==", targetMatchFlowId.trim()));
     const targetSnap = await getDocs(targetQuery);
-    if (targetSnap.empty) return { success: false, error: "User with this MatchFlow ID not found." };
+    if (targetSnap.empty) return { success: false, error: "User with this QIVO ID not found." };
 
     const targetDoc = targetSnap.docs[0];
     const targetUid = targetDoc.id;
@@ -138,7 +138,7 @@ export async function createAgencyAction(agentUid: string, agencyName: string) {
     await setDoc(doc(db, "agencies", code), { 
       code, 
       agentUid, 
-      name: agencyName || "MatchFlow Agency", 
+      name: agencyName || "QIVO Agency", 
       createdAt: serverTimestamp() 
     });
     

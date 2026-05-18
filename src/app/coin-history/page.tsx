@@ -114,7 +114,7 @@ export default function CoinHistoryPage() {
       
       <footer className="p-8 text-center bg-gray-50/30">
         <p className="text-[9px] font-bold text-gray-300 uppercase tracking-[0.3em] leading-relaxed">
-          Ledger synchronized with global MatchFlow economy.
+          Ledger synchronized with global QIVO economy.
         </p>
       </footer>
     </div>

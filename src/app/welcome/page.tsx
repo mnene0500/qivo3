@@ -96,8 +96,8 @@ export default function WelcomePage() {
         {/* Branding Section */}
         <div className="flex flex-col items-center space-y-6 animate-in slide-in-from-top-10 duration-1000">
           <div className="space-y-3">
-            <h1 className="text-5xl font-logo font-black text-white drop-shadow-2xl tracking-tight">
-              MatchFlow
+            <h1 className="text-6xl font-logo font-black text-white drop-shadow-2xl tracking-tight">
+              QIVO
             </h1>
             <div className="flex items-center justify-center gap-2">
               <div className="h-[1px] w-8 bg-white/20" />

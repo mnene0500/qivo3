@@ -13,7 +13,7 @@ export default function AboutPage() {
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full">
           <ChevronLeft className="w-6 h-6 text-black" />
         </Button>
-        <h1 className="text-lg font-bold text-black ml-2">About MatchFlow</h1>
+        <h1 className="text-lg font-bold text-black ml-2">About QIVO</h1>
       </header>
 
       <main className="flex-1 p-6 flex flex-col items-center space-y-8">
@@ -29,7 +29,7 @@ export default function AboutPage() {
 
         <div className="space-y-6 text-center max-w-sm">
           <p className="text-sm text-gray-600 font-medium leading-relaxed">
-            MatchFlow is more than just a dating app. It's a platform designed for genuine connections and meaningful conversations.
+            QIVO is more than just a dating app. It's a platform designed for genuine connections and meaningful conversations.
           </p>
           <p className="text-sm text-gray-600 font-medium leading-relaxed">
             We believe that every interaction counts. Our unique ecosystem allows users to express themselves, find like-minded people, and build lasting relationships in a safe and verified environment.
@@ -40,7 +40,7 @@ export default function AboutPage() {
         </div>
 
         <div className="pt-10">
-          <p className="text-[10px] font-bold text-gray-300 uppercase tracking-[0.2em]">© 2024 MatchFlow Team</p>
+          <p className="text-[10px] font-bold text-gray-300 uppercase tracking-[0.2em]">© 2024 QIVO Team</p>
         </div>
       </main>
     </div>

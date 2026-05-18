@@ -45,7 +45,7 @@ export default function CoinSellersPage() {
             <h2 className="text-lg font-bold">Verified Merchants</h2>
           </div>
           <p className="text-[11px] font-medium text-gray-500 leading-relaxed">
-            Contact these certified sellers to recharge your MatchFlow coins via local payment methods like M-Pesa.
+            Contact these certified sellers to recharge your QIVO coins via local payment methods like M-Pesa.
           </p>
         </div>
 
@@ -99,7 +99,7 @@ export default function CoinSellersPage() {
 
       <footer className="p-10 text-center bg-gray-50/30">
         <p className="text-[9px] font-bold text-gray-300 uppercase tracking-[0.3em] leading-relaxed">
-          MatchFlow Certified Sellers are vetted for your security. Always trade within the platform.
+          QIVO Certified Sellers are vetted for your security. Always trade within the platform.
         </p>
       </footer>
     </div>

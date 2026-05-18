@@ -47,7 +47,7 @@ export function InstallPrompt() {
             <Download className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-xs font-bold text-black uppercase tracking-tight">MatchFlow App</p>
+            <p className="text-xs font-bold text-black uppercase tracking-tight">QIVO App</p>
             <p className="text-[10px] text-gray-400 font-medium">Add to home screen for faster access</p>
           </div>
         </div>

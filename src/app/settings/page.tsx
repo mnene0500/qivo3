@@ -138,7 +138,7 @@ export default function SettingsPage() {
   const settingsList = [
     { label: "Charge settings", href: "/recharge", icon: <CreditCard className="w-4 h-4 text-blue-500" /> },
     { label: "Blocked List", href: "/blocked-list", icon: <Ban className="w-4 h-4 text-red-400" /> },
-    { label: "About MatchFlow", href: "/about", icon: <Info className="w-4 h-4 text-gray-500" /> },
+    { label: "About QIVO", href: "/about", icon: <Info className="w-4 h-4 text-gray-500" /> },
     { label: "Hard Reset (Clear Cache)", onClick: handleClearCache, icon: <RefreshCw className="w-4 h-4 text-orange-500" /> },
   ]
 
@@ -208,7 +208,7 @@ export default function SettingsPage() {
             </>
           )}
         </div>
-        <p className="text-center text-[9px] text-gray-300 font-bold mt-8 uppercase tracking-[0.3em]">MatchFlow Kenya v1.2.1</p>
+        <p className="text-center text-[9px] text-gray-300 font-bold mt-8 uppercase tracking-[0.3em]">QIVO Kenya v1.2.1</p>
       </footer>
     </div>
   )

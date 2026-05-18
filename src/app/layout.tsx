@@ -18,13 +18,13 @@ const pacifico = Pacifico({
 });
 
 export const metadata: Metadata = {
-  title: 'MatchFlow',
+  title: 'QIVO',
   description: 'Connect with Heart',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'MatchFlow',
+    title: 'QIVO',
   },
 };
 

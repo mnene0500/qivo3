@@ -128,7 +128,7 @@ export default function UnifiedAuthPage() {
       <div className="flex-1 flex flex-col justify-center space-y-8 max-w-sm mx-auto w-full">
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-black text-black tracking-tight">Welcome</h1>
-          <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Login or Join MatchFlow</p>
+          <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Login or Join QIVO</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
@@ -196,7 +196,7 @@ export default function UnifiedAuthPage() {
         </form>
 
         <p className="text-[10px] text-center text-gray-400 font-medium px-8 leading-relaxed">
-          By continuing, you agree to MatchFlow's <Link href="/terms" className="underline font-bold text-gray-500">Terms</Link> and <Link href="/privacy" className="underline font-bold text-gray-500">Privacy Policy</Link>.
+          By continuing, you agree to QIVO's <Link href="/terms" className="underline font-bold text-gray-500">Terms</Link> and <Link href="/privacy" className="underline font-bold text-gray-500">Privacy Policy</Link>.
         </p>
       </div>
     </div>
