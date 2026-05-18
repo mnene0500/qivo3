@@ -77,14 +77,14 @@ export default function WelcomePage() {
 
   return (
     <div className="relative flex-1 flex flex-col min-h-screen bg-black overflow-hidden select-none">
-      {/* Cinematic Video Background */}
+      {/* Cinematic Video Background - Removed scale-105 to stop movement */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <video
           autoPlay
           loop
           muted
           playsInline
-          className="absolute inset-0 w-full h-full object-cover opacity-60 scale-105"
+          className="absolute inset-0 w-full h-full object-cover opacity-60"
         >
           <source src="/backgroundvideo.mp4" type="video/mp4" />
         </video>
@@ -93,8 +93,8 @@ export default function WelcomePage() {
       </div>
 
       <div className="relative z-10 flex-1 flex flex-col px-8 pt-48 pb-16 justify-between items-center text-center">
-        {/* Branding Section */}
-        <div className="flex flex-col items-center space-y-6 animate-in slide-in-from-top-10 duration-1000">
+        {/* Branding Section - Removed animate-in classes */}
+        <div className="flex flex-col items-center space-y-6">
           <div className="space-y-3">
             <h1 className="text-6xl font-logo font-black text-white drop-shadow-2xl tracking-tight">
               QIVO
@@ -109,8 +109,8 @@ export default function WelcomePage() {
           </div>
         </div>
 
-        {/* Primary Auth Actions */}
-        <div className="w-full max-w-sm space-y-4 animate-in fade-in slide-in-from-bottom-10 duration-1000">
+        {/* Primary Auth Actions - Removed animate-in classes */}
+        <div className="w-full max-w-sm space-y-4">
           <Button 
             onClick={() => router.push("/auth")}
             className="w-full h-16 rounded-3xl bg-white text-black hover:bg-white/90 font-bold text-sm tracking-widest uppercase shadow-2xl active:scale-95 transition-all"
