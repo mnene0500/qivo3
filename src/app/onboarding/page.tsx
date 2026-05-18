@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore"
 import { ref, set as rtdbSet, push } from "firebase/database"
@@ -38,6 +38,13 @@ export default function OnboardingPage() {
 
   const totalSteps = 3
 
+  // Pre-fill name from auth profile (Google/Email)
+  useEffect(() => {
+    if (user?.displayName && !name) {
+      setName(user.displayName)
+    }
+  }, [user, name])
+
   const maxDate = useMemo(() => {
     const d = new Date()
     d.setFullYear(d.getFullYear() - 18)
@@ -65,6 +72,9 @@ export default function OnboardingPage() {
       const initialDiamonds = gender === 'female' ? 150 : 0
       const timestamp = Date.now()
 
+      // Use Google photo if available, otherwise fallback to placeholder
+      const profilePhoto = user.photoURL || `https://picsum.photos/seed/${user.uid}/400/400`
+
       const updateData: any = {
         uid: user.uid,
         email: user.email || `anon_${user.uid}@matchflow.app`,
@@ -74,7 +84,7 @@ export default function OnboardingPage() {
         country,
         lookingFor: lookingFor,
         onboardingComplete: true,
-        photoURL: `https://picsum.photos/seed/${user.uid}/400/400`,
+        photoURL: profilePhoto,
         updatedAt: serverTimestamp(),
         createdAt: existingData?.createdAt || serverTimestamp(),
         matchFlowId: mId,
@@ -168,6 +178,9 @@ export default function OnboardingPage() {
                 onChange={(e) => setName(e.target.value)} 
                 className="rounded-2xl h-14 border-gray-100 bg-gray-50 focus:bg-white text-lg font-bold"
               />
+              {user?.displayName && (
+                <p className="text-[9px] text-blue-500 font-bold uppercase tracking-widest ml-1">Imported from profile</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase text-gray-400 ml-1">Gender</Label>
