@@ -23,7 +23,7 @@ export default function RootPage() {
             if (snap.exists() && snap.data().onboardingComplete) {
               router.replace("/home")
             } else {
-              // Separate onboarding routes based on auth method
+              // Direct users to different onboarding paths based on auth type
               if (user.isAnonymous) {
                 router.replace("/fastonboard")
               } else {

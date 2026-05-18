@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore"
 import { ref, set as rtdbSet, push } from "firebase/database"
@@ -29,6 +29,7 @@ export default function FastOnboardingPage() {
 
   const generateRandomDOB = () => {
     const currentYear = new Date().getFullYear();
+    // Random age between 21 and 50
     const age = Math.floor(Math.random() * 30) + 21; 
     const year = currentYear - age;
     const month = Math.floor(Math.random() * 12);
@@ -55,6 +56,7 @@ export default function FastOnboardingPage() {
       const finalName = `Guest ${mId.slice(-4)}`
       const finalDob = generateRandomDOB()
 
+      // Initial balances for new users
       const initialCoins = gender === 'male' ? 150 : 0
       const initialDiamonds = gender === 'female' ? 150 : 0
       const timestamp = Date.now()
@@ -82,6 +84,7 @@ export default function FastOnboardingPage() {
 
       await setDoc(userRef, updateData, { merge: true })
       
+      // Initialize balances in RTDB
       const balanceRef = ref(rtdb, `balances/${user.uid}`)
       await rtdbSet(balanceRef, {
         coins: initialCoins,
@@ -89,6 +92,7 @@ export default function FastOnboardingPage() {
         updatedAt: timestamp
       })
 
+      // Log welcome bonus
       if (initialCoins > 0) {
         await push(ref(rtdb, `coin_history/${user.uid}`), {
           amount: initialCoins,

@@ -49,6 +49,7 @@ export default function WelcomePage() {
   }, [user, isInitialized, router, db])
 
   const handleFastLogin = async () => {
+    // If already anonymous but not onboarded, just go to fast setup
     if (auth.currentUser && auth.currentUser.isAnonymous) {
       router.push("/fastonboard")
       return
@@ -57,6 +58,7 @@ export default function WelcomePage() {
     setLoading(true)
     try {
       await signInAnonymously(auth)
+      // Redirection is handled by the useEffect above
       router.push("/fastonboard")
     } catch (error) {
       setLoading(false)
