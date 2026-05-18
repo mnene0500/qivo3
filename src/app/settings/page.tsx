@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useAuth, useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase"
@@ -105,7 +104,6 @@ export default function SettingsPage() {
       const uid = user.uid
       const userRef = doc(db, "users", uid)
       
-      // Pattern 1: Non-blocking mutation with contextual error emitter
       deleteDoc(userRef)
         .catch(async () => {
           const permissionError = new FirestorePermissionError({
