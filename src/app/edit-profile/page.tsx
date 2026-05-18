@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
@@ -253,7 +252,14 @@ export default function EditProfilePage() {
         </div>
       </main>
 
-      <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        className="hidden" 
+        accept="image/*" 
+        capture="user"
+        onChange={handleFileChange} 
+      />
 
       <Dialog open={cropOpen} onOpenChange={setCropOpen}>
         <DialogContent className="max-w-md h-[500px] p-0 overflow-hidden rounded-[2.5rem]">

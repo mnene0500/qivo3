@@ -267,7 +267,7 @@ export default function VerifyIdentityPage() {
                     </div>
                     <div className="text-center space-y-3">
                       <h2 className="text-2xl font-bold text-black tracking-tight">Verification Failed</h2>
-                      <p className="text-sm font-medium text-gray-400 px-8 leading-relaxed">
+                      <p className="text-sm font-medium text-gray-500 px-8 leading-relaxed">
                         The AI couldn't confirm a match. Please ensure your lighting is good and your profile photo is clear.
                       </p>
                     </div>
