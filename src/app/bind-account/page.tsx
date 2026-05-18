@@ -159,7 +159,7 @@ export default function BindAccountPage() {
 
       <footer className="p-10 text-center">
         <p className="text-[10px] font-bold text-gray-300 leading-relaxed uppercase tracking-[0.2em]">
-          MatchFlow Security • Account Recovery
+          QIVO Security • Account Recovery
         </p>
       </footer>
     </div>

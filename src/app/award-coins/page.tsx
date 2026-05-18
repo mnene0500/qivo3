@@ -58,7 +58,7 @@ export default function AwardCoinsPage() {
             <Coins className="w-10 h-10 text-yellow-500" />
           </div>
           <div className="space-y-1">
-            <h2 className="text-2xl font-black text-black tracking-tight">Send MatchFlow Coins</h2>
+            <h2 className="text-2xl font-black text-black tracking-tight">Send QIVO Coins</h2>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Certified Seller Tools</p>
           </div>
         </div>

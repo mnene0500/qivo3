@@ -86,7 +86,7 @@ export default function ManageRolesPage() {
         <div className="w-full max-w-sm space-y-6">
           <div className="flex gap-2">
             <Input 
-              placeholder="MatchFlow ID" 
+              placeholder="QIVO ID" 
               value={targetId} 
               onChange={(e) => setTargetId(e.target.value)} 
               className="rounded-2xl h-14 border-gray-100 bg-gray-50 font-bold"
