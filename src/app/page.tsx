@@ -6,8 +6,8 @@ import { doc, getDoc } from "firebase/firestore"
 import { useUser, useFirestore } from "@/firebase"
 
 /**
- * Root Redirector with Splash Screen.
- * Handles intelligent routing based on authentication type and onboarding status.
+ * Root Redirector with Cinematic Splash Screen.
+ * Displays the QIVO logo while handling intelligent routing.
  */
 export default function RootPage() {
   const router = useRouter()
@@ -17,31 +17,36 @@ export default function RootPage() {
   useEffect(() => {
     if (isInitialized && !loading) {
       const checkDestination = async () => {
+        // Minimum display time for the splash screen vibe
+        const startTime = Date.now();
+        
         if (user) {
           try {
             const userRef = doc(db, "users", user.uid)
             const snap = await getDoc(userRef)
             
-            if (snap.exists() && snap.data().onboardingComplete) {
-              // User has a profile and has finished setup
-              router.replace("/home")
-            } else {
-              // User is authenticated but hasn't finished onboarding
-              if (user.isAnonymous) {
-                // Anonymous users (Fast Login legacy)
-                router.replace("/fastonboard")
+            const elapsedTime = Date.now() - startTime;
+            const remainingTime = Math.max(0, 1500 - elapsedTime);
+
+            setTimeout(() => {
+              if (snap.exists() && snap.data().onboardingComplete) {
+                router.replace("/home")
               } else {
-                // Standard users (Google or Email)
-                router.replace("/onboarding")
+                if (user.isAnonymous) {
+                  router.replace("/fastonboard")
+                } else {
+                  router.replace("/onboarding")
+                }
               }
-            }
+            }, remainingTime);
           } catch (e) {
             console.error("Root redirection error:", e)
             router.replace("/welcome")
           }
         } else {
-          // No active session
-          router.replace("/welcome")
+          const elapsedTime = Date.now() - startTime;
+          const remainingTime = Math.max(0, 1500 - elapsedTime);
+          setTimeout(() => router.replace("/welcome"), remainingTime);
         }
       }
 
@@ -50,10 +55,31 @@ export default function RootPage() {
   }, [user, loading, isInitialized, router, db])
 
   return (
-    <div className="flex-1 bg-black min-h-screen flex flex-col items-center justify-center">
-      <div className="relative">
-        <div className="w-20 h-20 border-4 border-white/5 rounded-full" />
-        <div className="w-20 h-20 border-4 border-[#00A2FF] border-t-transparent rounded-full animate-spin absolute inset-0" />
+    <div className="flex-1 bg-black min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
+      {/* Background Glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#00A2FF]/20 rounded-full blur-[100px] animate-pulse-slow" />
+      
+      <div className="relative z-10 flex flex-col items-center gap-6">
+        <h1 className="text-7xl font-logo text-white tracking-tight drop-shadow-2xl animate-in fade-in zoom-in-95 duration-1000">
+          QIVO
+        </h1>
+        
+        <div className="flex items-center gap-3">
+          <div className="h-[1px] w-8 bg-white/10" />
+          <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.4em]">
+            Connect with Heart
+          </p>
+          <div className="h-[1px] w-8 bg-white/10" />
+        </div>
+      </div>
+
+      {/* Subtle loader at the bottom */}
+      <div className="absolute bottom-16 inset-x-0 flex justify-center">
+        <div className="flex gap-1.5">
+          <div className="w-1 h-1 bg-[#00A2FF] rounded-full animate-bounce [animation-delay:-0.3s]" />
+          <div className="w-1 h-1 bg-[#00A2FF] rounded-full animate-bounce [animation-delay:-0.15s]" />
+          <div className="w-1 h-1 bg-[#00A2FF] rounded-full animate-bounce" />
+        </div>
       </div>
     </div>
   )
