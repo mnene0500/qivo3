@@ -157,8 +157,8 @@ export default function HomePage() {
     <div className="flex-1 pb-24 bg-[#F9FAFB] min-h-screen relative select-none">
       <div className="absolute top-0 left-0 right-0 z-0 flex flex-col">
         <div className="h-[72px] bg-[#00A2FF] relative overflow-hidden">
-          <div className="absolute -right-4 -top-10 rotate-[-12deg] opacity-20 select-none pointer-events-none">
-            <span className="text-7xl font-logo text-white whitespace-nowrap">QIVO</span>
+          <div className="absolute -right-4 -top-10 rotate-[-12deg] opacity-30 select-none pointer-events-none">
+            <span className="text-8xl font-logo text-white whitespace-nowrap">QIVO</span>
           </div>
         </div>
         <div className="h-[120px] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.03)]" />
@@ -200,7 +200,12 @@ export default function HomePage() {
           </div>
         </div>
 
-        <main className="px-4 pt-3">
+        <main className="px-4 pt-3 relative">
+          {/* Subtle Background Stamp */}
+          <div className="fixed inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none -z-10 rotate-[-25deg]">
+            <span className="text-[20vw] font-logo text-black whitespace-nowrap">QIVO</span>
+          </div>
+
           {!db ? (
             <div className="flex flex-col items-center justify-center py-20 opacity-40">
                <p className="text-[10px] font-bold uppercase tracking-widest">System Connecting...</p>
