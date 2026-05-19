@@ -10,7 +10,7 @@ import { useUser, useDatabase } from "@/firebase"
 
 /**
  * @fileOverview High-fidelity Bottom Navigation.
- * Features real-time unread message synchronization and modern neon highlights.
+ * Features real-time unread message synchronization and brand-aligned active states.
  */
 export function BottomNav() {
   const pathname = usePathname()
@@ -55,21 +55,21 @@ export function BottomNav() {
             href={item.href}
             className={cn(
               "flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all relative",
-              isActive ? "text-black" : "text-gray-400"
+              isActive ? "text-[#00A2FF]" : "text-gray-400"
             )}
           >
             <div className={cn(
               "relative p-1.5 rounded-2xl flex items-center justify-center transition-all duration-300",
-              isActive && "bg-[#D4FF00] shadow-sm scale-110"
+              isActive && "bg-[#00A2FF] shadow-lg shadow-blue-100 scale-110"
             )}>
-              <item.icon className={cn("w-6 h-6", isActive ? "text-black fill-current" : "text-gray-400")} />
+              <item.icon className={cn("w-6 h-6", isActive ? "text-white fill-current" : "text-gray-400")} />
               {item.badge !== undefined && item.badge > 0 && (
                 <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-white animate-in zoom-in">
                   {item.badge > 9 ? '9+' : item.badge}
                 </div>
               )}
             </div>
-            <span className={cn("text-[9px] font-black uppercase tracking-tight mt-0.5", isActive ? "text-black opacity-100" : "text-gray-400 opacity-60")}>
+            <span className={cn("text-[9px] font-black uppercase tracking-tight mt-0.5", isActive ? "text-[#00A2FF] opacity-100" : "text-gray-400 opacity-60")}>
               {item.label}
             </span>
           </Link>

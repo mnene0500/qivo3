@@ -7,7 +7,7 @@ import { ref, update, increment as rtdbIncrement, push, set, get } from "firebas
 import { useFirestore, useUser, useDoc, useDatabase } from "@/firebase"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { ChevronLeft, Coins, Users, Loader2, Send } from "lucide-react"
+import { ChevronLeft, Coins, Users, Loader2, Send, Sparkles } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
@@ -123,13 +123,12 @@ export default function MysteryNotePage() {
   }
 
   return (
-    <div className="flex-1 bg-[#FF6B00] min-h-screen flex flex-col select-none relative overflow-hidden">
-      <div className="absolute -top-10 -right-20 w-80 h-80 opacity-40 pointer-events-none">
-        <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M100 80C140 30 190 50 190 100C190 150 140 170 100 120C60 170 10 150 10 100C10 50 60 30 100 80Z" fill="white" fillOpacity="0.2"/>
-            <rect x="95" y="60" width="10" height="80" rx="5" fill="white" fillOpacity="0.3"/>
-        </svg>
+    <div className="flex-1 bg-[#00A2FF] min-h-screen flex flex-col select-none relative overflow-hidden">
+      {/* Dynamic Background Elements */}
+      <div className="absolute -top-10 -right-20 w-80 h-80 opacity-20 pointer-events-none rotate-12">
+        <Sparkles className="w-full h-full text-white" />
       </div>
+      <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
 
       <header className="px-4 h-16 flex items-center bg-transparent z-50">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full text-white hover:bg-white/10">
@@ -137,40 +136,34 @@ export default function MysteryNotePage() {
         </Button>
       </header>
 
-      <main className="flex-1 px-6 pt-4 pb-10 space-y-8 overflow-y-auto no-scrollbar">
-        <div className="space-y-1">
-          <h1 className="text-5xl font-black text-white tracking-tight leading-tight">Leave a message</h1>
-          <p className="text-lg font-bold text-white/80">Check others messages</p>
+      <main className="flex-1 px-6 pt-4 pb-10 space-y-12 overflow-y-auto no-scrollbar relative z-10">
+        <div className="space-y-2">
+          <h1 className="text-5xl font-black text-white tracking-tighter leading-tight animate-in fade-in slide-in-from-left-4 duration-700">
+            Mystery<br/>Note
+          </h1>
+          <p className="text-sm font-bold text-white/70 uppercase tracking-[0.2em] ml-1">
+            Send a secret message into the flux
+          </p>
         </div>
 
-        <div className="space-y-3">
-          {["Hello. I'm not here for money, I just want to chat", "💕💕 nice to meet you here 💗", "hi honey I'm alone, so maybe we can do sth nice together???"].map((t, i) => (
-            <div key={i} className={cn(
-              "px-5 py-3 rounded-full bg-white/20 backdrop-blur-md border border-white/10 text-white font-bold text-sm max-w-[90%]",
-              i % 2 === 1 ? "ml-auto rounded-br-none" : "mr-auto rounded-bl-none"
-            )}>
-              {t}
-            </div>
-          ))}
-        </div>
-
-        <div className="bg-white/30 backdrop-blur-xl border border-white/20 rounded-[3rem] p-8 shadow-2xl mt-10 space-y-6">
-          <div className="space-y-1">
-            <h2 className="text-3xl font-black text-white leading-tight">Tell me a little<br/>secret 🤫 ..</h2>
-            <div className="flex items-center justify-between pt-4">
-               <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-400 rounded-full shadow-sm">
-                  <Coins className="w-3.5 h-3.5 text-orange-700" />
-                  <span className="text-[10px] font-black text-orange-900 uppercase">5 coins/person</span>
+        <div className="bg-white/15 backdrop-blur-2xl border border-white/20 rounded-[3rem] p-8 shadow-2xl space-y-8 animate-in zoom-in-95 duration-500">
+          <div className="space-y-4">
+            <h2 className="text-2xl font-black text-white leading-tight">Write something<br/>anonymous...</h2>
+            
+            <div className="flex flex-wrap items-center gap-3">
+               <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-400 rounded-full shadow-lg border border-yellow-200">
+                  <Coins className="w-3.5 h-3.5 text-yellow-800" />
+                  <span className="text-[10px] font-black text-yellow-900 uppercase">5 coins / user</span>
                </div>
                
-               <div className="flex items-center gap-2 px-4 py-1.5 bg-white/20 rounded-full border border-white/30">
-                  <Users className="w-3.5 h-3.5 text-white" />
+               <div className="flex items-center gap-2 px-4 py-1.5 bg-white/10 rounded-full border border-white/20">
+                  <Users className="w-3.5 h-3.5 text-white/80" />
                   <select 
                     value={recipientCount} 
                     onChange={(e) => setRecipientCount(Number(e.target.value))}
-                    className="bg-transparent border-none text-xs font-black text-white outline-none cursor-pointer"
+                    className="bg-transparent border-none text-[10px] font-black text-white outline-none cursor-pointer uppercase tracking-widest"
                   >
-                    {RECIPIENT_OPTIONS.map(n => <option key={n} value={n} className="text-black">{n} people</option>)}
+                    {RECIPIENT_OPTIONS.map(n => <option key={n} value={n} className="text-black">{n} People</option>)}
                   </select>
                </div>
             </div>
@@ -178,30 +171,36 @@ export default function MysteryNotePage() {
 
           <div className="relative">
             <Textarea 
-              placeholder="Write down your joys/annoyances/doubts/little secrets.."
+              placeholder="Your little secrets, joys, or doubts..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              className="bg-white rounded-3xl min-h-[160px] border-none text-black font-bold placeholder:text-gray-300 p-6 text-sm resize-none focus-visible:ring-2 focus-visible:ring-yellow-400/50"
+              className="bg-white rounded-[2rem] min-h-[180px] border-none text-black font-bold placeholder:text-gray-300 p-6 text-sm resize-none focus-visible:ring-4 focus-visible:ring-white/20 shadow-inner"
             />
           </div>
 
           <Button 
             onClick={handleSend}
             disabled={isSending || !message.trim()}
-            className="w-full h-16 rounded-full bg-[#FF6B00] hover:bg-[#E65A00] text-white font-black uppercase tracking-[0.2em] text-sm shadow-xl shadow-orange-900/20 active:scale-95 transition-all"
+            className="w-full h-16 rounded-full bg-white text-[#00A2FF] hover:bg-gray-100 font-black uppercase tracking-[0.2em] text-sm shadow-xl active:scale-95 transition-all"
           >
             {isSending ? <Loader2 className="w-6 h-6 animate-spin" /> : (
               <div className="flex items-center gap-2">
                 <Send className="w-5 h-5" />
-                Send for {totalCost} Coins
+                Blast to {recipientCount} Users
               </div>
             )}
           </Button>
         </div>
+
+        <div className="p-6 bg-black/10 rounded-[2.5rem] border border-white/5">
+          <p className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em] leading-relaxed text-center">
+            Messages are delivered directly to random users of the opposite gender. Always be respectful.
+          </p>
+        </div>
       </main>
 
       <footer className="p-8 text-center bg-transparent">
-        <p className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">QIVO Anonymous Flux</p>
+        <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.4em]">QIVO Social Network</p>
       </footer>
     </div>
   )
