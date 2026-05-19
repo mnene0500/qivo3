@@ -1,3 +1,4 @@
+
 'use server';
 
 import { PESAPAL_CONFIG } from '@/lib/pesapal-config';
@@ -6,6 +7,7 @@ import { ref, update, increment, push, set, get } from 'firebase/database';
 
 /**
  * @fileOverview PesaPal integration actions for API v3.
+ * Consolidated logic for secure payment fulfillment.
  */
 
 export interface TransactionStatusResponse {
@@ -20,7 +22,7 @@ export interface TransactionStatusResponse {
  */
 export async function getAccessToken(): Promise<string> {
   if (!PESAPAL_CONFIG.CONSUMER_KEY || !PESAPAL_CONFIG.CONSUMER_SECRET) {
-    console.error("[PesaPal] CRITICAL: Consumer Key or Secret is missing in Environment Variables.");
+    console.error("[PesaPal] CRITICAL: Consumer Key or Secret is missing in Vercel settings.");
     throw new Error('PesaPal Configuration Error: Missing Keys');
   }
 
@@ -137,7 +139,7 @@ export async function getTransactionStatus(orderTrackingId: string): Promise<Tra
 
 /**
  * Securely fulfills a payment by checking status and updating RTDB.
- * This is the CORE logic that awards coins.
+ * This logic awards coins to the user's wallet.
  */
 export async function fulfillPaymentAction(orderTrackingId: string, merchantReference: string) {
   console.log(`[Fulfillment Start] Tracking: ${orderTrackingId}, Ref: ${merchantReference}`);
@@ -145,14 +147,12 @@ export async function fulfillPaymentAction(orderTrackingId: string, merchantRefe
   try {
     // 1. Verify payment status with PesaPal API
     const status = await getTransactionStatus(orderTrackingId);
-    console.log(`[PesaPal Response] Status Code: ${status?.status_code}, Amount: ${status?.amount}`);
     
     // Status Code 1 = Completed/Success in PesaPal v3
     if (status && (Number(status.status_code) === 1)) {
       const { database: rtdb } = initializeFirebase();
       
       // 2. Extract UID from Reference Format: QV_{uid}_{timestamp}
-      // We use a regex or split approach that is robust
       const match = merchantReference.match(/^QV_([^_]+)_/);
       const uid = match ? match[1] : merchantReference.split('_')[1];
 
@@ -165,7 +165,6 @@ export async function fulfillPaymentAction(orderTrackingId: string, merchantRefe
       const processedRef = ref(rtdb, `processed_payments/${orderTrackingId}`);
       const snap = await get(processedRef);
       if (snap.exists()) {
-        console.log("[Fulfillment] Order already processed. Skipping award.");
         return { success: true, message: "Already fulfilled", coins: snap.val().coins };
       }
 
@@ -179,18 +178,16 @@ export async function fulfillPaymentAction(orderTrackingId: string, merchantRefe
       else if (amount >= 230) coinsToAward = 2000;
       else if (amount >= 120) coinsToAward = 1000;
       else if (amount >= 80) coinsToAward = 500;
-      else if (amount >= 0.5) coinsToAward = 200; // Test package mapping (KES 1)
+      else if (amount >= 0.5) coinsToAward = 200; // Mapping for test payments (KES 1)
 
       if (coinsToAward > 0) {
         const timestamp = Date.now();
         const updates: any = {};
         
         // 5. ATOMIC REALTIME UPDATE
-        // Give Coins
         updates[`balances/${uid}/coins`] = increment(coinsToAward);
         updates[`balances/${uid}/updatedAt`] = timestamp;
         
-        // Record as processed
         updates[`processed_payments/${orderTrackingId}`] = {
           uid,
           amount,
@@ -219,7 +216,6 @@ export async function fulfillPaymentAction(orderTrackingId: string, merchantRefe
       }
     }
     
-    console.warn(`[Fulfillment Blocked] Transaction ${orderTrackingId} is not in success state (Status: ${status?.status_code})`);
     return { success: false, error: "Payment not completed" };
   } catch (err: any) {
     console.error("[Fulfillment Critical Error]:", err.message);

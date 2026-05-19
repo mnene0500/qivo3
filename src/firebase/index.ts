@@ -12,8 +12,23 @@ import { useMemo } from 'react';
 
 /**
  * Idempotent initialization of Firebase services.
+ * Returns null for services if the configuration is missing to prevent hard crashes.
  */
 export function initializeFirebase() {
+  const isConfigValid = !!(firebaseConfig.apiKey && firebaseConfig.apiKey !== 'undefined');
+  
+  if (!isConfigValid) {
+    if (typeof window !== 'undefined') {
+      console.warn("QIVO: Firebase configuration is missing. Please set your NEXT_PUBLIC_FIREBASE_* environment variables in Vercel.");
+    }
+    return { 
+      firebaseApp: null as unknown as FirebaseApp, 
+      firestore: null as unknown as Firestore, 
+      auth: null as unknown as Auth, 
+      database: null as unknown as Database 
+    };
+  }
+
   let app: FirebaseApp;
   if (getApps().length === 0) {
     app = initializeApp(firebaseConfig);

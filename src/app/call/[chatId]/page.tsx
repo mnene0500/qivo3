@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast"
 
 /**
  * @fileOverview One-on-one Video/Voice call interface with per-minute billing.
+ * Uses ZegoCloud credentials from Vercel Environment Variables.
  */
 export default function CallPage({ params }: { params: Promise<{ chatId: string }> }) {
   const { chatId } = use(params)
@@ -57,10 +58,10 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
         const { ZegoUIKitPrebuilt } = await import('@zegocloud/zego-uikit-prebuilt')
         
         const appID = Number(process.env.NEXT_PUBLIC_ZEGO_APP_ID)
-        const serverSecret = process.env.NEXT_PUBLIC_ZEGO_SERVER_SECRET || "ea06598c894f6f874530007d468f7004"
+        const serverSecret = process.env.NEXT_PUBLIC_ZEGO_SERVER_SECRET
         
-        if (!appID) {
-          setError("Zego App ID is missing. Check environment variables.")
+        if (!appID || !serverSecret) {
+          setError("Call System Error: Zego App ID or Server Secret is missing in Vercel settings.")
           return
         }
 
@@ -118,7 +119,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
     return (
       <div className="flex-1 bg-black flex flex-col items-center justify-center text-white p-10 text-center">
         <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
-        <p className="font-bold uppercase tracking-widest text-xs mb-6">{error}</p>
+        <p className="font-bold uppercase tracking-widest text-xs mb-6 leading-relaxed">{error}</p>
         <Button onClick={() => router.replace("/chats")} className="rounded-full bg-white text-black font-bold uppercase tracking-widest text-[10px]">Go Back</Button>
       </div>
     )

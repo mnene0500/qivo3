@@ -7,10 +7,10 @@ import { Auth } from 'firebase/auth';
 import { Database } from 'firebase/database';
 
 export interface FirebaseContextValue {
-  firebaseApp: FirebaseApp;
-  firestore: Firestore;
-  auth: Auth;
-  database: Database;
+  firebaseApp: FirebaseApp | null;
+  firestore: Firestore | null;
+  auth: Auth | null;
+  database: Database | null;
 }
 
 const FirebaseContext = createContext<FirebaseContextValue | null>(null);
@@ -23,10 +23,10 @@ export function FirebaseProvider({
   database,
 }: {
   children: React.ReactNode;
-  firebaseApp: FirebaseApp;
-  firestore: Firestore;
-  auth: Auth;
-  database: Database;
+  firebaseApp: FirebaseApp | null;
+  firestore: Firestore | null;
+  auth: Auth | null;
+  database: Database | null;
 }) {
   return (
     <FirebaseContext.Provider value={{ firebaseApp, firestore, auth, database }}>
