@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react"
@@ -43,7 +44,7 @@ export default function FastOnboardingPage() {
   }
 
   const handleComplete = async () => {
-    if (!user) return
+    if (!user || !db || !rtdb) return
     setLoading(true)
 
     try {

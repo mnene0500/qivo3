@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -57,7 +58,7 @@ export default function OnboardingPage() {
   }
 
   const handleComplete = async () => {
-    if (!user) return
+    if (!user || !db || !rtdb) return
     setLoading(true)
 
     try {

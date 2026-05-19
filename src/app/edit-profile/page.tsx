@@ -126,9 +126,9 @@ export default function EditProfilePage() {
           // Sync new profile photo to gallery if space exists
           const newGallery = [...formData.additionalPhotos];
           if (newGallery.length < 4 && !newGallery.includes(croppedBase64)) {
-             newGallery.push(croppedBase64);
+             newGallery.unshift(croppedBase64);
           }
-          setFormData({ ...formData, photoURL: croppedBase64, additionalPhotos: newGallery })
+          setFormData({ ...formData, photoURL: croppedBase64, additionalPhotos: newGallery.slice(0, 4) })
         } else {
           const newPhotos = [...formData.additionalPhotos]
           if (typeof targetPhotoIndex === 'number') {
@@ -136,7 +136,7 @@ export default function EditProfilePage() {
           } else {
             newPhotos.push(croppedBase64)
           }
-          setFormData({ ...formData, additionalPhotos: newPhotos })
+          setFormData({ ...formData, additionalPhotos: newPhotos.slice(0, 4) })
         }
         setCropOpen(false)
         setTempImage(null)
