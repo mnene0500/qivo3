@@ -14,7 +14,7 @@ import imageCompression from "browser-image-compression"
 
 /**
  * @fileOverview Identity Verification Page.
- * Removed forced 'capture="user"' to allow Gallery choice.
+ * Uses 'capture="user"' to force the front camera for selfie verification.
  */
 export default function VerifyIdentityPage() {
   const router = useRouter()
@@ -29,7 +29,7 @@ export default function VerifyIdentityPage() {
   const [loading, setLoading] = useState(false)
   
   const userRef = useMemoFirebase(() => 
-    user?.uid ? doc(db, "users", user.uid) : null, 
+    user?.uid && db ? doc(db, "users", user.uid) : null, 
   [db, user?.uid])
   
   const { data: profile, loading: profileLoading } = useDoc<any>(userRef)
@@ -76,10 +76,12 @@ export default function VerifyIdentityPage() {
 
       if (result.isMatch && result.confidence >= 0.7) {
         // 1. Update RTDB (For fast sync across app)
-        await update(ref(rtdb, `balances/${user.uid}`), {
-          isVerified: true,
-          verifiedAt: Date.now()
-        })
+        if (rtdb) {
+          await update(ref(rtdb, `balances/${user.uid}`), {
+            isVerified: true,
+            verifiedAt: Date.now()
+          })
+        }
 
         // 2. Update Firestore (For public profile visibility)
         if (userRef) {
@@ -192,6 +194,7 @@ export default function VerifyIdentityPage() {
                 <input 
                   type="file" 
                   accept="image/*" 
+                  capture="user"
                   className="hidden" 
                   ref={fileInputRef} 
                   onChange={handleCapture}
