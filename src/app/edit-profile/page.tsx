@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
@@ -13,9 +14,9 @@ import { useToast } from "@/hooks/use-toast"
 import { ChevronLeft, Loader2, Save, Camera, Plus, X } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Cropper from "react-easy-crop"
-import imageCompression from "browser-image-compression"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import Image from "next/image"
+import { uploadBase64Image } from "@/lib/supabase"
 
 const AFRICAN_COUNTRIES = [
   "Kenya", "Tanzania", "Uganda", "Rwanda", "Burundi", "South Sudan", "Ethiopia", "Somalia", "Eritrea", "Djibouti", "South Africa", "Nigeria", "Ghana", "Egypt"
@@ -114,7 +115,7 @@ export default function EditProfilePage() {
     canvas.width = pixelCrop.width
     canvas.height = pixelCrop.height
     ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, pixelCrop.width, pixelCrop.height)
-    return canvas.toDataURL('image/jpeg')
+    return canvas.toDataURL('image/jpeg', 0.8)
   }
 
   const handleCropSave = async () => {
@@ -149,14 +150,40 @@ export default function EditProfilePage() {
     if (!user || !db) return
     setSaving(true)
     try {
+      // 1. Process and upload all new photos to Supabase
+      const finalFormData = { ...formData };
+      
+      // Upload profile photo if it's base64
+      if (formData.photoURL.startsWith('data:image')) {
+        const url = await uploadBase64Image(formData.photoURL, 'photos', `${user.uid}/profile_${Date.now()}.jpg`);
+        finalFormData.photoURL = url;
+      }
+
+      // Upload gallery photos if they are base64
+      const uploadedGallery = await Promise.all(
+        formData.additionalPhotos.map(async (photo, idx) => {
+          if (photo.startsWith('data:image')) {
+            return await uploadBase64Image(photo, 'photos', `${user.uid}/gallery_${idx}_${Date.now()}.jpg`);
+          }
+          return photo;
+        })
+      );
+      finalFormData.additionalPhotos = uploadedGallery;
+
+      // 2. Save URLs to Firestore
       await updateDoc(doc(db, "users", user.uid), {
-        ...formData,
+        ...finalFormData,
         updatedAt: serverTimestamp()
       })
+      
       toast({ title: "Profile Updated" })
       router.back()
-    } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "Failed to update profile." })
+    } catch (error: any) {
+      toast({ 
+        variant: "destructive", 
+        title: "Error", 
+        description: error.message || "Failed to update profile." 
+      })
     } finally {
       setSaving(false)
     }
