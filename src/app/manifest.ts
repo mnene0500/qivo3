@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "QIVO",
     short_name: "QIVO",
-    description: "Connect with Heart",
+    description: "Premium Social Experience",
     start_url: "/",
     display: "standalone",
     background_color: "#000000",

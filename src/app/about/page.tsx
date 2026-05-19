@@ -22,7 +22,7 @@ export default function AboutPage() {
             <Heart className="w-10 h-10 text-[#00A2FF] fill-current" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-2xl font-bold text-black tracking-tight">Connect with Heart</h2>
+            <h2 className="text-2xl font-bold text-black tracking-tight">QIVO Social</h2>
             <p className="text-sm text-gray-400 font-medium tracking-widest uppercase">Version 1.2.1</p>
           </div>
         </div>

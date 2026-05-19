@@ -63,14 +63,6 @@ export default function RootPage() {
         <h1 className="text-7xl font-logo text-white tracking-tight drop-shadow-2xl animate-in fade-in zoom-in-95 duration-1000">
           QIVO
         </h1>
-        
-        <div className="flex items-center gap-3">
-          <div className="h-[1px] w-8 bg-white/10" />
-          <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.4em]">
-            Connect with Heart
-          </p>
-          <div className="h-[1px] w-8 bg-white/10" />
-        </div>
       </div>
 
       {/* Subtle loader at the bottom */}

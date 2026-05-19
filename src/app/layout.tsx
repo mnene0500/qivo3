@@ -19,7 +19,7 @@ const pacifico = Pacifico({
 
 export const metadata: Metadata = {
   title: 'QIVO',
-  description: 'Connect with Heart',
+  description: 'Premium Social Experience',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
