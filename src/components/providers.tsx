@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -6,6 +7,7 @@ import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { Toaster } from "@/components/ui/toaster";
 import { usePresence } from '@/hooks/use-presence';
 import { InstallPrompt } from '@/components/layout/InstallPrompt';
+import { CallManager } from '@/components/CallManager';
 
 /**
  * Handles global user presence heartbeat.
@@ -29,6 +31,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         </div>
         <Toaster />
         <InstallPrompt />
+        <CallManager />
       </PresenceManager>
     </FirebaseClientProvider>
   );

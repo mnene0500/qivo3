@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState, Suspense, useMemo, useRef } from "react"
@@ -32,7 +33,9 @@ import {
   Coins,
   Loader2,
   Ban,
-  BadgeCheck
+  BadgeCheck,
+  Video,
+  Phone
 } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
@@ -292,6 +295,31 @@ function ChatsContent() {
     await update(ref(rtdb), updates)
   }
 
+  const handleStartCall = async (type: 'video' | 'voice') => {
+    if (!currentUser || !partnerProfile || !chatId || isBlocked) return
+    
+    // Check if partner is online (optional, but better UX)
+    if (partnerPresence?.state !== 'online') {
+      toast({ title: "User Offline", description: "This user isn't online right now." })
+      return
+    }
+
+    // Signaling: Write to partner's call node
+    const callData = {
+      callerId: currentUser.uid,
+      callerName: currentUserProfile?.name || "Someone",
+      callerPhoto: currentUserProfile?.photoURL || "",
+      type,
+      chatId,
+      timestamp: Date.now()
+    }
+
+    await set(ref(rtdb, `calls/${partnerProfile.uid}`), callData)
+    
+    // Redirect self to call room
+    router.push(`/call/${chatId}?type=${type}`)
+  }
+
   const handleSendGift = async (gift: any) => {
     if (!currentUser?.uid || !partnerProfile || !chatId || isBlocked) return
     if (userBalances.coins < gift.price) { toast({ variant: "destructive", title: "Insufficient Coins" }); return }
@@ -403,6 +431,12 @@ function ChatsContent() {
           </div>
           {partnerPresence?.state === 'online' && <span className="text-[9px] font-bold text-green-500 uppercase">Online</span>}
         </div>
+        
+        <div className="flex items-center gap-1 mr-2">
+           <Button variant="ghost" size="icon" className="text-[#00A2FF]" onClick={() => handleStartCall('voice')}><Phone className="w-5 h-5" /></Button>
+           <Button variant="ghost" size="icon" className="text-[#00A2FF]" onClick={() => handleStartCall('video')}><Video className="w-5 h-5" /></Button>
+        </div>
+
         <Avatar className="w-8 h-8 cursor-pointer" onClick={() => router.push(`/users/${startWithId}`)}>
           <AvatarImage src={partnerProfile?.photoURL || ""} />
           <AvatarFallback>{partnerProfile?.name?.[0] || "?"}</AvatarFallback>
