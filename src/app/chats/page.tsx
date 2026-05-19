@@ -142,8 +142,8 @@ function ChatsContent() {
   
   const partnerPresence = useUserPresence(startWithId || undefined)
   
-  const currentUserDocRef = useMemo(() => currentUser?.uid ? doc(db, "users", currentUser.uid) : null, [db, currentUser?.uid])
-  const partnerDocRef = useMemo(() => startWithId ? doc(db, "users", startWithId) : null, [db, startWithId])
+  const currentUserDocRef = useMemo(() => currentUser?.uid && db ? doc(db, "users", currentUser.uid) : null, [db, currentUser?.uid])
+  const partnerDocRef = useMemo(() => startWithId && db ? doc(db, "users", startWithId) : null, [db, startWithId])
   
   const { data: currentUserProfile } = useDoc<UserProfile>(currentUserDocRef)
   const { data: partnerProfile } = useDoc<UserProfile>(partnerDocRef)
@@ -169,7 +169,7 @@ function ChatsContent() {
   }, [currentUserProfile, partnerProfile, startWithId, currentUser?.uid])
 
   useEffect(() => {
-    if (!currentUser?.uid) return
+    if (!currentUser?.uid || !rtdb) return
     const summariesRef = ref(rtdb, `user_chats/${currentUser.uid}`)
     const unsubscribe = onValue(summariesRef, (snapshot) => {
       const data = snapshot.val()
@@ -188,7 +188,7 @@ function ChatsContent() {
   }, [rtdb, currentUser?.uid])
 
   useEffect(() => {
-    if (chatId && currentUser?.uid) {
+    if (chatId && currentUser?.uid && rtdb) {
       setMetadataLoading(true)
       update(ref(rtdb, `user_chats/${currentUser.uid}/${chatId}`), { unreadCount: 0 })
       get(ref(rtdb, `user_chats/${currentUser.uid}/${chatId}/deletedAt`)).then((snap) => {
@@ -204,7 +204,7 @@ function ChatsContent() {
   }, [chatId, currentUser?.uid, rtdb])
 
   useEffect(() => {
-    if (!chatId || metadataLoading) {
+    if (!chatId || !rtdb || metadataLoading) {
       setMessages([])
       return
     }
@@ -225,7 +225,7 @@ function ChatsContent() {
   }, [chatId, rtdb, activeDeletedAt, metadataLoading])
 
   useEffect(() => {
-    if (!currentUser?.uid) return
+    if (!currentUser?.uid || !rtdb) return
     const balRef = ref(rtdb, `balances/${currentUser.uid}`)
     const unsubscribe = onValue(balRef, (snap) => {
       if (snap.exists()) {
@@ -246,7 +246,7 @@ function ChatsContent() {
   }, [currentUser?.uid, startWithId])
 
   const handleSendMessage = async (text: string) => {
-    if (!text.trim() || !chatId || !currentUser?.uid || !partnerProfile || isBlocked) return
+    if (!text.trim() || !chatId || !currentUser?.uid || !partnerProfile || isBlocked || !rtdb) return
     
     const sentText = text.trim()
     setNewMessage("") 
@@ -301,7 +301,7 @@ function ChatsContent() {
   }
 
   const handleStartCall = async (type: 'video' | 'voice') => {
-    if (!currentUser?.uid || !startWithId || !chatId || isCalling) return
+    if (!currentUser?.uid || !startWithId || !chatId || isCalling || !rtdb) return
     if (isBlocked) {
       toast({ variant: "destructive", title: "Cannot Call", description: "You cannot call this user." })
       return
@@ -336,7 +336,7 @@ function ChatsContent() {
   }
 
   const handleSendGift = async (gift: any) => {
-    if (!currentUser?.uid || !partnerProfile || !chatId || isBlocked) return
+    if (!currentUser?.uid || !partnerProfile || !chatId || isBlocked || !rtdb) return
     if (userBalances.coins < gift.price) { toast({ variant: "destructive", title: "Insufficient Coins" }); return }
     try {
       const timestamp = Date.now()
@@ -367,7 +367,7 @@ function ChatsContent() {
   }
 
   const handleDeleteChat = async () => {
-    if (!currentUser?.uid || !chatToDelete) return
+    if (!currentUser?.uid || !chatToDelete || !rtdb) return
     try {
       const now = Date.now()
       await update(ref(rtdb, `user_chats/${currentUser.uid}/${chatToDelete.id}`), {
