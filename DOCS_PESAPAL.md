@@ -1,3 +1,4 @@
+
 # PesaPal v3 LIVE Integration Guide for QIVO
 
 This guide is specific to your production domain: **qivo-gamma.vercel.app**.
@@ -24,7 +25,7 @@ Once you have added the first 5 variables and redeployed:
 6. **Redeploy one last time.**
 
 ## 3. Realtime Database (RTDB) Rules
-**CRITICAL:** For coins to be awarded automatically, your RTDB rules MUST allow the background fulfillment process (which is unauthenticated) to check and write balances. Copy and paste this into your Firebase Console:
+**CRITICAL:** For chats, calls, and payments to work correctly, your RTDB rules MUST allow both authenticated users and the background fulfillment process to write data. Copy and paste this into your Firebase Console:
 
 ```json
 {
@@ -41,14 +42,38 @@ Once you have added the first 5 variables and redeployed:
         ".write": "true"
       }
     },
+    "diamond_history": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null"
+      }
+    },
     "processed_payments": {
       ".read": "true",
       ".write": "true" 
+    },
+    "user_chats": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null"
+      }
+    },
+    "chat_messages": {
+      "$chatId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
     },
     "presence": {
       "$uid": {
         ".read": "auth != null",
         ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "calls": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null"
       }
     }
   }

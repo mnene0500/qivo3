@@ -157,8 +157,8 @@ function ChatsContent() {
   const [isGiftDrawerOpen, setIsGiftDrawerOpen] = useState(false)
   const [selectedGift, setSelectedGift] = useState<any>(null)
   const [chatToDelete, setChatToDelete] = useState<ChatSummary | null>(null)
-  const [activeDeletedAt, setActiveDeletedAt] = useState<number | null>(null)
-  const [metadataLoading, setMetadataLoading] = useState(true)
+  const [activeDeletedAt, setActiveDeletedAt] = useState<number>(0)
+  const [metadataLoading, setMetadataLoading] = useState(false)
 
   const isBlocked = useMemo(() => {
     if (!startWithId || !currentUserProfile || !partnerProfile) return false
@@ -175,7 +175,7 @@ function ChatsContent() {
       if (data) {
         const list = Object.entries(data)
           .map(([id, val]: [string, any]) => ({ id, ...val }))
-          .filter(summary => !!summary.lastMessage)
+          .filter(summary => summary.lastMessage !== undefined)
           .sort((a, b) => b.lastMessageAt - a.lastMessageAt)
         setChatSummaries(list)
       } else {
@@ -189,29 +189,34 @@ function ChatsContent() {
   useEffect(() => {
     if (chatId && currentUser?.uid) {
       setMetadataLoading(true)
+      // Reset unread count when opening chat
       update(ref(rtdb, `user_chats/${currentUser.uid}/${chatId}`), { unreadCount: 0 })
+      
+      // Fetch the last deletion timestamp for this specific user's view of the chat
       get(ref(rtdb, `user_chats/${currentUser.uid}/${chatId}/deletedAt`)).then((snap) => {
         setActiveDeletedAt(snap.val() || 0)
         setMetadataLoading(false)
+      }).catch(() => {
+        setActiveDeletedAt(0)
+        setMetadataLoading(false)
       })
     } else {
-      setActiveDeletedAt(null)
-      setMetadataLoading(false)
+      setActiveDeletedAt(0)
     }
   }, [chatId, currentUser?.uid, rtdb])
 
   useEffect(() => {
-    if (!chatId || metadataLoading || activeDeletedAt === null) {
+    if (!chatId || metadataLoading) {
       setMessages([])
       return
     }
-    const messagesRef = rtdbQuery(ref(rtdb, `chat_messages/${chatId}`), limitToLast(30))
+    const messagesRef = rtdbQuery(ref(rtdb, `chat_messages/${chatId}`), limitToLast(40))
     const unsubscribe = onValue(messagesRef, (snapshot) => {
       const data = snapshot.val()
       if (data) {
         const msgs = Object.entries(data).map(([id, val]: [string, any]) => ({ id, ...val }))
         const filtered = msgs
-          .filter(m => m.timestamp > (activeDeletedAt || 0))
+          .filter(m => m.timestamp > activeDeletedAt)
           .sort((a, b) => b.timestamp - a.timestamp)
         setMessages(filtered)
       } else {
@@ -250,6 +255,7 @@ function ChatsContent() {
 
     const timestamp = Date.now()
 
+    // Deduct coins if male
     if (currentUserProfile?.gender === 'male' && !currentUserProfile?.isAdmin) {
       if (userBalances.coins < 15) {
         toast({ variant: "destructive", title: "Insufficient Coins" })
@@ -275,9 +281,13 @@ function ChatsContent() {
       timestamp 
     }
     
+    // Save the message
     await set(push(ref(rtdb, `chat_messages/${chatId}`)), msgData)
 
+    // Update summaries for both users
     const updates: any = {}
+    
+    // My side
     updates[`user_chats/${currentUser.uid}/${chatId}/partnerId`] = partnerProfile.uid || ""
     updates[`user_chats/${currentUser.uid}/${chatId}/partnerName`] = partnerProfile.name || "Unknown"
     updates[`user_chats/${currentUser.uid}/${chatId}/partnerPhoto`] = partnerProfile.photoURL || ""
@@ -285,6 +295,7 @@ function ChatsContent() {
     updates[`user_chats/${currentUser.uid}/${chatId}/lastMessageAt`] = timestamp
     updates[`user_chats/${currentUser.uid}/${chatId}/unreadCount`] = 0
 
+    // Partner side
     updates[`user_chats/${partnerProfile.uid}/${chatId}/partnerId`] = currentUser.uid || ""
     updates[`user_chats/${partnerProfile.uid}/${chatId}/partnerName`] = currentUserProfile?.name || "User"
     updates[`user_chats/${partnerProfile.uid}/${chatId}/partnerPhoto`] = currentUserProfile?.photoURL || ""
@@ -292,7 +303,9 @@ function ChatsContent() {
     updates[`user_chats/${partnerProfile.uid}/${chatId}/lastMessageAt`] = timestamp
     updates[`user_chats/${partnerProfile.uid}/${chatId}/unreadCount`] = rtdbIncrement(1)
 
-    await update(ref(rtdb), updates)
+    await update(ref(rtdb), updates).catch(err => {
+      console.error("[Chat Update Error]:", err);
+    });
   }
 
   const handleStartCall = async (type: 'video' | 'voice') => {
@@ -304,9 +317,6 @@ function ChatsContent() {
       return;
     }
 
-    // REMOVED: Strict online check to allow calling even if presence is pending
-    // if (partnerPresence?.state !== 'online') { ... }
-
     const callData = {
       callerId: currentUser.uid,
       callerName: currentUserProfile?.name || "Someone",
@@ -317,7 +327,6 @@ function ChatsContent() {
     }
 
     await set(ref(rtdb, `calls/${partnerProfile.uid}`), callData)
-    
     router.push(`/call/${chatId}?type=${type}&caller=true&partner=${partnerProfile.name}`)
   }
 
@@ -470,14 +479,15 @@ function ChatsContent() {
             <Button variant="ghost" size="icon" onClick={() => setIsGiftDrawerOpen(true)} className="text-[#00A2FF]"><GiftIcon className="w-6 h-6" /></Button>
             <div className="flex-1 bg-gray-100 rounded-full h-11 px-5 flex items-center">
               <input 
-                placeholder="Type..." 
+                placeholder={partnerProfile ? "Type..." : "Loading..."} 
                 className="bg-transparent flex-1 outline-none text-sm" 
                 value={newMessage} 
+                disabled={!partnerProfile}
                 onChange={(e) => setNewMessage(e.target.value)} 
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage(newMessage)} 
               />
             </div>
-            <Button variant="ghost" onClick={() => handleSendMessage(newMessage)}><Send className="w-6 h-6 text-[#00A2FF]" /></Button>
+            <Button variant="ghost" disabled={!partnerProfile} onClick={() => handleSendMessage(newMessage)}><Send className="w-6 h-6 text-[#00A2FF]" /></Button>
           </>
         )}
       </footer>
