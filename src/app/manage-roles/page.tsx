@@ -30,6 +30,10 @@ export default function ManageRolesPage() {
 
   const handleSearch = async () => {
     if (!targetId.trim()) return
+    if (!db) {
+       toast({ variant: "destructive", title: "Error", description: "Database connection pending..." });
+       return;
+    }
     setSearching(true)
     try {
       const q = query(collection(db, "users"), where("matchFlowId", "==", targetId.trim()))

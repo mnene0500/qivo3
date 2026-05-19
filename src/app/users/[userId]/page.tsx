@@ -62,7 +62,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
-  const userRef = useMemo(() => doc(db, "users", userId), [db, userId])
+  const userRef = useMemo(() => db ? doc(db, "users", userId) : null, [db, userId])
   const { data: profile, loading } = useDoc<UserProfile>(userRef)
 
   const calculateAge = (dob: string) => {
@@ -86,7 +86,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
   }
 
   const handleBlock = () => {
-    if (!currentUser || !profile) return
+    if (!currentUser || !profile || !db) return
     
     const myRef = doc(db, "users", currentUser.uid)
     const targetRef = doc(db, "users", profile.uid)
@@ -136,7 +136,9 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
   )
 
   const age = calculateAge(profile.dob)
-  const allPhotos = [profile.photoURL, ...(profile.additionalPhotos || [])]
+  
+  // Cleanly merge photoURL and gallery without duplicates
+  const allPhotos = Array.from(new Set([profile.photoURL, ...(profile.additionalPhotos || [])].filter(Boolean)));
 
   return (
     <div className="flex-1 bg-white flex flex-col min-h-screen pb-40 select-none">
@@ -210,7 +212,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
             <div className="grid grid-cols-4 gap-2">
               {allPhotos.map((url, i) => (
                 <div 
-                  key={i} 
+                  key={url} 
                   className="relative aspect-square rounded-xl overflow-hidden cursor-pointer active:scale-95 transition-all border border-gray-100"
                   onClick={() => { setSelectedPhoto(url); setIsPhotoOpen(true); }}
                 >

@@ -60,7 +60,7 @@ export default function EditProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (!user) return
+    if (!user || !db) return
     const fetchProfile = async () => {
       try {
         const docRef = doc(db, "users", user.uid)
@@ -122,7 +122,12 @@ export default function EditProfilePage() {
       try {
         const croppedBase64 = await getCroppedImg(tempImage, croppedAreaPixels)
         if (targetPhotoIndex === 'profile') {
-          setFormData({ ...formData, photoURL: croppedBase64 })
+          // Sync new profile photo to gallery if space exists
+          const newGallery = [...formData.additionalPhotos];
+          if (newGallery.length < 4 && !newGallery.includes(croppedBase64)) {
+             newGallery.push(croppedBase64);
+          }
+          setFormData({ ...formData, photoURL: croppedBase64, additionalPhotos: newGallery })
         } else {
           const newPhotos = [...formData.additionalPhotos]
           if (typeof targetPhotoIndex === 'number') {
@@ -141,7 +146,7 @@ export default function EditProfilePage() {
   }
 
   const handleSave = async () => {
-    if (!user) return
+    if (!user || !db) return
     setSaving(true)
     try {
       await updateDoc(doc(db, "users", user.uid), {
