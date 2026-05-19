@@ -49,7 +49,7 @@ export default function HomePage() {
   const [displayLimit, setDisplayLimit] = useState(10)
 
   const currentUserProfileRef = useMemoFirebase(() => 
-    currentUser?.uid ? doc(db, "users", currentUser.uid) : null, 
+    currentUser?.uid && db ? doc(db, "users", currentUser.uid) : null, 
   [db, currentUser?.uid])
   
   const { data: currentUserProfile, loading: profileLoading } = useDoc<UserProfile>(currentUserProfileRef)
@@ -201,7 +201,11 @@ export default function HomePage() {
         </div>
 
         <main className="px-4 pt-3">
-          {initialLoading ? (
+          {!db ? (
+            <div className="flex flex-col items-center justify-center py-20 opacity-40">
+               <p className="text-[10px] font-bold uppercase tracking-widest">System Connecting...</p>
+            </div>
+          ) : initialLoading ? (
             <div className="grid grid-cols-2 gap-4">
               {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="aspect-[1/1.2] bg-white animate-pulse rounded-2xl border" />)}
             </div>

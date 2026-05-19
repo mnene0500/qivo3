@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useEffect, useCallback } from "react"
@@ -61,14 +60,13 @@ export default function ExplorePage() {
   const [loading, setLoading] = useState(true)
   const [isSearching, setIsSearching] = useState(false)
 
-  const currentUserRef = useMemoFirebase(() => currentUser?.uid ? doc(db, "users", currentUser.uid) : null, [db, currentUser?.uid])
+  const currentUserRef = useMemoFirebase(() => currentUser?.uid && db ? doc(db, "users", currentUser.uid) : null, [db, currentUser?.uid])
   const { data: profile } = useDoc<UserProfile>(currentUserRef)
 
   const fetchUsers = useCallback(async () => {
     if (!db || !profile) return
     setLoading(true)
     try {
-      // Economical query: limit results for discovery
       const q = query(
         collection(db, "users"),
         where("onboardingComplete", "==", true),
@@ -77,7 +75,6 @@ export default function ExplorePage() {
       const snap = await getDocs(q)
       const fetched = snap.docs.map(d => ({ ...d.data() } as UserProfile))
       
-      // Filter out self and blocked users
       const blockedList = [...(profile.blocking || []), ...(profile.blockedBy || [])]
       const filtered = fetched.filter(u => 
         u.uid !== currentUser?.uid && 
@@ -168,7 +165,11 @@ export default function ExplorePage() {
       </header>
 
       <main className="flex-1 p-4">
-        {loading ? (
+        {!db ? (
+          <div className="flex flex-col items-center justify-center py-20 opacity-40">
+             <p className="text-xs font-bold uppercase tracking-widest">Network Connecting...</p>
+          </div>
+        ) : loading ? (
           <div className="grid grid-cols-2 gap-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div key={i} className="aspect-[3/4] bg-white rounded-3xl animate-pulse border border-black/5" />

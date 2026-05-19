@@ -20,7 +20,7 @@ export default function RootPage() {
         // Minimum display time for the splash screen vibe
         const startTime = Date.now();
         
-        if (user) {
+        if (user && db) {
           try {
             const userRef = doc(db, "users", user.uid)
             const snap = await getDoc(userRef)
@@ -43,7 +43,7 @@ export default function RootPage() {
             console.error("Root redirection error:", e)
             router.replace("/welcome")
           }
-        } else {
+        } else if (!user) {
           const elapsedTime = Date.now() - startTime;
           const remainingTime = Math.max(0, 1500 - elapsedTime);
           setTimeout(() => router.replace("/welcome"), remainingTime);

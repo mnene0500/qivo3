@@ -20,11 +20,15 @@ export default function CoinSellersPage() {
   const db = useFirestore()
 
   // Fetch users with the isCoinSeller role
-  const sellersQuery = useMemo(() => query(
-    collection(db, "users"),
-    where("isCoinSeller", "==", true),
-    limit(20)
-  ), [db])
+  const sellersQuery = useMemo(() => {
+    // CRITICAL: Guard against null db instance during build/render
+    if (!db || typeof db !== 'object') return null
+    return query(
+      collection(db, "users"),
+      where("isCoinSeller", "==", true),
+      limit(20)
+    )
+  }, [db])
 
   const { data: sellers, loading } = useCollection<UserProfile>(sellersQuery)
 
@@ -49,7 +53,11 @@ export default function CoinSellersPage() {
           </p>
         </div>
 
-        {loading ? (
+        {!db ? (
+          <div className="flex flex-col items-center justify-center py-20 opacity-40">
+             <p className="text-xs font-bold uppercase tracking-widest">Service Configuring...</p>
+          </div>
+        ) : loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4 opacity-20">
             <Loader2 className="w-8 h-8 animate-spin" />
           </div>

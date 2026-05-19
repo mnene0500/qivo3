@@ -27,11 +27,11 @@ export default function AgencyHistoryPage() {
   const { user } = useUser()
   const db = useFirestore()
 
-  const { data: profile } = useDoc<UserProfile>(user?.uid ? doc(db, "users", user.uid) : null)
+  const { data: profile } = useDoc<UserProfile>(user?.uid && db ? doc(db, "users", user.uid) : null)
 
   // Economical Query: Only fetch the user's latest 50 withdrawals for their specific agency
   const withdrawalsQuery = useMemo(() => {
-    if (!user?.uid || !profile?.agencyId) return null
+    if (!db || !user?.uid || !profile?.agencyId) return null
     return query(
       collection(db, "agencies", profile.agencyId, "withdrawals"),
       where("uid", "==", user.uid),

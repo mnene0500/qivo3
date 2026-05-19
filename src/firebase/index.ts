@@ -16,13 +16,13 @@ import { useMemo } from 'react';
  */
 export function initializeFirebase() {
   const apiKey = firebaseConfig.apiKey || (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_FIREBASE_API_KEY : undefined);
-  const isConfigValid = !!(apiKey && apiKey !== 'undefined');
+  const isConfigValid = !!(apiKey && apiKey !== 'undefined' && apiKey !== '');
   
   const nullResult = { 
-    firebaseApp: null as unknown as FirebaseApp, 
-    firestore: null as unknown as Firestore, 
-    auth: null as unknown as Auth, 
-    database: null as unknown as Database 
+    firebaseApp: null, 
+    firestore: null, 
+    auth: null, 
+    database: null 
   };
 
   if (!isConfigValid) {
@@ -37,7 +37,6 @@ export function initializeFirebase() {
       app = getApp();
     }
     
-    // Some environments (like build time) might allow app init but fail service init
     const firestore = getFirestore(app);
     const auth = getAuth(app);
     const database = getDatabase(app);
