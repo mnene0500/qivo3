@@ -6,7 +6,7 @@ import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase"
 import { useRouter } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { BottomNav } from "@/components/layout/BottomNav"
-import { Target, RotateCw, FileText, ChevronDown, BadgeCheck, Loader2 } from "lucide-react"
+import { Target, RotateCw, FileText, ChevronDown, BadgeCheck, Loader2, Sparkles } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -55,10 +55,11 @@ export default function HomePage() {
   const { data: currentUserProfile, loading: profileLoading } = useDoc<UserProfile>(currentUserProfileRef)
 
   const fetchUsers = useCallback(async (isManual = false) => {
-    if (!db || !currentUserProfile) return
+    if (!db) return
     if (isManual) setIsRefreshing(true)
     
     try {
+      // Fetch all active users who completed onboarding
       const q = query(
         collection(db, "users"), 
         where("onboardingComplete", "==", true),
@@ -68,21 +69,32 @@ export default function HomePage() {
       const snap = await getDocs(q)
       const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile))
       
-      const blockedList = [...(currentUserProfile.blocking || []), ...(currentUserProfile.blockedBy || [])]
+      // Filter out self and blocked users
+      const blockedList = currentUserProfile ? [...(currentUserProfile.blocking || []), ...(currentUserProfile.blockedBy || [])] : []
+      
       const filtered = fetched.filter(u => {
         if (u.uid === currentUser?.uid) return false
         if (blockedList.includes(u.uid)) return false
-        const genderMatch = currentUserProfile.gender === 'male' 
-          ? u.gender === 'female' 
-          : (currentUserProfile.gender === 'female' ? u.gender === 'male' : true);
-        return genderMatch;
+        
+        // GENDER DISCOVERY LOGIC: Male sees Female, Female sees Male
+        // Fallback: If current user gender is missing or not binary, show all
+        if (!currentUserProfile?.gender) return true;
+        
+        const myGender = currentUserProfile.gender.toLowerCase();
+        const targetGender = u.gender?.toLowerCase();
+        
+        if (myGender === 'male') return targetGender === 'female';
+        if (myGender === 'female') return targetGender === 'male';
+        
+        return true;
       })
 
-      const sorted = filtered.sort((a, b) => Math.random() - 0.5)
+      // Randomize for fresh "Recommend" vibe
+      const sorted = filtered.sort(() => Math.random() - 0.5)
       setUsers(sorted)
       sessionStorage.setItem('cached_home_users', JSON.stringify(sorted))
     } catch (err) {
-      console.error(err)
+      console.error("[Home Fetch Error]:", err)
     } finally {
       setIsRefreshing(false)
       setInitialLoading(false)
@@ -104,34 +116,26 @@ export default function HomePage() {
     if (isMounted) sessionStorage.setItem('home_display_limit', displayLimit.toString())
   }, [displayLimit, isMounted])
 
+  // Trigger fetch once profile is ready OR if we have no users and auth is done
   useEffect(() => {
-    if (isInitialized && !authLoading && !currentUser) {
-      router.replace("/")
-      return
-    }
-    
-    if (currentUserProfile && !profileLoading && !currentUserProfile.onboardingComplete) {
-      router.replace("/onboarding")
-      return
-    }
-
-    if (currentUserProfile && users.length === 0 && initialLoading) {
-      fetchUsers()
+    if (isInitialized && !authLoading) {
+      if (!currentUser) {
+        router.replace("/auth")
+        return
+      }
+      
+      if (currentUserProfile && !profileLoading) {
+        if (!currentUserProfile.onboardingComplete) {
+          router.replace("/onboarding")
+          return
+        }
+        // Fetch users if we haven't yet
+        if (users.length === 0 && initialLoading) {
+          fetchUsers()
+        }
+      }
     }
   }, [currentUser, authLoading, isInitialized, currentUserProfile, profileLoading, router, users.length, initialLoading, fetchUsers])
-
-  useEffect(() => {
-    const handleScroll = () => sessionStorage.setItem('home_scroll_pos', window.scrollY.toString())
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
-
-  useEffect(() => {
-    if (isMounted && !initialLoading) {
-      const savedPos = sessionStorage.getItem('home_scroll_pos')
-      if (savedPos) setTimeout(() => window.scrollTo(0, parseInt(savedPos)), 50)
-    }
-  }, [isMounted, initialLoading])
 
   const handleRefresh = () => {
     fetchUsers(true)
@@ -169,9 +173,9 @@ export default function HomePage() {
           <div className="grid grid-cols-2 gap-4">
             <div 
               onClick={() => router.push('/mystery-note')}
-              className="bg-gradient-to-br from-[#FFB800] to-[#FF8A00] p-4 flex flex-col justify-between h-28 rounded-2xl shadow-lg cursor-pointer active:scale-95 transition-transform"
+              className="bg-gradient-to-br from-[#00A2FF] to-[#0081CC] p-4 flex flex-col justify-between h-28 rounded-2xl shadow-lg cursor-pointer active:scale-95 transition-transform"
             >
-              <div className="bg-white/30 p-2 rounded-2xl w-fit"><FileText className="w-5 h-5 text-black" /></div>
+              <div className="bg-white/30 p-2 rounded-2xl w-fit"><FileText className="w-5 h-5 text-white" /></div>
               <div className="space-y-0.5">
                 <h3 className="text-white font-semibold text-sm">Mystery Note</h3>
                 <p className="text-white/80 text-[8px] font-bold uppercase tracking-widest">Send a note</p>
@@ -201,9 +205,9 @@ export default function HomePage() {
         </div>
 
         <main className="px-4 pt-3 relative">
-          {/* Subtle Background Stamp */}
-          <div className="fixed inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none -z-10 rotate-[-25deg]">
-            <span className="text-[20vw] font-logo text-black whitespace-nowrap">QIVO</span>
+          {/* PACIFICO BRAND STAMP */}
+          <div className="fixed inset-0 flex items-center justify-center opacity-[0.04] pointer-events-none -z-10 rotate-[-15deg]">
+            <span className="text-[30vw] font-logo text-black whitespace-nowrap select-none">QIVO</span>
           </div>
 
           {!db ? (
@@ -215,12 +219,15 @@ export default function HomePage() {
               {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="aspect-[1/1.2] bg-white animate-pulse rounded-2xl border" />)}
             </div>
           ) : paginatedUsers.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-              <div className="bg-gray-100 p-6 rounded-full">
-                <Target className="w-10 h-10 text-gray-400" />
+            <div className="flex flex-col items-center justify-center py-24 text-center space-y-6">
+              <div className="bg-gray-100 p-8 rounded-full">
+                <Target className="w-12 h-12 text-gray-300" />
               </div>
-              <p className="text-sm font-medium text-gray-500">No users found.</p>
-              <Button variant="outline" onClick={handleRefresh} className="rounded-full">Refresh List</Button>
+              <div className="space-y-1">
+                <p className="font-bold text-black uppercase tracking-widest text-sm">No profiles found</p>
+                <p className="text-xs text-gray-400 max-w-[200px] mx-auto">We couldn't find matches of the opposite gender nearby right now.</p>
+              </div>
+              <Button variant="outline" onClick={handleRefresh} className="rounded-full font-bold uppercase text-[10px] tracking-widest">Try Refreshing</Button>
             </div>
           ) : (
             <div className="space-y-8">
