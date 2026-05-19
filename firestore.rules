@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Utility functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    function isAdmin() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    function isAgent() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAgent == true;
+    }
+
+    // User Profiles
+    match /users/{userId} {
+      // Profiles are public for discovery/explore
+      allow read: if isAuthenticated();
+      
+      // Only owner can create their initial profile
+      allow create: if isOwner(userId);
+      
+      // Only owner or admin can update. Owner cannot escalate their own roles.
+      allow update: if isAdmin() || (
+        isOwner(userId) && 
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isAdmin', 'isCoinSeller', 'isAgent', 'matchFlowId', 'agencyId', 'agencyStatus'])
+      );
+      
+      allow delete: if isAdmin();
+    }
+
+    // Agencies
+    match /agencies/{agencyCode} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isAgent();
+      
+      // Withdrawal requests nested under agencies
+      match /withdrawals/{withdrawalId} {
+        // Participant or Agent can read
+        allow read: if isAuthenticated() && (
+          request.auth.uid == resource.data.uid || 
+          isAdmin() || 
+          request.auth.uid == get(/databases/$(database)/documents/agencies/$(agencyCode)).data.agentUid
+        );
+        
+        // Users can create their own requests
+        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.uid;
+        
+        // Only Agent or Admin can update status
+        allow update: if isAdmin() || (
+          isAuthenticated() && 
+          request.auth.uid == get(/databases/$(database)/documents/agencies/$(agencyCode)).data.agentUid
+        );
+      }
+    }
+  }
+}
