@@ -241,18 +241,17 @@ function RechargeContent() {
 
           <div className="pt-2">
             <Button 
-              variant="outline" 
               onClick={() => router.push('/coin-sellers')}
-              className="w-full h-20 rounded-[2rem] border-dashed border-2 border-blue-200 bg-blue-50/30 text-[#00A2FF] font-black uppercase tracking-[0.15em] text-[10px] gap-4 group hover:bg-blue-50"
+              className="w-full h-20 bg-white hover:bg-gray-50 rounded-[2rem] border-none shadow-xl flex items-center justify-center gap-4 text-[#00A2FF] active:scale-95 transition-all group"
             >
-              <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shadow-sm group-hover:bg-white transition-colors">
                 <Users className="w-5 h-5" /> 
               </div>
-              <div className="flex-1 text-left">
-                <p className="leading-none">Certified Sellers</p>
-                <p className="text-[8px] opacity-60 font-bold mt-1">Buy via M-Pesa Directly</p>
+              <div className="flex flex-col items-start">
+                <span className="text-sm font-black uppercase tracking-widest text-black">Certified Sellers</span>
+                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Buy via M-Pesa Directly</span>
               </div>
-              <ArrowRight className="w-4 h-4 mr-2 opacity-40 group-hover:translate-x-1 transition-transform" />
+              <ArrowRight className="w-4 h-4 ml-auto mr-2 opacity-40 group-hover:translate-x-1 transition-transform" />
             </Button>
           </div>
         </div>
@@ -261,7 +260,7 @@ function RechargeContent() {
       <footer className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-xl p-6 border-t z-50">
         <div className="max-w-md mx-auto space-y-4">
           <div className="flex items-center justify-center gap-2 text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-            <ShieldCheck className="w-3 h-3" />
+            <ShieldCheck className="w-3.5 h-3.5" />
             PesaPal Secure 256-bit Encryption
           </div>
           <Button 
