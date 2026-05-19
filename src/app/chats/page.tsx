@@ -121,7 +121,7 @@ function ChatListItem({ summary, onClick, onDelete }: { summary: ChatSummary, on
         </div>
         <div className="flex justify-between items-center">
           <p className={cn("text-xs truncate flex-1 pr-2", summary.unreadCount > 0 ? "text-black font-semibold" : "text-gray-500 font-medium")}>
-            {summary.lastMessage || "Start talking..."}
+            {summary.lastMessage}
           </p>
           {summary.unreadCount > 0 && <div className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{summary.unreadCount}</div>}
         </div>
@@ -175,8 +175,13 @@ function ChatsContent() {
       const data = snapshot.val()
       if (data) {
         const list = Object.entries(data)
-          .map(([id, val]: [string, any]) => ({ id, ...val }))
-          .filter(summary => summary.lastMessage !== undefined)
+          .map(([id, val]: [string, any]) => ({ id, ...val } as ChatSummary))
+          .filter(summary => {
+            // Only show chats with a message that is newer than the deletion date
+            const hasMessage = summary.lastMessage && summary.lastMessage.trim() !== "";
+            const isNotDeleted = !summary.deletedAt || summary.lastMessageAt > summary.deletedAt;
+            return hasMessage && isNotDeleted;
+          })
           .sort((a, b) => b.lastMessageAt - a.lastMessageAt)
         setChatSummaries(list)
       } else {
@@ -374,6 +379,7 @@ function ChatsContent() {
     if (!currentUser?.uid || !chatToDelete || !rtdb) return
     try {
       const now = Date.now()
+      // Mark as deleted and reset lastMessage so it disappears from the list
       await update(ref(rtdb, `user_chats/${currentUser.uid}/${chatToDelete.id}`), {
         lastMessage: "",
         unreadCount: 0,
