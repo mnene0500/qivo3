@@ -167,7 +167,8 @@ export default function MePage() {
     return { coins: 0, diamonds: 0, isVerified: false }
   })
 
-  const profileRef = useMemo(() => user ? doc(db, "users", user.uid) : null, [db, user])
+  // Guard: Ensure db exists before creating document reference
+  const profileRef = useMemo(() => (user && db) ? doc(db, "users", user.uid) : null, [db, user])
   const { data: profile, loading: profileLoading } = useDoc<UserProfile>(profileRef)
 
   useEffect(() => {
@@ -179,7 +180,7 @@ export default function MePage() {
   }, [user, authLoading, isInitialized, profile, profileLoading, router])
 
   useEffect(() => {
-    if (!user?.uid) return
+    if (!user?.uid || !rtdb) return
     const balanceRef = ref(rtdb, `balances/${user.uid}`)
     const unsubscribe = onValue(balanceRef, (snapshot) => {
       const data = snapshot.val()

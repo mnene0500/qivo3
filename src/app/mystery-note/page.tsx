@@ -26,7 +26,8 @@ export default function MysteryNotePage() {
   const [isSending, setIsSending] = useState(false)
   const [userCoins, setUserCoins] = useState(0)
 
-  const userRef = useMemo(() => user?.uid && db ? doc(db, "users", user.uid) : null, [db, user?.uid])
+  // Guard: Ensure db exists before creating document reference
+  const userRef = useMemo(() => (user?.uid && db) ? doc(db, "users", user.uid) : null, [db, user?.uid])
   const { data: profile } = useDoc<any>(userRef)
 
   useEffect(() => {

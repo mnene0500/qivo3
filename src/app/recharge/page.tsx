@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, Suspense, useEffect } from "react"
@@ -16,7 +15,6 @@ import {
   ArrowRight,
   CheckCircle2,
   AlertCircle,
-  Zap,
   ShieldCheck,
   Star
 } from "lucide-react"
@@ -62,6 +60,7 @@ function RechargeContent() {
   
   const [currentCoins, setCurrentCoins] = useState(0)
 
+  // Guard: Ensure db exists before creating document reference
   const userRef = useMemoFirebase(() => (user?.uid && db) ? doc(db, "users", user.uid) : null, [db, user?.uid])
   const { data: profile } = useDoc<any>(userRef)
 
