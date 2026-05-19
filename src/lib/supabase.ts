@@ -8,6 +8,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
  * Helper to upload a base64 image to Supabase Storage.
+ * Supports image/jpeg, image/png, etc.
  * @param base64 The base64 string of the image.
  * @param bucket The name of the Supabase bucket.
  * @param path The destination path in the bucket.
@@ -15,36 +16,54 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
  */
 export async function uploadBase64Image(base64: string, bucket: string, path: string): Promise<string> {
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.error("Supabase configuration missing.");
+    console.error("Supabase configuration missing in Environment Variables.");
     return base64; // Return original if config missing
   }
 
-  // Convert base64 to Blob
-  const base64Data = base64.split(',')[1] || base64;
-  const mimeType = base64.split(',')[0].split(':')[1].split(';')[0] || 'image/jpeg';
-  const byteCharacters = atob(base64Data);
-  const byteNumbers = new Array(byteCharacters.length);
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  try {
+    // 1. Extract MIME type and pure base64 data
+    const matches = base64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.*)$/);
+    
+    if (!matches || matches.length !== 3) {
+      // If it doesn't look like a base64 data URI, it's probably already a URL
+      if (base64.startsWith('http')) return base64;
+      throw new Error("Invalid base64 format");
+    }
+
+    const mimeType = matches[1];
+    const base64Data = matches[2];
+
+    // 2. Convert to binary Blob
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: mimeType });
+
+    // 3. Upload to Supabase
+    // Note: If you get an RLS error, ensure your bucket policies allow Public 'Insert'
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(path, blob, {
+        contentType: mimeType,
+        upsert: true,
+      });
+
+    if (error) {
+      console.error("[Supabase Storage Error]:", error.message);
+      throw error;
+    }
+
+    // 4. Retrieve and return the public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(path);
+
+    return publicUrl;
+  } catch (err: any) {
+    console.error("Upload process failed:", err.message);
+    throw err;
   }
-  const byteArray = new Uint8Array(byteNumbers);
-  const blob = new Blob([byteArray], { type: mimeType });
-
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .upload(path, blob, {
-      contentType: mimeType,
-      upsert: true,
-    });
-
-  if (error) {
-    console.error("Supabase Upload Error:", error);
-    throw error;
-  }
-
-  const { data: { publicUrl } } = supabase.storage
-    .from(bucket)
-    .getPublicUrl(path);
-
-  return publicUrl;
 }

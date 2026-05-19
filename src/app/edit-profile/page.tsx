@@ -115,7 +115,9 @@ export default function EditProfilePage() {
     canvas.width = pixelCrop.width
     canvas.height = pixelCrop.height
     ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, pixelCrop.width, pixelCrop.height)
-    return canvas.toDataURL('image/jpeg', 0.8)
+    
+    // Default to JPEG for quality/size balance
+    return canvas.toDataURL('image/jpeg', 0.85)
   }
 
   const handleCropSave = async () => {
@@ -163,7 +165,8 @@ export default function EditProfilePage() {
       const uploadedGallery = await Promise.all(
         formData.additionalPhotos.map(async (photo, idx) => {
           if (photo.startsWith('data:image')) {
-            return await uploadBase64Image(photo, 'photos', `${user.uid}/gallery_${idx}_${Date.now()}.jpg`);
+            const ext = photo.includes('png') ? 'png' : 'jpg';
+            return await uploadBase64Image(photo, 'photos', `${user.uid}/gallery_${idx}_${Date.now()}.${ext}`);
           }
           return photo;
         })
@@ -182,7 +185,7 @@ export default function EditProfilePage() {
       toast({ 
         variant: "destructive", 
         title: "Error", 
-        description: error.message || "Failed to update profile." 
+        description: error.message || "Failed to update profile. Ensure your Supabase policies are set to allow public uploads." 
       })
     } finally {
       setSaving(false)
