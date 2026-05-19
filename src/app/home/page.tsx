@@ -167,7 +167,10 @@ export default function HomePage() {
       <div className="relative z-10 pt-0">
         <div className="px-4 pt-4 pb-2">
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-gradient-to-br from-[#FFB800] to-[#FF8A00] p-4 flex flex-col justify-between h-28 rounded-2xl shadow-lg cursor-pointer active:scale-95 transition-transform">
+            <div 
+              onClick={() => router.push('/mystery-note')}
+              className="bg-gradient-to-br from-[#FFB800] to-[#FF8A00] p-4 flex flex-col justify-between h-28 rounded-2xl shadow-lg cursor-pointer active:scale-95 transition-transform"
+            >
               <div className="bg-white/30 p-2 rounded-2xl w-fit"><FileText className="w-5 h-5 text-black" /></div>
               <div className="space-y-0.5">
                 <h3 className="text-white font-semibold text-sm">Mystery Note</h3>
