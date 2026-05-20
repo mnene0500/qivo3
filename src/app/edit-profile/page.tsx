@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { ChevronLeft, Loader2, Save, Camera, Plus, X } from "lucide-react"
+import { ChevronLeft, Loader2, Save, Camera, Plus, X, Calendar } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Cropper from "react-easy-crop"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -266,10 +266,25 @@ export default function EditProfilePage() {
             <Label className="text-[10px] font-black uppercase text-gray-400 ml-1">Full Name</Label>
             <Input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="rounded-2xl h-14 border-gray-100 bg-gray-50 font-bold" />
           </div>
+
+          <div className="space-y-2">
+            <Label className="text-[10px] font-black uppercase text-gray-400 ml-1">Date of Birth</Label>
+            <div className="relative">
+              <Input 
+                type="date" 
+                value={formData.dob} 
+                onChange={(e) => setFormData({...formData, dob: e.target.value})} 
+                className="rounded-2xl h-14 border-gray-100 bg-gray-50 font-bold pl-12" 
+              />
+              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label className="text-[10px] font-black uppercase text-gray-400 ml-1">About Me</Label>
             <Textarea value={formData.interests} onChange={(e) => setFormData({...formData, interests: e.target.value})} className="rounded-2xl min-h-[120px] border-gray-100 bg-gray-50 font-medium" />
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase text-gray-400 ml-1">Country</Label>
@@ -286,6 +301,7 @@ export default function EditProfilePage() {
               </Select>
             </div>
           </div>
+
           <div className="space-y-2">
             <Label className="text-[10px] font-black uppercase text-gray-400 ml-1">Looking For</Label>
             <Select onValueChange={(val) => setFormData({...formData, lookingFor: val})} value={formData.lookingFor}>

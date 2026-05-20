@@ -11,10 +11,6 @@ import { ref, set as rtdbSet, push } from "firebase/database"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 
-/**
- * @fileOverview Welcome / Auth Entry Page.
- * Automatically onboards users to bypass the setup screens.
- */
 export default function WelcomePage() {
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -54,13 +50,13 @@ export default function WelcomePage() {
       if (!userSnap.exists()) {
         const qId = Math.floor(1000000 + Math.random() * 900000000).toString();
         
-        // AUTO-ONBOARD GOOGLE USER IMMEDIATELY
+        // Initial user creation - onboardingComplete is FALSE
         const skeletonData = {
           uid: googleUser.uid,
           email: googleUser.email,
           name: googleUser.displayName || "Google User",
           matchFlowId: qId,
-          onboardingComplete: true, 
+          onboardingComplete: false, 
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           isVerified: false,
@@ -79,19 +75,11 @@ export default function WelcomePage() {
         
         await setDoc(userRef, skeletonData)
 
-        const timestamp = Date.now()
         await rtdbSet(ref(rtdb, `balances/${googleUser.uid}`), {
-          coins: 150, // Welcome Bonus
+          coins: 0,
           diamonds: 0,
-          updatedAt: timestamp,
+          updatedAt: Date.now(),
           isVerified: false
-        })
-
-        await push(ref(rtdb, `coin_history/${googleUser.uid}`), {
-          amount: 150,
-          type: 'bonus',
-          description: 'Google Sign-in Bonus',
-          timestamp: timestamp
         })
       }
 

@@ -51,17 +51,22 @@ export default function HomePage() {
     currentUser?.uid && db ? doc(db, "users", currentUser.uid) : null, 
   [db, currentUser?.uid])
   
-  const { data: profile } = useDoc<UserProfile>(currentUserProfileRef)
+  const { data: profile, loading: profileLoading } = useDoc<UserProfile>(currentUserProfileRef)
 
-  // STRICT ACCESS GUARD: Redirect if no user
+  // MANDATORY ONBOARDING GUARD
   useEffect(() => {
-    if (isInitialized && !authLoading && !currentUser) {
-      router.replace("/welcome")
+    if (isInitialized && !authLoading) {
+      if (!currentUser) {
+        router.replace("/welcome")
+      } else if (profile && !profile.onboardingComplete && !profileLoading) {
+        // If profile exists but setup is not complete, take to setup
+        router.replace("/fastonboard")
+      }
     }
-  }, [isInitialized, authLoading, currentUser, router])
+  }, [isInitialized, authLoading, currentUser, profile, profileLoading, router])
 
   const fetchUsers = useCallback(async (isManual = false) => {
-    if (!db) return
+    if (!db || !profile) return
     if (isManual) setIsRefreshing(true)
     
     try {
@@ -92,10 +97,10 @@ export default function HomePage() {
   }, [db, profile, currentUser?.uid])
 
   useEffect(() => {
-    if (isInitialized && !authLoading && db && currentUser) {
+    if (isInitialized && !authLoading && db && currentUser && profile?.onboardingComplete) {
       fetchUsers()
     }
-  }, [isInitialized, authLoading, db, fetchUsers, currentUser])
+  }, [isInitialized, authLoading, db, fetchUsers, currentUser, profile?.onboardingComplete])
 
   const handleRefresh = () => {
     fetchUsers(true)
@@ -112,7 +117,8 @@ export default function HomePage() {
   const paginatedUsers = useMemo(() => filteredUsers.slice(0, displayLimit), [filteredUsers, displayLimit])
   const hasMore = paginatedUsers.length < filteredUsers.length
 
-  if (authLoading || !isInitialized || (currentUser && !profile)) {
+  // Loading state remains active until auth and profile are confirmed complete
+  if (authLoading || !isInitialized || profileLoading || (currentUser && !profile?.onboardingComplete)) {
     return (
       <div className="flex-1 bg-white min-h-screen flex items-center justify-center">
         <Loader2 className="animate-spin text-[#00A2FF] w-8 h-8" />

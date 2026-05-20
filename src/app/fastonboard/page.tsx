@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react"
@@ -10,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { Heart, Loader2, Globe } from "lucide-react"
+import { Heart, Loader2, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const AFRICAN_COUNTRIES = [
@@ -28,19 +27,11 @@ export default function FastOnboardingPage() {
   const router = useRouter()
   const { toast } = useToast()
 
-  const generateRandomDOB = () => {
-    const currentYear = new Date().getFullYear();
-    const age = Math.floor(Math.random() * 30) + 21; 
-    const year = currentYear - age;
-    const month = Math.floor(Math.random() * 12);
-    const day = Math.floor(Math.random() * 28) + 1;
-    return new Date(year, month, day).toISOString().split('T')[0];
-  }
-
-  const generateQivoId = () => {
-    const min = 1000000; 
-    const max = 999999999; 
-    return Math.floor(Math.random() * (max - min + 1) + min).toString();
+  const handleClearCache = () => {
+    localStorage.clear()
+    sessionStorage.clear()
+    toast({ title: "Cache Cleared" })
+    window.location.reload()
   }
 
   const handleComplete = async () => {
@@ -52,35 +43,18 @@ export default function FastOnboardingPage() {
       const userSnap = await getDoc(userRef)
       const existingData = userSnap.data()
 
-      const qId = existingData?.matchFlowId || generateQivoId()
-      const finalName = `Guest ${qId.slice(-4)}`
-      const finalDob = generateRandomDOB()
-
       const initialCoins = gender === 'male' ? 150 : 0
       const initialDiamonds = gender === 'female' ? 150 : 0
       const timestamp = Date.now()
 
       const updateData: any = {
-        uid: user.uid,
-        email: user.email || `anon_${user.uid}@qivo.app`,
-        name: finalName,
         gender,
-        dob: finalDob,
         country,
-        lookingFor: "Dating",
         onboardingComplete: true,
-        photoURL: `https://picsum.photos/seed/${user.uid}/400/400`,
         updatedAt: serverTimestamp(),
-        createdAt: existingData?.createdAt || serverTimestamp(),
-        matchFlowId: qId,
-        isDeleted: false,
-        isVerified: false,
-        isAdmin: false,
-        isCoinSeller: false,
-        blocking: [],
-        blockedBy: []
       }
 
+      // Merge with existing data (especially for Google users)
       await setDoc(userRef, updateData, { merge: true })
       
       const balanceRef = ref(rtdb, `balances/${user.uid}`)
@@ -166,6 +140,12 @@ export default function FastOnboardingPage() {
               </Select>
             </div>
           </div>
+
+          <div className="pt-10 flex justify-center">
+             <Button variant="ghost" size="sm" onClick={handleClearCache} className="text-[9px] font-bold text-gray-300 uppercase tracking-[0.2em] gap-2 hover:bg-transparent">
+               <RefreshCw className="w-3 h-3" /> Clear Cache & Reload
+             </Button>
+          </div>
         </div>
       </main>
 
@@ -173,7 +153,7 @@ export default function FastOnboardingPage() {
         <Button 
           disabled={!canContinue() || loading}
           onClick={handleComplete}
-          className="flex-1 h-16 rounded-2xl bg-[#00A2FF] hover:bg-[#0081CC] text-white font-black uppercase tracking-widest shadow-lg shadow-blue-100 active:scale-95 transition-all"
+          className="flex-1 h-16 rounded-2xl bg-[#00A2FF] hover:bg-[#0081CC] text-white font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all"
         >
           {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : "Get Started"}
         </Button>
