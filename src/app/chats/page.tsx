@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState, Suspense, useMemo, useRef } from "react"
@@ -34,7 +35,8 @@ import {
   Ban,
   BadgeCheck,
   Video,
-  Phone
+  Phone,
+  Trash2
 } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
@@ -427,14 +429,28 @@ function ChatsContent() {
         <BottomNav />
 
         <AlertDialog open={!!chatToDelete} onOpenChange={(open) => !open && setChatToDelete(null)}>
-          <AlertDialogContent className="rounded-3xl max-w-[85vw] p-8 border-none select-none">
-            <AlertDialogHeader className="items-center text-center">
-              <AlertDialogTitle className="text-xl font-bold">Delete Chat?</AlertDialogTitle>
-              <AlertDialogDescription>Confirm deletion.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="flex-row gap-2 mt-6">
-              <AlertDialogCancel className="flex-1 h-12 rounded-full border-none bg-gray-100 font-bold uppercase tracking-widest text-[10px]">Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteChat} className="flex-1 h-12 rounded-full bg-red-500 hover:bg-red-600 font-bold uppercase tracking-widest text-[10px]">Delete</AlertDialogAction>
+          <AlertDialogContent className="rounded-[2.5rem] max-w-[85vw] p-8 border-none select-none">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="w-20 h-20 bg-red-50 rounded-[2.5rem] flex items-center justify-center">
+                <Trash2 className="w-10 h-10 text-red-500" />
+              </div>
+              <div className="space-y-2">
+                <AlertDialogTitle className="text-2xl font-black text-black tracking-tight">Delete Chat?</AlertDialogTitle>
+                <AlertDialogDescription className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-relaxed">
+                  This will hide the conversation until a new message is sent. This action cannot be reversed.
+                </AlertDialogDescription>
+              </div>
+            </div>
+            <AlertDialogFooter className="flex-row gap-3 mt-8">
+              <AlertDialogCancel className="flex-1 h-14 rounded-full border-none bg-gray-50 text-black font-black uppercase tracking-widest text-[10px] hover:bg-gray-100">
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDeleteChat} 
+                className="flex-1 h-14 rounded-full bg-red-500 hover:bg-red-600 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-red-100"
+              >
+                Delete
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

@@ -60,24 +60,21 @@ export default function HomePage() {
     if (isManual) setIsRefreshing(true)
     
     try {
-      // OPTIMIZATION: Use a smaller limit (20) to save reads.
       const q = query(
         collection(db, "users"), 
         where("onboardingComplete", "==", true),
-        limit(30)
+        limit(20)
       )
       
       const snap = await getDocs(q)
       const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile))
       
-      // Filter out self and blocked users
       const blockedList = currentUserProfile ? [...(currentUserProfile.blocking || []), ...(currentUserProfile.blockedBy || [])] : []
       
       const filtered = fetched.filter(u => {
         if (u.uid === currentUser?.uid) return false
         if (blockedList.includes(u.uid)) return false
         
-        // GENDER DISCOVERY LOGIC: Show opposite gender
         if (!currentUserProfile?.gender) return true;
         const myGender = currentUserProfile.gender.toLowerCase();
         const targetGender = u.gender?.toLowerCase();
@@ -86,11 +83,9 @@ export default function HomePage() {
         return true;
       })
 
-      // Randomize for fresh "Recommend" vibe
       const sorted = filtered.sort(() => Math.random() - 0.5)
       
       setUsers(sorted)
-      // Save to session storage to prevent re-reads on back-navigation
       sessionStorage.setItem('qivo_home_users', JSON.stringify(sorted))
     } catch (err) {
       console.error("[Home Fetch Error]:", err)
@@ -103,7 +98,6 @@ export default function HomePage() {
   useEffect(() => { 
     setIsMounted(true)
     
-    // Check session storage first to save reads
     const cached = sessionStorage.getItem('qivo_home_users')
     if (cached) {
       setUsers(JSON.parse(cached))
@@ -111,7 +105,6 @@ export default function HomePage() {
     }
   }, [])
 
-  // Auto-fetch ONLY if we have no data and profile is ready
   useEffect(() => {
     if (isInitialized && !authLoading && !profileLoading && currentUserProfile && db && users.length === 0) {
       if (!currentUserProfile.onboardingComplete) {
@@ -147,7 +140,6 @@ export default function HomePage() {
 
   return (
     <div className="flex-1 pb-24 bg-[#F9FAFB] min-h-screen relative select-none">
-      {/* Brand Header */}
       <div className="absolute top-0 left-0 right-0 z-0 flex flex-col">
         <div className="h-[72px] bg-[#00A2FF] relative overflow-hidden">
           <div className="absolute -right-4 -top-10 rotate-[-12deg] opacity-30 select-none pointer-events-none">
@@ -158,7 +150,6 @@ export default function HomePage() {
       </div>
       
       <div className="relative z-10 pt-0">
-        {/* Top Cards */}
         <div className="px-4 pt-4 pb-2">
           <div className="grid grid-cols-2 gap-4">
             <div 
@@ -189,7 +180,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Navigation Tabs */}
         <div className="sticky top-0 z-40 bg-[#F9FAFB]/90 backdrop-blur-md px-5 pt-3 pb-3 border-b border-black/5 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-6">
@@ -217,8 +207,7 @@ export default function HomePage() {
         </div>
 
         <main className="px-4 pt-3 relative">
-          {/* Pacifico Background Stamp */}
-          <div className="fixed inset-0 flex items-center justify-center opacity-[0.04] pointer-events-none -z-10 rotate-[-15deg]">
+          <div className="fixed inset-0 flex items-center justify-center opacity-[0.05] pointer-events-none -z-10 rotate-[-15deg]">
             <span className="text-[30vw] font-logo text-black whitespace-nowrap select-none">QIVO</span>
           </div>
 
