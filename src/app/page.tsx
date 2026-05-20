@@ -2,23 +2,41 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useUser, useFirestore, useDoc } from "@/firebase"
+import { doc } from "firebase/firestore"
 
 /**
  * Root Redirector with Cinematic Splash Screen.
- * Always leads to /welcome to stop auto-login behavior.
+ * Checks auth status and redirects automatically if a session exists.
  */
 export default function RootPage() {
   const router = useRouter()
+  const { user, loading: authLoading, isInitialized } = useUser()
+  const db = useFirestore()
+  const { data: profile, loading: profileLoading } = useDoc<any>(user?.uid && db ? doc(db, "users", user.uid) : null)
 
   useEffect(() => {
-    // Minimum display time for the splash screen vibe (2 seconds)
-    // Then always redirect to /welcome to allow for a manual "Enter" action.
+    if (!isInitialized || authLoading) return
+
     const timer = setTimeout(() => {
-      router.replace("/welcome")
+      if (user) {
+        if (!profileLoading && profile) {
+          if (profile.onboardingComplete) {
+            router.replace("/home")
+          } else {
+            router.replace(user.isAnonymous ? "/fastonboard" : "/onboarding")
+          }
+        } else if (!profileLoading && !profile) {
+          // No profile found but user exists
+          router.replace("/onboarding")
+        }
+      } else {
+        router.replace("/welcome")
+      }
     }, 2000);
     
     return () => clearTimeout(timer);
-  }, [router])
+  }, [user, isInitialized, authLoading, profile, profileLoading, router])
 
   return (
     <div className="fixed inset-0 bg-black flex flex-col items-center justify-center overflow-hidden">
