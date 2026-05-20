@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo, useState, useEffect, useCallback } from "react"
@@ -46,7 +47,7 @@ export default function HomePage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [users, setUsers] = useState<UserProfile[]>([])
   const [initialLoading, setInitialLoading] = useState(true)
-  const [displayLimit, setDisplayLimit] = useState(10)
+  const [displayLimit, setDisplayLimit] = useState(12)
 
   const currentUserProfileRef = useMemoFirebase(() => 
     currentUser?.uid && db ? doc(db, "users", currentUser.uid) : null, 
@@ -54,16 +55,19 @@ export default function HomePage() {
   
   const { data: currentUserProfile, loading: profileLoading } = useDoc<UserProfile>(currentUserProfileRef)
 
+  // Use a ref to track if we've already done the initial fetch to prevent loops
+  const hasFetched = typeof window !== 'undefined' && (window as any)._qivo_home_fetched;
+
   const fetchUsers = useCallback(async (isManual = false) => {
     if (!db) return
     if (isManual) setIsRefreshing(true)
     
     try {
-      // Fetch all active users who completed onboarding
+      // READ OPTIMIZATION: Lowered limit to 40 to save Firestore Reads
       const q = query(
         collection(db, "users"), 
         where("onboardingComplete", "==", true),
-        limit(100)
+        limit(40)
       )
       
       const snap = await getDocs(q)
@@ -76,55 +80,45 @@ export default function HomePage() {
         if (u.uid === currentUser?.uid) return false
         if (blockedList.includes(u.uid)) return false
         
-        // GENDER DISCOVERY LOGIC: Male sees Female, Female sees Male
+        // GENDER DISCOVERY LOGIC
         if (!currentUserProfile?.gender) return true;
-        
         const myGender = currentUserProfile.gender.toLowerCase();
         const targetGender = u.gender?.toLowerCase();
-        
         if (myGender === 'male') return targetGender === 'female';
         if (myGender === 'female') return targetGender === 'male';
-        
         return true;
       })
 
       // Randomize for fresh "Recommend" vibe
       const sorted = filtered.sort(() => Math.random() - 0.5)
       setUsers(sorted)
+      if (typeof window !== 'undefined') (window as any)._qivo_home_fetched = true;
     } catch (err) {
       console.error("[Home Fetch Error]:", err)
     } finally {
       setIsRefreshing(false)
       setInitialLoading(false)
     }
-  }, [db, currentUserProfile, currentUser?.uid])
+  }, [db, currentUserProfile?.uid, currentUserProfile?.gender, currentUser?.uid])
 
   useEffect(() => { 
     setIsMounted(true)
   }, [])
 
-  // Auto-fetch users when auth and profile are ready
+  // Optimized trigger: only fetch when profile is definitively ready or manual refresh
   useEffect(() => {
-    if (isInitialized && !authLoading && db) {
-      if (!currentUser) {
-        router.replace("/welcome")
+    if (isInitialized && !authLoading && !profileLoading && currentUserProfile && db && users.length === 0) {
+      if (!currentUserProfile.onboardingComplete) {
+        router.replace("/onboarding")
         return
       }
-      
-      if (currentUserProfile && !profileLoading) {
-        if (!currentUserProfile.onboardingComplete) {
-          router.replace("/onboarding")
-          return
-        }
-        // Always fetch on mount/profile-ready to avoid stale data
-        fetchUsers()
-      }
+      fetchUsers()
     }
-  }, [currentUser, authLoading, isInitialized, currentUserProfile, profileLoading, db, router, fetchUsers])
+  }, [isInitialized, authLoading, profileLoading, !!currentUserProfile, !!db, fetchUsers, users.length, router])
 
   const handleRefresh = () => {
     fetchUsers(true)
-    setDisplayLimit(10)
+    setDisplayLimit(12)
   }
 
   const filteredUsers = useMemo(() => {
@@ -132,7 +126,7 @@ export default function HomePage() {
       return users.filter(u => u.country === currentUserProfile.country)
     }
     return users
-  }, [users, activeTab, currentUserProfile])
+  }, [users, activeTab, currentUserProfile?.country])
 
   const paginatedUsers = useMemo(() => filteredUsers.slice(0, displayLimit), [filteredUsers, displayLimit])
   const hasMore = paginatedUsers.length < filteredUsers.length
@@ -208,9 +202,9 @@ export default function HomePage() {
               </div>
               <div className="space-y-1">
                 <p className="font-bold text-black uppercase tracking-widest text-sm">No profiles found</p>
-                <p className="text-xs text-gray-400 max-w-[200px] mx-auto">We couldn't find matches of the opposite gender nearby right now.</p>
+                <p className="text-xs text-gray-400 max-w-[200px] mx-auto">Try refreshing to find new connections.</p>
               </div>
-              <Button variant="outline" onClick={handleRefresh} className="rounded-full font-bold uppercase text-[10px] tracking-widest">Try Refreshing</Button>
+              <Button variant="outline" onClick={handleRefresh} className="rounded-full font-bold uppercase text-[10px] tracking-widest">Refresh Now</Button>
             </div>
           ) : (
             <div className="space-y-8">
@@ -244,7 +238,7 @@ export default function HomePage() {
                   <Button 
                     variant="ghost" 
                     className="text-gray-400 font-bold text-[9px] uppercase tracking-widest gap-2 hover:bg-transparent"
-                    onClick={() => setDisplayLimit(prev => prev + 10)}
+                    onClick={() => setDisplayLimit(prev => prev + 12)}
                   >
                     <ChevronDown className="w-3.5 h-3.5" />
                     Show more

@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useEffect, useCallback } from "react"
@@ -9,14 +10,11 @@ import { Button } from "@/components/ui/button"
 import { 
   Search, 
   SlidersHorizontal, 
-  Hash, 
-  Star, 
-  MapPin, 
   Loader2, 
-  Heart,
   BadgeCheck,
   TrendingUp,
-  Sparkles
+  Sparkles,
+  MapPin
 } from "lucide-react"
 import { BottomNav } from "@/components/layout/BottomNav"
 import { Card } from "@/components/ui/card"
@@ -58,7 +56,6 @@ export default function ExplorePage() {
   const [selectedInterest, setSelectedInterest] = useState<string | null>(null)
   const [users, setUsers] = useState<UserProfile[]>([])
   const [loading, setLoading] = useState(true)
-  const [isSearching, setIsSearching] = useState(false)
 
   const currentUserRef = useMemoFirebase(() => currentUser?.uid && db ? doc(db, "users", currentUser.uid) : null, [db, currentUser?.uid])
   const { data: profile } = useDoc<UserProfile>(currentUserRef)
@@ -67,10 +64,11 @@ export default function ExplorePage() {
     if (!db || !profile) return
     setLoading(true)
     try {
+      // READ OPTIMIZATION: Lowered limit to 30 for Explore
       const q = query(
         collection(db, "users"),
         where("onboardingComplete", "==", true),
-        limit(50)
+        limit(30)
       )
       const snap = await getDocs(q)
       const fetched = snap.docs.map(d => ({ ...d.data() } as UserProfile))
@@ -87,11 +85,11 @@ export default function ExplorePage() {
     } finally {
       setLoading(false)
     }
-  }, [db, profile, currentUser?.uid])
+  }, [db, profile?.uid, currentUser?.uid])
 
   useEffect(() => {
-    if (profile) fetchUsers()
-  }, [profile, fetchUsers])
+    if (profile && users.length === 0) fetchUsers()
+  }, [profile, fetchUsers, users.length])
 
   const filteredResults = useMemo(() => {
     let result = users
