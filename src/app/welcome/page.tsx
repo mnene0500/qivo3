@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Mail, Loader2, AlertCircle, RefreshCw } from "lucide-react"
+import { Mail, Loader2, RefreshCw } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth"
 import { useAuth, useUser, useFirestore, useDatabase } from "@/firebase"
