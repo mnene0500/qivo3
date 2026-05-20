@@ -10,7 +10,7 @@ import { doc, deleteDoc } from "firebase/firestore"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ChevronLeft, ChevronRight, ShieldAlert, Link as LinkIcon, Info, RefreshCw, CreditCard, Ban, LogOut } from "lucide-react"
+import { ChevronLeft, ChevronRight, ShieldAlert, Link as LinkIcon, Info, RefreshCw, CreditCard, Ban, LogOut, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import {
@@ -34,16 +34,17 @@ interface SettingItemProps {
   onClick?: () => void
   href?: string
   icon?: React.ReactNode
+  variant?: 'default' | 'destructive'
 }
 
-function SettingItem({ label, onClick, href, icon }: SettingItemProps) {
+function SettingItem({ label, onClick, href, icon, variant = 'default' }: SettingItemProps) {
   const content = (
     <div className="flex items-center justify-between py-5 px-6 border-b border-gray-50 active:bg-gray-50 transition-colors cursor-pointer bg-white">
       <div className="flex items-center gap-4">
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-gray-50">
+        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${variant === 'destructive' ? 'bg-red-50' : 'bg-gray-50'}`}>
           {icon}
         </div>
-        <span className="text-[15px] font-bold text-black">{label}</span>
+        <span className={`text-[15px] font-bold ${variant === 'destructive' ? 'text-red-500' : 'text-black'}`}>{label}</span>
       </div>
       <ChevronRight className="w-5 h-5 text-gray-300" />
     </div>
@@ -90,7 +91,7 @@ export default function SettingsPage() {
   }
 
   const handleDeleteAccount = async () => {
-    if (!user || deleteConfirmText !== "DELETE") return
+    if (!user || deleteConfirmText.toUpperCase() !== "DELETE") return
 
     try {
       const uid = user.uid
@@ -116,16 +117,9 @@ export default function SettingsPage() {
     }
   }
 
-  const settingsList = [
-    { label: "Charge settings", href: "/recharge", icon: <CreditCard className="w-4 h-4 text-blue-500" /> },
-    { label: "Blocked List", href: "/blocked-list", icon: <Ban className="w-4 h-4 text-red-400" /> },
-    { label: "About QIVO", href: "/about", icon: <Info className="w-4 h-4 text-gray-500" /> },
-    { label: "Clear Cache", onClick: handleClearCache, icon: <RefreshCw className="w-4 h-4 text-orange-500" /> },
-  ]
-
   return (
     <div className="flex-1 bg-[#F9FAFB] flex flex-col min-h-screen select-none">
-      <header className="flex items-center justify-between px-4 h-16 bg-white sticky top-0 z-50 border-b">
+      <header className="flex items-center justify-between px-4 h-16 bg-white sticky top-0 z-50 border-b shadow-sm">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full">
           <ChevronLeft className="w-6 h-6 text-black" />
         </Button>
@@ -136,19 +130,67 @@ export default function SettingsPage() {
       <main className="flex-1">
         <div className="flex flex-col mt-4">
           {user?.isAnonymous && (
-            <SettingItem label="Secure Account" href="/bind-account" icon={<LinkIcon className="w-4 h-4 text-[#00A2FF]" />} />
+            <SettingItem label="Secure Account" href="/bind-account" icon={<LinkIcon className="w-5 h-5 text-[#00A2FF]" />} />
           )}
           
-          {settingsList.map((item, idx) => (
-            <SettingItem key={idx} {...item} />
-          ))}
+          <SettingItem label="Charge settings" href="/recharge" icon={<CreditCard className="w-5 h-5 text-blue-500" />} />
+          <SettingItem label="Blocked List" href="/blocked-list" icon={<Ban className="w-5 h-5 text-red-400" />} />
+          <SettingItem label="About QIVO" href="/about" icon={<Info className="w-5 h-5 text-gray-500" />} />
+          <SettingItem label="Clear Cache" onClick={handleClearCache} icon={<RefreshCw className="w-5 h-5 text-orange-500" />} />
+
+          {!profile?.isAdmin && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <div className="flex items-center justify-between py-5 px-6 border-b border-gray-50 active:bg-gray-50 transition-colors cursor-pointer bg-white group">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-red-50">
+                      <Trash2 className="w-5 h-5 text-red-500" />
+                    </div>
+                    <span className="text-[15px] font-bold text-red-500">Delete Account</span>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-gray-300" />
+                </div>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="rounded-[2.5rem] max-w-[85vw] p-8 border-none select-none">
+                <AlertDialogHeader className="items-center text-center">
+                  <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4 mx-auto">
+                    <ShieldAlert className="w-8 h-8 text-red-500" />
+                  </div>
+                  <AlertDialogTitle className="text-xl font-bold">Delete Account?</AlertDialogTitle>
+                  <AlertDialogDescription className="text-xs font-bold pt-2 uppercase tracking-widest leading-relaxed">
+                    This action is permanent. To confirm, please type <span className="text-red-600 font-black">DELETE</span> below:
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                
+                <div className="py-4">
+                  <Input 
+                    placeholder="Type DELETE" 
+                    value={deleteConfirmText} 
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    className="rounded-2xl h-14 border-red-100 bg-red-50/30 text-center font-black uppercase tracking-widest"
+                  />
+                </div>
+
+                <AlertDialogFooter className="flex-row gap-3 mt-4">
+                  <AlertDialogCancel className="flex-1 h-14 rounded-full border-none bg-gray-50 font-bold uppercase tracking-widest text-[10px]">Cancel</AlertDialogCancel>
+                  <AlertDialogAction 
+                    disabled={deleteConfirmText.toUpperCase() !== "DELETE"}
+                    className="flex-1 h-14 rounded-full bg-red-500 hover:bg-red-600 font-bold uppercase tracking-widest text-[10px] disabled:opacity-30"
+                    onClick={handleDeleteAccount}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
 
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <div className="flex items-center justify-between py-5 px-6 border-b border-gray-50 active:bg-gray-50 transition-colors cursor-pointer bg-white">
                 <div className="flex items-center gap-4">
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-gray-50">
-                    <LogOut className="w-4 h-4 text-gray-400" />
+                  <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-gray-50">
+                    <LogOut className="w-5 h-5 text-gray-400" />
                   </div>
                   <span className="text-[15px] font-bold text-black">Sign Out</span>
                 </div>
@@ -176,47 +218,6 @@ export default function SettingsPage() {
           <Link href="/privacy">Privacy</Link>
           <span className="opacity-20">•</span>
           <Link href="/terms">Terms</Link>
-          {!profile?.isAdmin && (
-            <>
-              <span className="opacity-20">•</span>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <button className="hover:text-red-500 transition-colors">Delete Account</button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="rounded-[2.5rem] max-w-[85vw] p-8 border-none select-none">
-                  <AlertDialogHeader className="items-center text-center">
-                    <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4 mx-auto">
-                      <ShieldAlert className="w-8 h-8 text-red-500" />
-                    </div>
-                    <AlertDialogTitle className="text-xl font-bold">Delete Account?</AlertDialogTitle>
-                    <AlertDialogDescription className="text-xs font-bold pt-2 uppercase tracking-widest leading-relaxed">
-                      To confirm, please type <span className="text-red-600 font-black">DELETE</span> below:
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  
-                  <div className="py-4">
-                    <Input 
-                      placeholder="Type DELETE" 
-                      value={deleteConfirmText} 
-                      onChange={(e) => setDeleteConfirmText(e.target.value)}
-                      className="rounded-2xl h-14 border-red-100 bg-red-50/30 text-center font-black uppercase tracking-widest"
-                    />
-                  </div>
-
-                  <AlertDialogFooter className="flex-row gap-3 mt-4">
-                    <AlertDialogCancel className="flex-1 h-14 rounded-full border-none bg-gray-50 font-bold uppercase tracking-widest text-[10px]">Cancel</AlertDialogCancel>
-                    <AlertDialogAction 
-                      disabled={deleteConfirmText !== "DELETE"}
-                      className="flex-1 h-14 rounded-full bg-red-500 hover:bg-red-600 font-bold uppercase tracking-widest text-[10px] disabled:opacity-30"
-                      onClick={handleDeleteAccount}
-                    >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </>
-          )}
         </div>
       </footer>
     </div>

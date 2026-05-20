@@ -1,9 +1,9 @@
-
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getAuth, Auth } from 'firebase/auth';
 import { getDatabase, Database } from 'firebase/database';
 import { firebaseConfig } from './config';
+import { useMemoFirebase } from './utils-client';
 
 /**
  * Idempotent initialization of Firebase services.
@@ -48,4 +48,4 @@ export { useUser } from './auth/use-user';
 export { useCollection } from './firestore/use-collection';
 export { useDoc } from './firestore/use-doc';
 export { useFirestore, useAuth, useDatabase } from './provider';
-export { useMemoFirebase } from './utils-client';
+export { useMemoFirebase };
