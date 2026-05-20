@@ -138,7 +138,7 @@ export default function SettingsPage() {
           {!profile?.isAdmin && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <div className="flex items-center justify-between py-5 px-6 border-b border-gray-50 active:bg-gray-50 transition-colors cursor-pointer bg-white group">
+                <div className="flex items-center justify-between py-5 px-6 border-b border-gray-50 active:bg-gray-50 transition-colors cursor-pointer bg-white">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-red-50">
                       <Trash2 className="w-5 h-5 text-red-500" />
@@ -209,14 +209,6 @@ export default function SettingsPage() {
           </AlertDialog>
         </div>
       </main>
-
-      <footer className="pb-10 pt-20 px-6">
-        <div className="flex items-center justify-center gap-4 text-[10px] text-gray-400 font-black uppercase tracking-[0.2em]">
-          <Link href="/privacy">Privacy</Link>
-          <span className="opacity-20">•</span>
-          <Link href="/terms">Terms</Link>
-        </div>
-      </footer>
     </div>
   )
 }

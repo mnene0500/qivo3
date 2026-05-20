@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo, useEffect, useState } from "react"
@@ -168,10 +169,8 @@ export default function MePage() {
   useEffect(() => {
     if (isInitialized && !authLoading && !user) {
       router.replace("/welcome")
-    } else if (profile && !profileLoading && !profile.onboardingComplete) {
-      router.replace("/onboarding")
     }
-  }, [user, authLoading, isInitialized, profile, profileLoading, router])
+  }, [user, authLoading, isInitialized, router])
 
   useEffect(() => {
     if (!user?.uid || !rtdb) return
@@ -198,7 +197,7 @@ export default function MePage() {
     }
   }
 
-  if (authLoading && !profile) {
+  if (authLoading || !isInitialized) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center min-h-screen bg-[#F8F9FA]">
         <Loader2 className="w-8 h-8 animate-spin text-[#00A2FF]" />
@@ -206,7 +205,7 @@ export default function MePage() {
     )
   }
 
-  if (!user && isInitialized) return null
+  if (!user) return null
 
   const isVerified = balances.isVerified || profile?.isVerified
 

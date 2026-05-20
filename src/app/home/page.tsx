@@ -42,7 +42,6 @@ export default function HomePage() {
   const { user: currentUser, loading: authLoading, isInitialized } = useUser()
   const db = useFirestore()
   
-  const [isMounted, setIsMounted] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [users, setUsers] = useState<UserProfile[]>([])
   const [initialLoading, setInitialLoading] = useState(true)
@@ -53,14 +52,10 @@ export default function HomePage() {
     currentUser?.uid && db ? doc(db, "users", currentUser.uid) : null, 
   [db, currentUser?.uid])
   
-  const { data: profile, loading: profileLoading } = useDoc<UserProfile>(currentUserProfileRef)
-
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
+  const { data: profile } = useDoc<UserProfile>(currentUserProfileRef)
 
   const fetchUsers = useCallback(async (isManual = false) => {
-    if (!db || !profile) return
+    if (!db) return
     if (isManual) setIsRefreshing(true)
     
     try {
@@ -72,15 +67,11 @@ export default function HomePage() {
       
       const snap = await getDocs(q)
       const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile))
-      const blockedList = [...(profile.blocking || []), ...(profile.blockedBy || [])]
+      const blockedList = [...(profile?.blocking || []), ...(profile?.blockedBy || [])]
       
       const filtered = fetched.filter(u => {
         if (u.uid === currentUser?.uid) return false
         if (blockedList.includes(u.uid)) return false
-        const myGender = profile.gender?.toLowerCase()
-        const targetGender = u.gender?.toLowerCase()
-        if (myGender === 'male') return targetGender === 'female'
-        if (myGender === 'female') return targetGender === 'male'
         return true
       })
 
@@ -95,14 +86,10 @@ export default function HomePage() {
   }, [db, profile, currentUser?.uid])
 
   useEffect(() => {
-    if (isInitialized && !authLoading && !profileLoading && db) {
-      if (!profile || profile.onboardingComplete !== true) {
-        router.replace("/onboarding")
-        return
-      }
-      if (users.length === 0) fetchUsers()
+    if (isInitialized && !authLoading && db) {
+      fetchUsers()
     }
-  }, [isInitialized, authLoading, profileLoading, profile, db, fetchUsers, users.length, router])
+  }, [isInitialized, authLoading, db, fetchUsers])
 
   const handleRefresh = () => {
     fetchUsers(true)
@@ -119,7 +106,7 @@ export default function HomePage() {
   const paginatedUsers = useMemo(() => filteredUsers.slice(0, displayLimit), [filteredUsers, displayLimit])
   const hasMore = paginatedUsers.length < filteredUsers.length
 
-  if (!isMounted || authLoading || profileLoading || (isInitialized && !profile)) {
+  if (authLoading || !isInitialized) {
     return (
       <div className="flex-1 bg-white min-h-screen flex items-center justify-center">
         <Loader2 className="animate-spin text-[#00A2FF] w-8 h-8" />

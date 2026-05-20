@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Mail, Loader2, RefreshCw } from "lucide-react"
+import { Mail, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth"
 import { useAuth, useUser, useFirestore, useDatabase } from "@/firebase"
@@ -14,12 +14,11 @@ import { useToast } from "@/hooks/use-toast"
 
 /**
  * @fileOverview Welcome / Auth Entry Page.
- * Optimized for high-speed redirection and Google Auto-Onboarding.
+ * Optimized for direct entry. Skips onboarding for Google users.
  */
 export default function WelcomePage() {
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [redirecting, setRedirecting] = useState(false)
   
   const auth = useAuth()
   const db = useFirestore()
@@ -32,32 +31,11 @@ export default function WelcomePage() {
     setMounted(true)
   }, [])
 
-  // AUTH GATEKEEPER: Ensures skeleton account is ready before proceeding
   useEffect(() => {
-    const handleRedirect = async () => {
-      if (isInitialized && !authLoading && user && db && rtdb) {
-        setRedirecting(true)
-        try {
-          const userRef = doc(db, "users", user.uid)
-          const userSnap = await getDoc(userRef)
-          
-          if (userSnap.exists()) {
-            if (userSnap.data().onboardingComplete) {
-              router.replace("/home")
-            } else {
-              router.replace("/onboarding")
-            }
-          } else {
-            // No profile? Send to onboarding for manual setup
-            router.replace("/onboarding")
-          }
-        } catch (error) {
-          router.replace("/onboarding")
-        }
-      }
+    if (isInitialized && !authLoading && user) {
+      router.replace("/home")
     }
-    handleRedirect()
-  }, [user, isInitialized, authLoading, router, db, rtdb])
+  }, [user, isInitialized, authLoading, router])
 
   const handleGoogleLogin = async () => {
     if (!auth || !db || !rtdb) {
@@ -77,13 +55,13 @@ export default function WelcomePage() {
       if (!userSnap.exists()) {
         const qId = Math.floor(1000000 + Math.random() * 900000000).toString();
         
-        // AUTO-ONBOARD GOOGLE USER
+        // AUTO-ONBOARD GOOGLE USER IMMEDIATELY
         const skeletonData = {
           uid: googleUser.uid,
           email: googleUser.email,
           name: googleUser.displayName || "Google User",
           matchFlowId: qId,
-          onboardingComplete: true, // SKIP ONBOARDING
+          onboardingComplete: true, 
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           isVerified: false,
@@ -116,8 +94,6 @@ export default function WelcomePage() {
           description: 'Google Sign-in Bonus',
           timestamp: timestamp
         })
-      } else if (!userSnap.data().onboardingComplete) {
-          await setDoc(userRef, { onboardingComplete: true }, { merge: true })
       }
 
       router.replace("/home")
@@ -129,7 +105,7 @@ export default function WelcomePage() {
     }
   }
 
-  if (!mounted || (isInitialized && user && redirecting)) {
+  if (!mounted || (isInitialized && user)) {
     return (
       <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-4">
         <Loader2 className="w-10 h-10 animate-spin text-[#00A2FF]" />

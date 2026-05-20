@@ -5,7 +5,8 @@ import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth"
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"
-import { useAuth, useFirestore } from "@/firebase"
+import { ref, set as rtdbSet } from "firebase/database"
+import { useAuth, useFirestore, useDatabase } from "@/firebase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,6 +23,7 @@ export default function UnifiedAuthPage() {
   const { toast } = useToast()
   const auth = useAuth()
   const db = useFirestore()
+  const rtdb = useDatabase()
 
   const passwordStrength = useMemo(() => {
     if (!password) return 0
@@ -51,69 +53,25 @@ export default function UnifiedAuthPage() {
     return Math.floor(1000000 + Math.random() * 900000000).toString();
   }
 
-  const handleAuthError = (error: any, type: 'Login' | 'Registration') => {
-    console.error(`[${type} Error]:`, error?.code, error?.message);
-    
-    let description = error?.message || "An unexpected error occurred.";
-    if (error?.code === 'auth/network-request-failed') {
-      description = "Network error. Please ensure this domain is added to 'Authorized Domains' in Firebase Console Settings.";
-    } else if (error?.code === 'auth/operation-not-allowed') {
-      description = "Email/Password sign-in is not enabled in your Firebase Console.";
-    } else if (!error?.code && description.includes('null')) {
-      description = "Auth service not available. Please configure your Vercel Environment Variables.";
-    }
-
-    toast({
-      variant: "destructive",
-      title: `${type} failed`,
-      description: description,
-    })
-  }
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email || !password) return
-    
-    if (!auth) {
-      handleAuthError({ message: "Firebase Auth is not initialized. Please set NEXT_PUBLIC_FIREBASE_* variables in Vercel." }, 'Login');
-      return;
-    }
-
+    if (!email || !password || !auth) return
     setLoading(true)
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password)
-      const user = userCredential.user
-      
-      if (!db) throw new Error("Firestore not initialized.");
-      
-      const userRef = doc(db, "users", user.uid)
-      const userSnap = await getDoc(userRef)
-      
-      if (userSnap.exists() && userSnap.data().onboardingComplete) {
-        router.push("/home")
-      } else {
-        router.push("/onboarding")
-      }
+      await signInWithEmailAndPassword(auth, email, password)
+      router.push("/home")
     } catch (error: any) {
-      handleAuthError(error, 'Login')
+      toast({ variant: "destructive", title: "Login failed", description: error.message })
     } finally {
       setLoading(false)
     }
   }
 
   const handleRegister = async () => {
-    if (!email || !password) {
-      toast({ variant: "destructive", title: "Error", description: "Email and password are required." })
-      return
-    }
+    if (!email || !password || !auth || !db || !rtdb) return
     if (passwordStrength < 40) {
       toast({ variant: "destructive", title: "Weak Password", description: "Please use a stronger password." })
       return
-    }
-
-    if (!auth || !db) {
-      handleAuthError({ message: "Services not initialized. Check your environment variables." }, 'Registration');
-      return;
     }
 
     setLoading(true)
@@ -121,19 +79,36 @@ export default function UnifiedAuthPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
       
+      const qId = generateQivoId();
       const userData = {
         uid: user.uid,
         email: user.email,
-        matchFlowId: generateQivoId(),
-        onboardingComplete: false,
+        name: `User ${qId.slice(-4)}`,
+        matchFlowId: qId,
+        onboardingComplete: true, // SILENT AUTO-COMPLETE
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        gender: "not specified",
+        dob: "2000-01-01",
+        country: "Kenya",
+        photoURL: `https://picsum.photos/seed/${user.uid}/400/400`,
+        isVerified: false,
+        isAdmin: false,
+        isDeleted: false,
+        blocking: [],
+        blockedBy: []
       }
 
-      await setDoc(doc(db, "users", user.uid), userData, { merge: true })
-      router.push("/onboarding")
+      await setDoc(doc(db, "users", user.uid), userData)
+      await rtdbSet(ref(rtdb, `balances/${user.uid}`), {
+        coins: 150,
+        diamonds: 0,
+        updatedAt: Date.now()
+      })
+
+      router.push("/home")
     } catch (error: any) {
-      handleAuthError(error, 'Registration')
+      toast({ variant: "destructive", title: "Registration failed", description: error.message })
     } finally {
       setLoading(false)
     }
@@ -149,18 +124,6 @@ export default function UnifiedAuthPage() {
       </header>
 
       <div className="flex-1 flex flex-col justify-center space-y-8 max-w-sm mx-auto w-full">
-        {!auth && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
-            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <p className="text-xs font-bold text-amber-900">Configuration Required</p>
-              <p className="text-[10px] text-amber-700 leading-relaxed">
-                Authentication is disabled. Please add your <span className="font-bold">Firebase Environment Variables</span> in Vercel to enable Login.
-              </p>
-            </div>
-          </div>
-        )}
-
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-black text-black tracking-tight">Welcome</h1>
           <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Login or Join QIVO</p>
@@ -170,45 +133,16 @@ export default function UnifiedAuthPage() {
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="email" className="text-[10px] font-black uppercase text-gray-400 ml-1">Email Address</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder="your@email.com" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                required 
-                className="rounded-2xl h-14 border-gray-100 bg-gray-50 font-bold text-sm text-black"
-              />
+              <Input id="email" type="email" placeholder="your@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="rounded-2xl h-14 border-gray-100 bg-gray-50 font-bold text-sm text-black" />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="password" className="text-[10px] font-black uppercase text-gray-400 ml-1">Password</Label>
-              <Input 
-                id="password" 
-                type="password" 
-                placeholder="••••••••" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                required 
-                className="rounded-2xl h-14 border-gray-100 bg-gray-50 font-bold text-sm text-black"
-              />
-              {password && (
-                <div className="px-1 pt-2 space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Strength: {strengthText}</span>
-                    {passwordStrength >= 80 ? <ShieldCheck className="w-3 h-3 text-green-500" /> : <ShieldAlert className="w-3 h-3 text-red-400" />}
-                  </div>
-                  <Progress value={passwordStrength} className="h-1" indicatorClassName={strengthColor} />
-                </div>
-              )}
+              <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required className="rounded-2xl h-14 border-gray-100 bg-gray-50 font-bold text-sm text-black" />
             </div>
           </div>
 
           <div className="space-y-4 pt-4">
-            <Button 
-              type="submit" 
-              disabled={loading || !auth} 
-              className="w-full rounded-full h-14 text-base font-bold bg-[#00A2FF] hover:bg-[#0081CC] shadow-xl shadow-blue-100 flex items-center justify-center gap-2"
-            >
+            <Button type="submit" disabled={loading} className="w-full rounded-full h-14 text-base font-bold bg-[#00A2FF] hover:bg-[#0081CC] shadow-xl shadow-blue-100 flex items-center justify-center gap-2">
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Mail className="w-5 h-5" /> Login</>}
             </Button>
 
@@ -218,21 +152,11 @@ export default function UnifiedAuthPage() {
               <div className="flex-grow border-t border-gray-100"></div>
             </div>
 
-            <Button 
-              type="button"
-              variant="outline"
-              disabled={loading || !auth} 
-              onClick={handleRegister}
-              className="w-full rounded-full h-14 text-base font-bold border-2 border-gray-100 text-black hover:bg-gray-50 flex items-center justify-center gap-2"
-            >
+            <Button type="button" variant="outline" disabled={loading} onClick={handleRegister} className="w-full rounded-full h-14 text-base font-bold border-2 border-gray-100 text-black hover:bg-gray-50 flex items-center justify-center gap-2">
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><UserPlus className="w-5 h-5" /> Create Account</>}
             </Button>
           </div>
         </form>
-
-        <p className="text-[10px] text-center text-gray-400 font-medium px-8 leading-relaxed">
-          By continuing, you agree to QIVO's <Link href="/terms" className="underline font-bold text-gray-500">Terms</Link> and <Link href="/privacy" className="underline font-bold text-gray-500">Privacy Policy</Link>.
-        </p>
       </div>
     </div>
   )
