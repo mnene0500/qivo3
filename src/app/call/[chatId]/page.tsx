@@ -1,11 +1,10 @@
-
 "use client"
 
 import { useEffect, useRef, use, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useUser, useDoc, useFirestore, useDatabase } from "@/firebase"
 import { doc } from "firebase/firestore"
-import { ref, onValue, off } from "firebase/database"
+import { ref, onValue, off, set } from "firebase/database"
 import { 
   Loader2, 
   Coins, 
@@ -24,7 +23,7 @@ import { cn } from "@/lib/utils"
 
 /**
  * @fileOverview Custom 1-on-1 Call Interface.
- * Headless Zego implementation with a bespoke QIVO premium UI.
+ * Headless Zego implementation with connection-aware billing and isolated permissions.
  */
 export default function CallPage({ params }: { params: Promise<{ chatId: string }> }) {
   const { chatId } = use(params)
@@ -42,15 +41,16 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
   const isVideo = searchParams.get('type') !== 'voice'
   const isCaller = searchParams.get('caller') === 'true'
   const partnerName = searchParams.get('partner') || "Partner"
+  const partnerId = searchParams.get('partnerId')
   
   const { data: profile } = useDoc<any>(user?.uid && db ? doc(db, "users", user.uid) : null)
   const [currentBalance, setCurrentBalance] = useState<number>(0)
   const [error, setError] = useState<string | null>(null)
   
-  // Custom Controls State
   const [micEnabled, setMicEnabled] = useState(true)
   const [cameraEnabled, setCameraEnabled] = isVideo ? useState(true) : [false, () => {}]
 
+  // Listen to balance updates
   useEffect(() => {
     if (!user?.uid || !rtdb) return
     const balRef = ref(rtdb, `balances/${user.uid}/coins`)
@@ -59,6 +59,22 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
     })
     return () => off(balRef, 'value', unsubscribe)
   }, [user?.uid, rtdb])
+
+  // Listen to call status (Decline detection)
+  useEffect(() => {
+    if (!rtdb || !partnerId || !isCaller) return
+    const callSignalRef = ref(rtdb, `calls/${partnerId}`)
+    const unsubscribe = onValue(callSignalRef, (snap) => {
+      // If signal is deleted before anyone joins, it was declined or timed out
+      if (!snap.exists()) {
+         if (!billingIntervalRef.current) {
+            toast({ title: "Call Declined", description: `${partnerName} is unavailable.` });
+            router.replace("/chats");
+         }
+      }
+    })
+    return () => off(callSignalRef, 'value', unsubscribe)
+  }, [rtdb, partnerId, isCaller, partnerName, router, toast])
 
   const handleDeduction = async () => {
     if (!user || !isCaller) return true;
@@ -112,21 +128,27 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
           showLeavingView: false,
           showTextChat: false,
           showUserList: false,
-          turnOnCameraWhenJoining: isVideo,
+          turnOnCameraWhenJoining: isVideo, // ONLY true for video calls
           turnOnMicrophoneWhenJoining: true,
-          showMyCameraToggleButton: isVideo,
+          showMyCameraToggleButton: isVideo, // HIDDEN for voice calls
           showAudioVideoSettings: false,
           layout: "Auto",
           scenario: {
             mode: isVideo ? ZegoUIKitPrebuilt.VideoCall : ZegoUIKitPrebuilt.VoiceCall,
           },
-          onUserJoin: async () => {
-            if (isCaller && !billingIntervalRef.current) {
+          onUserJoin: async (joinedUser) => {
+            // Only start billing once the OTHER user joins
+            if (isCaller && joinedUser.userID !== user.uid && !billingIntervalRef.current) {
                const success = await handleDeduction();
                if (success) {
                  billingIntervalRef.current = setInterval(handleDeduction, 60000);
                }
             }
+          },
+          onUserLeave: () => {
+            // End call if partner leaves
+            if (billingIntervalRef.current) clearInterval(billingIntervalRef.current);
+            router.replace("/chats")
           },
           onLeaveRoom: () => {
             if (billingIntervalRef.current) clearInterval(billingIntervalRef.current);
@@ -224,7 +246,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
             onClick={toggleMic}
             className={cn(
               "w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-90",
-              micEnabled ? "bg-white/10 text-white" : "bg-red-500 text-white"
+              micEnabled ? "bg-white/10 text-white" : "bg-red-50 text-white"
             )}
           >
             {micEnabled ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
@@ -242,7 +264,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
               onClick={toggleCamera}
               className={cn(
                 "w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-90",
-                cameraEnabled ? "bg-white/10 text-white" : "bg-red-500 text-white"
+                cameraEnabled ? "bg-white/10 text-white" : "bg-red-50 text-white"
               )}
             >
               {cameraEnabled ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}

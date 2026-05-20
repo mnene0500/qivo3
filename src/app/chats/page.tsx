@@ -301,8 +301,16 @@ function ChatsContent() {
     if (!currentUser?.uid || !startWithId || !chatId || !rtdb) return
     const balCheck = await checkCallBalanceAction(currentUser.uid, type)
     if (!balCheck.success && !currentUserProfile?.isAdmin) { toast({ variant: "destructive", title: "Low Balance", description: balCheck.error }); return; }
-    await set(ref(rtdb, `calls/${startWithId}`), { callerId: currentUser.uid, callerName: currentUserProfile?.name, callerPhoto: currentUserProfile?.photoURL, type, chatId, timestamp: Date.now() })
-    router.push(`/call/${chatId}?type=${type}&caller=true&partner=${encodeURIComponent(partnerProfile?.name || 'Partner')}`)
+    await set(ref(rtdb, `calls/${startWithId}`), { 
+      callerId: currentUser.uid, 
+      callerName: currentUserProfile?.name, 
+      callerPhoto: currentUserProfile?.photoURL, 
+      type, 
+      chatId, 
+      timestamp: Date.now(),
+      status: 'ringing'
+    })
+    router.push(`/call/${chatId}?type=${type}&caller=true&partner=${encodeURIComponent(partnerProfile?.name || 'Partner')}&partnerId=${startWithId}`)
   }
 
   const handleDeleteChat = async () => {

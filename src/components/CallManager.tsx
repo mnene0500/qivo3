@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useState, useRef } from "react"
@@ -75,13 +74,13 @@ export function CallManager() {
 
   const handleAccept = async () => {
     if (!incomingCall || !user?.uid || !rtdb) return
-    const { chatId, type, callerName } = incomingCall
+    const { chatId, type, callerName, callerId } = incomingCall
     
     if (timerRef.current) clearInterval(timerRef.current)
     try {
       // Clear the signal first so the caller knows we responded
       await set(ref(rtdb, `calls/${user.uid}`), null)
-      router.push(`/call/${chatId}?type=${type}&partner=${encodeURIComponent(callerName)}&caller=false`)
+      router.push(`/call/${chatId}?type=${type}&partner=${encodeURIComponent(callerName)}&partnerId=${callerId}&caller=false`)
     } catch (err) {
       setIncomingCall(null)
     }
@@ -91,6 +90,7 @@ export function CallManager() {
     if (!user?.uid || !rtdb) return
     if (timerRef.current) clearInterval(timerRef.current)
     try {
+      // Deleting the signal tells the caller the call was rejected
       await set(ref(rtdb, `calls/${user.uid}`), null)
     } catch (err) {}
     setIncomingCall(null)
