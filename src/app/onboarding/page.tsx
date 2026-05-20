@@ -89,21 +89,28 @@ export default function OnboardingPage() {
         matchFlowId: qId,
         isDeleted: false,
         isVerified: false,
-        isAdmin: false,
-        isCoinSeller: false,
-        blocking: [],
-        blockedBy: []
+        isAdmin: existingData?.isAdmin || false,
+        isCoinSeller: existingData?.isCoinSeller || false,
+        isAgent: existingData?.isAgent || false,
+        blocking: existingData?.blocking || [],
+        blockedBy: existingData?.blockedBy || []
       }
 
+      // 1. Solidify Firestore Profile
       await setDoc(userRef, updateData, { merge: true })
       
+      // 2. Initialize Realtime Wallet (only if not existing)
       const balanceRef = ref(rtdb, `balances/${user.uid}`)
+      const balSnap = await getDoc(userRef); // Check existence indirectly or use get(balanceRef)
+      
+      // Simple write for wallet
       await rtdbSet(balanceRef, {
         coins: initialCoins,
         diamonds: initialDiamonds,
         updatedAt: timestamp
       })
 
+      // 3. Log Bonus (Idempotent-ish)
       if (initialCoins > 0) {
         await push(ref(rtdb, `coin_history/${user.uid}`), {
           amount: initialCoins,
@@ -112,16 +119,14 @@ export default function OnboardingPage() {
           timestamp: timestamp
         })
       }
-      if (initialDiamonds > 0) {
-        await push(ref(rtdb, `diamond_history/${user.uid}`), {
-          amount: initialDiamonds,
-          type: 'bonus',
-          description: 'Welcome Bonus',
-          timestamp: timestamp
-        })
-      }
 
-      router.replace("/home")
+      // 4. Decisive Redirect
+      // We use a slight delay or force a hard reload to ensure Firestore listeners catch up
+      toast({ title: "Welcome to QIVO!" })
+      setTimeout(() => {
+        router.push("/home")
+      }, 500)
+      
     } catch (err: any) {
       toast({ variant: "destructive", title: "Setup Failed", description: err.message })
       setLoading(false)

@@ -98,16 +98,12 @@ export default function FastOnboardingPage() {
           timestamp: timestamp
         })
       }
-      if (initialDiamonds > 0) {
-        await push(ref(rtdb, `diamond_history/${user.uid}`), {
-          amount: initialDiamonds,
-          type: 'bonus',
-          description: 'Welcome Bonus',
-          timestamp: timestamp
-        })
-      }
-
-      router.replace("/home")
+      
+      toast({ title: "Setup Complete!" })
+      setTimeout(() => {
+        router.push("/home")
+      }, 500)
+      
     } catch (err: any) {
       toast({ variant: "destructive", title: "Setup Failed", description: err.message })
       setLoading(false)

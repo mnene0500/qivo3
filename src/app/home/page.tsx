@@ -106,10 +106,14 @@ export default function HomePage() {
 
   useEffect(() => {
     if (isInitialized && !authLoading && !profileLoading && db) {
-      if (!currentUserProfile || !currentUserProfile.onboardingComplete) {
+      // CRITICAL: If the document doesn't exist yet or is incomplete, redirect.
+      // We check profileLoading to ensure we aren't redirecting while the fetch is in flight.
+      if (!currentUserProfile || currentUserProfile.onboardingComplete !== true) {
+        console.log("[Home Guard] Incomplete profile, redirecting to onboarding...");
         router.replace("/onboarding")
         return
       }
+      
       if (users.length === 0) {
         fetchUsers()
       }
@@ -131,11 +135,13 @@ export default function HomePage() {
   const paginatedUsers = useMemo(() => filteredUsers.slice(0, displayLimit), [filteredUsers, displayLimit])
   const hasMore = paginatedUsers.length < filteredUsers.length
 
-  // PREVENT FLICKER: Stay on loader if session or profile is still checking
-  if (!isMounted || authLoading || profileLoading || (isInitialized && !currentUserProfile?.onboardingComplete)) {
+  if (!isMounted || authLoading || profileLoading || (isInitialized && currentUserProfile?.onboardingComplete !== true)) {
     return (
       <div className="flex-1 bg-white min-h-screen flex items-center justify-center">
-        <Loader2 className="animate-spin text-[#00A2FF]" />
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="animate-spin text-[#00A2FF] w-8 h-8" />
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Syncing Flux...</p>
+        </div>
       </div>
     )
   }

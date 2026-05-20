@@ -8,7 +8,6 @@ import { firebaseConfig } from './config';
 /**
  * Idempotent initialization of Firebase services.
  * Returns null for services if the configuration is missing to prevent hard crashes.
- * This is safe to use in both Client Components and Server Actions.
  */
 export function initializeFirebase() {
   const apiKey = firebaseConfig.apiKey || (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_FIREBASE_API_KEY : undefined);
