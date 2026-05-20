@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useState, Suspense, useMemo, useRef } from "react"
@@ -436,8 +435,8 @@ function ChatsContent() {
               </div>
               <div className="space-y-2">
                 <AlertDialogTitle className="text-2xl font-black text-black tracking-tight">Delete Chat?</AlertDialogTitle>
-                <AlertDialogDescription className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-relaxed">
-                  This will hide the conversation until a new message is sent. This action cannot be reversed.
+                <AlertDialogDescription className="sr-only">
+                  Delete conversation confirmation
                 </AlertDialogDescription>
               </div>
             </div>
