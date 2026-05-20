@@ -42,21 +42,21 @@ export default function HomePage() {
   const { user: currentUser, loading: authLoading, isInitialized } = useUser()
   const db = useFirestore()
   
-  const [activeTab, setActiveTab] = useState<'Recommend' | 'Nearby'>('Recommend')
   const [isMounted, setIsMounted] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [users, setUsers] = useState<UserProfile[]>([])
   const [initialLoading, setInitialLoading] = useState(true)
   const [displayLimit, setDisplayLimit] = useState(12)
+  const [activeTab, setActiveTab] = useState<'Recommend' | 'Nearby'>('Recommend')
 
   const currentUserProfileRef = useMemoFirebase(() => 
     currentUser?.uid && db ? doc(db, "users", currentUser.uid) : null, 
   [db, currentUser?.uid])
   
-  const { data: currentUserProfile, loading: profileLoading } = useDoc<UserProfile>(currentUserProfileRef)
+  const { data: profile, loading: profileLoading } = useDoc<UserProfile>(currentUserProfileRef)
 
   const fetchUsers = useCallback(async (isManual = false) => {
-    if (!db) return
+    if (!db || !profile) return
     if (isManual) setIsRefreshing(true)
     
     try {
@@ -69,22 +69,21 @@ export default function HomePage() {
       const snap = await getDocs(q)
       const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile))
       
-      const blockedList = currentUserProfile ? [...(currentUserProfile.blocking || []), ...(currentUserProfile.blockedBy || [])] : []
+      const blockedList = [...(profile.blocking || []), ...(profile.blockedBy || [])]
       
       const filtered = fetched.filter(u => {
         if (u.uid === currentUser?.uid) return false
         if (blockedList.includes(u.uid)) return false
         
-        if (!currentUserProfile?.gender) return true;
-        const myGender = currentUserProfile.gender.toLowerCase();
-        const targetGender = u.gender?.toLowerCase();
-        if (myGender === 'male') return targetGender === 'female';
-        if (myGender === 'female') return targetGender === 'male';
-        return true;
+        // Preference Filter: Boys see Girls, Girls see Boys
+        const myGender = profile.gender?.toLowerCase()
+        const targetGender = u.gender?.toLowerCase()
+        if (myGender === 'male') return targetGender === 'female'
+        if (myGender === 'female') return targetGender === 'male'
+        return true
       })
 
       const sorted = filtered.sort(() => Math.random() - 0.5)
-      
       setUsers(sorted)
       sessionStorage.setItem('qivo_home_users', JSON.stringify(sorted))
     } catch (err) {
@@ -93,7 +92,7 @@ export default function HomePage() {
       setIsRefreshing(false)
       setInitialLoading(false)
     }
-  }, [db, currentUserProfile?.uid, currentUserProfile?.gender, currentUser?.uid])
+  }, [db, profile, currentUser?.uid])
 
   useEffect(() => { 
     setIsMounted(true)
@@ -107,7 +106,7 @@ export default function HomePage() {
   useEffect(() => {
     if (isInitialized && !authLoading && !profileLoading && db) {
       // STRICT GUARD: Wait until we are absolutely sure the profile is complete
-      if (!currentUserProfile || currentUserProfile.onboardingComplete !== true) {
+      if (!profile || profile.onboardingComplete !== true) {
         console.log("[Home Guard] Incomplete profile, redirecting to onboarding...");
         router.replace("/onboarding")
         return
@@ -117,7 +116,7 @@ export default function HomePage() {
         fetchUsers()
       }
     }
-  }, [isInitialized, authLoading, profileLoading, currentUserProfile, db, fetchUsers, users.length, router])
+  }, [isInitialized, authLoading, profileLoading, profile, db, fetchUsers, users.length, router])
 
   const handleRefresh = () => {
     fetchUsers(true)
@@ -125,22 +124,22 @@ export default function HomePage() {
   }
 
   const filteredUsers = useMemo(() => {
-    if (activeTab === 'Nearby' && currentUserProfile) {
-      return users.filter(u => u.country === currentUserProfile.country)
+    if (activeTab === 'Nearby' && profile) {
+      return users.filter(u => u.country === profile.country)
     }
     return users
-  }, [users, activeTab, currentUserProfile?.country])
+  }, [users, activeTab, profile])
 
   const paginatedUsers = useMemo(() => filteredUsers.slice(0, displayLimit), [filteredUsers, displayLimit])
   const hasMore = paginatedUsers.length < filteredUsers.length
 
-  // LOADING STATE: Full screen loader while profile status is resolving to prevent loop-flicker
-  if (!isMounted || authLoading || profileLoading || (isInitialized && !currentUserProfile) || (currentUserProfile && currentUserProfile.onboardingComplete !== true)) {
+  // FULL SCREEN LOADER: Prevents UI flicker while redirection logic is resolving
+  if (!isMounted || authLoading || profileLoading || (isInitialized && !profile) || (profile && profile.onboardingComplete !== true)) {
     return (
       <div className="flex-1 bg-white min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin text-[#00A2FF] w-8 h-8" />
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Syncing Flux...</p>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Synchronizing...</p>
         </div>
       </div>
     )

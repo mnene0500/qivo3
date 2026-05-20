@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -12,7 +13,7 @@ import { useToast } from "@/hooks/use-toast"
 
 /**
  * @fileOverview Welcome / Auth Entry Page.
- * Optimized to redirect users immediately upon authentication.
+ * Strictly initializes the account document before allowing entry to onboarding.
  */
 export default function WelcomePage() {
   const [mounted, setMounted] = useState(false)
@@ -29,7 +30,7 @@ export default function WelcomePage() {
     setMounted(true)
   }, [])
 
-  // AUTH GATEKEEPER: Ensure account document is fully ready before taking user to next step
+  // AUTH GATEKEEPER: Ensures skeleton account is ready before proceeding
   useEffect(() => {
     const handleRedirect = async () => {
       if (isInitialized && !authLoading && user && db) {
@@ -45,7 +46,7 @@ export default function WelcomePage() {
               router.replace("/onboarding")
             }
           } else {
-            // New account creation process - ensure it's fully created before moving
+            // NEW USER: Create skeleton account document ATOMICALLY
             const qId = Math.floor(1000000 + Math.random() * 900000000).toString();
             const skeletonData = {
               uid: user.uid,
@@ -59,12 +60,14 @@ export default function WelcomePage() {
               isAdmin: false,
               photoURL: user.photoURL || `https://picsum.photos/seed/${user.uid}/400/400`
             }
+            
+            // Critical: Wait for setDoc to complete before navigating
             await setDoc(userRef, skeletonData)
+            console.log("[Welcome] Skeleton profile created for:", user.uid)
             router.replace("/onboarding")
           }
         } catch (error) {
           console.error("[Welcome Redirect Error]:", error)
-          // Fallback redirect if doc check fails
           router.replace("/onboarding")
         }
       }
@@ -74,11 +77,7 @@ export default function WelcomePage() {
 
   const handleGoogleLogin = async () => {
     if (!auth) {
-      toast({
-        variant: "destructive",
-        title: "Configuration Error",
-        description: "Firebase service is not initialized."
-      });
+      toast({ variant: "destructive", title: "Config Error", description: "Firebase is not ready." });
       return;
     }
 
@@ -88,11 +87,7 @@ export default function WelcomePage() {
       await signInWithPopup(auth, provider)
     } catch (error: any) {
       if (error.code !== 'auth/popup-closed-by-user') {
-        toast({
-          variant: "destructive",
-          title: "Sign-In Error",
-          description: error.message || "Failed to authenticate with Google."
-        })
+        toast({ variant: "destructive", title: "Sign-In Error", description: error.message || "Failed to connect." })
       }
       setLoading(false)
     }
@@ -102,7 +97,7 @@ export default function WelcomePage() {
     return (
       <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-4">
         <Loader2 className="w-10 h-10 animate-spin text-[#00A2FF]" />
-        <p className="text-[10px] font-bold text-[#00A2FF] uppercase tracking-[0.3em] animate-pulse">Verifying Account...</p>
+        <p className="text-[10px] font-bold text-[#00A2FF] uppercase tracking-[0.3em] animate-pulse">Establishing Session...</p>
       </div>
     )
   }

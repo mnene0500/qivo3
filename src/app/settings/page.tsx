@@ -51,7 +51,7 @@ function SettingItem({ label, onClick, href, icon, variant = 'default' }: Settin
     </div>
   )
 
-  if (href) return <Link href={href}>{content}</Link>
+  if (href) return <Link href={href} className="block">{content}</Link>
   return <div onClick={onClick}>{content}</div>
 }
 
