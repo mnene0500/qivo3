@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from "react"
@@ -11,8 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { ChevronLeft, Mail, UserPlus, Loader2, ShieldCheck, ShieldAlert, AlertTriangle } from "lucide-react"
-import Link from "next/link"
+import { ChevronLeft, Mail, UserPlus, Loader2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 
 export default function UnifiedAuthPage() {
@@ -85,7 +83,7 @@ export default function UnifiedAuthPage() {
         email: user.email,
         name: `User ${qId.slice(-4)}`,
         matchFlowId: qId,
-        onboardingComplete: true, // SILENT AUTO-COMPLETE
+        onboardingComplete: true, // AUTO-COMPLETE
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         gender: "not specified",

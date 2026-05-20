@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo, useState, useEffect, useCallback } from "react"
@@ -54,6 +53,13 @@ export default function HomePage() {
   
   const { data: profile } = useDoc<UserProfile>(currentUserProfileRef)
 
+  // STRICT ACCESS GUARD: Redirect if no user
+  useEffect(() => {
+    if (isInitialized && !authLoading && !currentUser) {
+      router.replace("/welcome")
+    }
+  }, [isInitialized, authLoading, currentUser, router])
+
   const fetchUsers = useCallback(async (isManual = false) => {
     if (!db) return
     if (isManual) setIsRefreshing(true)
@@ -86,10 +92,10 @@ export default function HomePage() {
   }, [db, profile, currentUser?.uid])
 
   useEffect(() => {
-    if (isInitialized && !authLoading && db) {
+    if (isInitialized && !authLoading && db && currentUser) {
       fetchUsers()
     }
-  }, [isInitialized, authLoading, db, fetchUsers])
+  }, [isInitialized, authLoading, db, fetchUsers, currentUser])
 
   const handleRefresh = () => {
     fetchUsers(true)
@@ -106,7 +112,7 @@ export default function HomePage() {
   const paginatedUsers = useMemo(() => filteredUsers.slice(0, displayLimit), [filteredUsers, displayLimit])
   const hasMore = paginatedUsers.length < filteredUsers.length
 
-  if (authLoading || !isInitialized) {
+  if (authLoading || !isInitialized || (currentUser && !profile)) {
     return (
       <div className="flex-1 bg-white min-h-screen flex items-center justify-center">
         <Loader2 className="animate-spin text-[#00A2FF] w-8 h-8" />

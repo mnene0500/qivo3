@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react"
@@ -11,7 +10,7 @@ import { doc, deleteDoc } from "firebase/firestore"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ChevronLeft, ChevronRight, ShieldAlert, Link as LinkIcon, Info, RefreshCw, CreditCard, Ban, LogOut, Trash2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, ShieldAlert, Link as LinkIcon, Info, RefreshCw, CreditCard, LogOut, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import {
@@ -24,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/alert-dialog"
 
 interface UserProfile {
   isAdmin?: boolean
@@ -131,7 +130,6 @@ export default function SettingsPage() {
           )}
           
           <SettingItem label="Charge settings" href="/recharge" icon={<CreditCard className="w-5 h-5 text-blue-500" />} />
-          <SettingItem label="Blocked List" href="/blocked-list" icon={<Ban className="w-5 h-5 text-red-400" />} />
           <SettingItem label="About QIVO" href="/about" icon={<Info className="w-5 h-5 text-gray-500" />} />
           <SettingItem label="Clear Cache" onClick={handleClearCache} icon={<RefreshCw className="w-5 h-5 text-orange-500" />} />
 
@@ -154,7 +152,7 @@ export default function SettingsPage() {
                     <ShieldAlert className="w-8 h-8 text-red-500" />
                   </div>
                   <AlertDialogTitle className="text-xl font-bold">Delete Account?</AlertDialogTitle>
-                  <AlertDialogDescription className="text-xs font-bold pt-2 uppercase tracking-widest leading-relaxed">
+                  <AlertDialogDescription className="text-xs font-bold pt-2 uppercase tracking-widest leading-relaxed text-center">
                     This action is permanent. To confirm, please type <span className="text-red-600 font-black">DELETE</span> below:
                   </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -197,7 +195,7 @@ export default function SettingsPage() {
             <AlertDialogContent className="rounded-[2.5rem] max-w-[85vw] p-8 border-none select-none">
               <AlertDialogHeader className="items-center text-center">
                 <AlertDialogTitle className="text-xl font-bold">Sign Out?</AlertDialogTitle>
-                <AlertDialogDescription className="text-xs font-bold uppercase tracking-widest">
+                <AlertDialogDescription className="text-xs font-bold uppercase tracking-widest text-center">
                   Are you sure you want to end your session?
                 </AlertDialogDescription>
               </AlertDialogHeader>

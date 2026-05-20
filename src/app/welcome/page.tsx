@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -14,7 +13,7 @@ import { useToast } from "@/hooks/use-toast"
 
 /**
  * @fileOverview Welcome / Auth Entry Page.
- * Optimized for direct entry. Skips onboarding for Google users.
+ * Automatically onboards users to bypass the setup screens.
  */
 export default function WelcomePage() {
   const [mounted, setMounted] = useState(false)
