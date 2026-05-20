@@ -13,6 +13,7 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
+  DialogHeader,
 } from "@/components/ui/dialog"
 import {
   AlertDialog,
@@ -34,7 +35,8 @@ import {
   BadgeCheck,
   Video,
   Phone,
-  Trash2
+  Trash2,
+  Gem
 } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
@@ -46,6 +48,7 @@ interface Message {
   text: string
   senderId: string
   timestamp: number
+  isGift?: boolean
 }
 
 interface ChatSummary {
@@ -69,6 +72,16 @@ interface UserProfile {
   isAdmin?: boolean
   isVerified?: boolean
 }
+
+const GIFT_ITEMS = [
+  { id: 'rose', name: 'Rose', price: 10, icon: '🌹' },
+  { id: 'coffee', name: 'Coffee', price: 50, icon: '☕' },
+  { id: 'heart', name: 'Heart', price: 100, icon: '❤️' },
+  { id: 'perfume', name: 'Perfume', price: 500, icon: '🧴' },
+  { id: 'ring', name: 'Ring', price: 1000, icon: '💍' },
+  { id: 'car', name: 'Sports Car', price: 2500, icon: '🏎️' },
+  { id: 'yacht', name: 'Luxury Yacht', price: 5000, icon: '🚢' },
+]
 
 function ChatListItem({ summary, onClick, onDelete }: { summary: ChatSummary, onClick: () => void, onDelete: () => void }) {
   const presence = useUserPresence(summary.partnerId)
@@ -140,6 +153,7 @@ function ChatsContent() {
   const [chatToDelete, setChatToDelete] = useState<ChatSummary | null>(null)
   const [activeDeletedAt, setActiveDeletedAt] = useState<number>(0)
   const [metadataLoading, setMetadataLoading] = useState(false)
+  const [sendingGift, setSendingGift] = useState(false)
 
   const isBlocked = useMemo(() => {
     if (!startWithId || !currentUserProfile || !partnerProfile) return false
@@ -226,6 +240,62 @@ function ChatsContent() {
     setNewMessage("")
   }
 
+  const handleSendGift = async (gift: typeof GIFT_ITEMS[0]) => {
+    if (!currentUser?.uid || !startWithId || !chatId || !rtdb || !partnerProfile) return
+    if (userBalances.coins < gift.price) {
+      toast({ variant: "destructive", title: "Low Balance", description: "Recharge coins to send this gift." })
+      return
+    }
+
+    setSendingGift(true)
+    try {
+      const timestamp = Date.now()
+      const giftText = `Sent a ${gift.name} ${gift.icon}`
+
+      // 1. Transactional updates
+      const updates: any = {}
+      // Deduct coins from sender
+      updates[`balances/${currentUser.uid}/coins`] = rtdbIncrement(-gift.price)
+      // Award diamonds to receiver (1:1 conversion for now)
+      updates[`balances/${startWithId}/diamonds`] = rtdbIncrement(gift.price)
+      
+      // Update chat summaries
+      updates[`user_chats/${currentUser.uid}/${chatId}`] = { partnerId: partnerProfile.uid, partnerName: partnerProfile.name, partnerPhoto: partnerProfile.photoURL, lastMessage: giftText, lastMessageAt: timestamp, unreadCount: 0 }
+      updates[`user_chats/${partnerProfile.uid}/${chatId}`] = { partnerId: currentUser.uid, partnerName: currentUserProfile?.name, partnerPhoto: currentUserProfile?.photoURL, lastMessage: giftText, lastMessageAt: timestamp, unreadCount: rtdbIncrement(1) }
+
+      await update(ref(rtdb), updates)
+
+      // 2. Record Message
+      await set(push(ref(rtdb, `chat_messages/${chatId}`)), {
+        text: giftText,
+        senderId: currentUser.uid,
+        timestamp,
+        isGift: true
+      })
+
+      // 3. Log History
+      await set(push(ref(rtdb, `coin_history/${currentUser.uid}`)), {
+        amount: -gift.price,
+        type: 'gift',
+        description: `Sent ${gift.name} to ${partnerProfile.name}`,
+        timestamp
+      })
+      await set(push(ref(rtdb, `diamond_history/${startWithId}`)), {
+        amount: gift.price,
+        type: 'gift',
+        description: `Received ${gift.name} from ${currentUserProfile?.name}`,
+        timestamp
+      })
+
+      toast({ title: "Gift Sent!", description: `${gift.name} delivered successfully.` })
+      setIsGiftDrawerOpen(false)
+    } catch (err) {
+      toast({ variant: "destructive", title: "Error", description: "Failed to send gift." })
+    } finally {
+      setSendingGift(false)
+    }
+  }
+
   const handleStartCall = async (type: 'video' | 'voice') => {
     if (!currentUser?.uid || !startWithId || !chatId || !rtdb) return
     const balCheck = await checkCallBalanceAction(currentUser.uid, type)
@@ -271,8 +341,44 @@ function ChatsContent() {
   return (
     <div className="flex flex-col h-[100dvh] bg-white overflow-hidden relative select-none">
       <header className="shrink-0 h-16 bg-white px-4 flex items-center justify-between border-b shadow-sm z-[100] sticky top-0"><Button variant="ghost" size="sm" onClick={() => router.push("/chats")} className="text-[#00A2FF]"><ChevronLeft className="w-6 h-6" /></Button><div className="flex flex-col items-center flex-1 mx-2"><div className="flex items-center justify-center gap-1 max-w-full"><h3 className="font-semibold text-sm text-black truncate">{partnerProfile?.name || '...'}</h3>{partnerProfile?.isVerified && <BadgeCheck className="w-3.5 h-3.5 text-[#00A2FF] fill-white shrink-0" />}</div>{partnerPresence?.state === 'online' && <span className="text-[9px] font-bold text-green-500 uppercase">Online</span>}</div><div className="flex items-center gap-1 mr-2"><Button variant="ghost" size="icon" className="text-[#00A2FF]" onClick={() => handleStartCall('voice')}><Phone className="w-5 h-5" /></Button><Button variant="ghost" size="icon" className="text-[#00A2FF]" onClick={() => handleStartCall('video')}><Video className="w-5 h-5" /></Button></div><Avatar className="w-8 h-8 cursor-pointer" onClick={() => router.push(`/users/${startWithId}`)}><AvatarImage src={partnerProfile?.photoURL || ""} /><AvatarFallback>?</AvatarFallback></Avatar></header>
-      <main className="flex-1 overflow-y-auto no-scrollbar flex flex-col-reverse p-4"><div className="flex flex-col-reverse space-y-4 space-y-reverse">{messages.map((m) => (<div key={m.id} className={cn("flex items-end gap-2", m.senderId === currentUser?.uid ? 'flex-row-reverse' : 'flex-row')}><div className={cn("max-w-[75%] p-3.5 text-xs font-medium rounded-[1.2rem]", m.senderId === currentUser?.uid ? 'bg-[#00A2FF] text-white rounded-br-none' : 'bg-gray-100 text-black rounded-bl-none')}>{m.text}</div></div>))}</div></main>
+      <main className="flex-1 overflow-y-auto no-scrollbar flex flex-col-reverse p-4"><div className="flex flex-col-reverse space-y-4 space-y-reverse">{messages.map((m) => (<div key={m.id} className={cn("flex items-end gap-2", m.senderId === currentUser?.uid ? 'flex-row-reverse' : 'flex-row')}><div className={cn("max-w-[75%] p-3.5 text-xs font-medium rounded-[1.2rem]", m.isGift ? "bg-pink-50 text-pink-600 border border-pink-100 italic" : m.senderId === currentUser?.uid ? 'bg-[#00A2FF] text-white rounded-br-none' : 'bg-gray-100 text-black rounded-bl-none')}>{m.text}</div></div>))}</div></main>
       <footer className="shrink-0 bg-white border-t p-4 flex items-center gap-3 z-50">{isBlocked ? <div className="flex-1 py-3 px-6 bg-red-50 text-red-500 rounded-full text-center text-[10px] font-bold uppercase tracking-widest">User Unavailable</div> : <><Button variant="ghost" size="icon" onClick={() => setIsGiftDrawerOpen(true)} className="text-[#00A2FF]"><GiftIcon className="w-6 h-6" /></Button><div className="flex-1 bg-gray-100 rounded-full h-11 px-5 flex items-center"><input placeholder="Type..." className="bg-transparent flex-1 outline-none text-sm" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage(newMessage)} /></div><Button variant="ghost" onClick={() => handleSendMessage(newMessage)}><Send className="w-6 h-6 text-[#00A2FF]" /></Button></>}</footer>
+
+      <Dialog open={isGiftDrawerOpen} onOpenChange={setIsGiftDrawerOpen}>
+        <DialogContent className="max-w-[95vw] rounded-t-[3rem] bottom-0 top-auto translate-y-0 p-6 border-none shadow-2xl">
+          <DialogHeader>
+            <div className="flex justify-between items-center mb-6">
+              <DialogTitle className="text-lg font-black uppercase tracking-widest text-pink-500">Send a Gift</DialogTitle>
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-yellow-50 rounded-full border border-yellow-100">
+                <Coins className="w-3.5 h-3.5 text-yellow-600" />
+                <span className="text-xs font-bold text-yellow-700">{userBalances.coins}</span>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <div className="grid grid-cols-4 gap-3 max-h-[40vh] overflow-y-auto no-scrollbar pb-6">
+            {GIFT_ITEMS.map(gift => (
+              <button
+                key={gift.id}
+                disabled={sendingGift}
+                onClick={() => handleSendGift(gift)}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-gray-50 border border-transparent hover:border-pink-200 hover:bg-pink-50 active:scale-95 transition-all group"
+              >
+                <span className="text-3xl mb-2 group-hover:scale-110 transition-transform">{gift.icon}</span>
+                <span className="text-[10px] font-bold text-gray-500 truncate w-full text-center">{gift.name}</span>
+                <div className="flex items-center gap-1 mt-1">
+                  <Coins className="w-2.5 h-2.5 text-yellow-500" />
+                  <span className="text-[9px] font-black text-black">{gift.price}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+          
+          <p className="text-[9px] font-bold text-gray-400 text-center uppercase tracking-widest leading-relaxed">
+            Sending a gift grants your partner Diamonds and increases your intimacy.
+          </p>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
