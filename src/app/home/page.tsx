@@ -86,7 +86,6 @@ export default function HomePage() {
       const sorted = filtered.sort(() => Math.random() - 0.5)
       
       setUsers(sorted)
-      // Cache for navigation persistence
       sessionStorage.setItem('qivo_home_users', JSON.stringify(sorted))
     } catch (err) {
       console.error("[Home Fetch Error]:", err)
@@ -106,17 +105,14 @@ export default function HomePage() {
   }, [])
 
   useEffect(() => {
-    if (isInitialized && !authLoading && !profileLoading && db && users.length === 0) {
-      if (!currentUserProfile) {
-        // No Firestore document exists for this user (New user needs onboarding)
+    if (isInitialized && !authLoading && !profileLoading && db) {
+      if (!currentUserProfile || !currentUserProfile.onboardingComplete) {
         router.replace("/onboarding")
         return
       }
-      if (!currentUserProfile.onboardingComplete) {
-        router.replace("/onboarding")
-        return
+      if (users.length === 0) {
+        fetchUsers()
       }
-      fetchUsers()
     }
   }, [isInitialized, authLoading, profileLoading, currentUserProfile, db, fetchUsers, users.length, router])
 
@@ -135,7 +131,8 @@ export default function HomePage() {
   const paginatedUsers = useMemo(() => filteredUsers.slice(0, displayLimit), [filteredUsers, displayLimit])
   const hasMore = paginatedUsers.length < filteredUsers.length
 
-  if (!isMounted || (authLoading && !users.length)) {
+  // PREVENT FLICKER: Stay on loader if session or profile is still checking
+  if (!isMounted || authLoading || profileLoading || (isInitialized && !currentUserProfile?.onboardingComplete)) {
     return (
       <div className="flex-1 bg-white min-h-screen flex items-center justify-center">
         <Loader2 className="animate-spin text-[#00A2FF]" />
