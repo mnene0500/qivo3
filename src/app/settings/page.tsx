@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react"
@@ -130,7 +129,7 @@ export default function SettingsPage() {
             <SettingItem label="Secure Account" href="/bind-account" icon={<LinkIcon className="w-5 h-5 text-[#00A2FF]" />} />
           )}
           
-          <SettingItem label="Charge settings" href="/recharge" icon={<CreditCard className="w-5 h-5 text-blue-500" />} />
+          <SettingItem label="Charge settings" href="/pricing" icon={<CreditCard className="w-5 h-5 text-blue-500" />} />
           <SettingItem label="About QIVO" href="/about" icon={<Info className="w-5 h-5 text-gray-500" />} />
           <SettingItem label="Clear Cache" onClick={handleClearCache} icon={<RefreshCw className="w-5 h-5 text-orange-500" />} />
 

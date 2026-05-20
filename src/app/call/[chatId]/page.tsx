@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useRef, use, useState } from "react"
@@ -15,7 +14,6 @@ import {
   Video, 
   VideoOff, 
   PhoneOff, 
-  RefreshCw, 
   ShieldCheck 
 } from "lucide-react"
 import { deductCallCoinsAction } from "@/app/actions/call-actions"
@@ -47,7 +45,6 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
   const { data: profile } = useDoc<any>(user?.uid && db ? doc(db, "users", user.uid) : null)
   const [currentBalance, setCurrentBalance] = useState<number>(0)
   const [error, setError] = useState<string | null>(null)
-  const [callActive, setCallLive] = useState(false)
   
   // Custom Controls State
   const [micEnabled, setMicEnabled] = useState(true)
@@ -88,7 +85,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
         const serverSecret = process.env.NEXT_PUBLIC_ZEGO_SERVER_SECRET
         
         if (!appID || !serverSecret) {
-          setError("Call System Error: Missing ZegoCloud configuration.")
+          setError("SERVICE OFFLINE: Vercel Redeploy Required. Ensure NEXT_PUBLIC_ZEGO_APP_ID and SERVER_SECRET are set in environment variables and trigger a redeploy.")
           return
         }
 
@@ -107,7 +104,6 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
           container: containerRef.current,
           mode: ZegoUIKitPrebuilt.OneONoneCall,
           showPreJoinView: false,
-          // HEADLESS CONFIG: Hiding all default UI to use our custom controls
           showMyDeviceStatusIcon: false,
           showAudioVideoSettingsButton: false,
           showScreenSharingButton: false,
@@ -120,7 +116,6 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
             mode: isVideo ? ZegoUIKitPrebuilt.VideoCall : ZegoUIKitPrebuilt.VoiceCall,
           },
           onUserJoin: async (users) => {
-            setCallLive(true)
             if (isCaller && !billingIntervalRef.current) {
                const success = await handleDeduction();
                if (success) {
@@ -167,10 +162,12 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
   if (error) {
     return (
       <div className="flex-1 bg-black flex flex-col items-center justify-center text-white p-10 text-center select-none">
-        <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
-        <h2 className="text-xl font-black uppercase tracking-tighter mb-2">Service Offline</h2>
-        <p className="font-bold text-white/40 uppercase tracking-widest text-[9px] mb-8">{error}</p>
-        <Button onClick={() => router.replace("/chats")} className="rounded-full bg-white text-black font-bold uppercase text-[10px] h-12 px-8">Return</Button>
+        <AlertCircle className="w-12 h-12 text-red-500 mb-6" />
+        <h2 className="text-2xl font-black uppercase tracking-tighter mb-4">Service Offline</h2>
+        <p className="font-bold text-white/40 uppercase tracking-widest text-[10px] leading-relaxed mb-10 max-w-xs mx-auto">
+          {error}
+        </p>
+        <Button onClick={() => router.replace("/chats")} className="rounded-full bg-white text-black font-black uppercase text-[10px] h-14 px-10 shadow-xl active:scale-95 transition-all">Return</Button>
       </div>
     )
   }
@@ -179,17 +176,15 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
     return (
       <div className="flex-1 bg-black flex flex-col items-center justify-center text-white">
         <Loader2 className="w-10 h-10 animate-spin text-[#00A2FF]" />
-        <p className="mt-6 font-bold uppercase tracking-[0.3em] text-[9px] text-[#00A2FF] animate-pulse">Connecting to Flux...</p>
+        <p className="mt-6 font-bold uppercase tracking-[0.3em] text-[9px] text-[#00A2FF] animate-pulse">Connecting...</p>
       </div>
     )
   }
 
   return (
     <div className="w-full h-[100dvh] bg-black overflow-hidden relative select-none">
-      {/* Headless Video Container */}
       <div ref={containerRef} className="w-full h-full" />
       
-      {/* Custom Header: Billing & Status */}
       <div className="absolute top-12 left-0 right-0 z-50 flex flex-col items-center gap-3 px-6 pointer-events-none">
         <div className="bg-black/40 backdrop-blur-2xl border border-white/10 px-6 py-2.5 rounded-full flex items-center gap-4 shadow-2xl animate-in slide-in-from-top-4 duration-500">
            <div className="flex h-2 w-2 rounded-full bg-red-500 animate-pulse" />
@@ -211,7 +206,6 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
         )}
       </div>
 
-      {/* Custom Bottom Controls: Handled by custom React state */}
       <div className="absolute bottom-10 left-0 right-0 z-50 px-8">
         <div className="max-w-md mx-auto bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[3rem] p-4 flex items-center justify-between shadow-2xl">
           <button 
@@ -248,7 +242,6 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
         </div>
       </div>
 
-      {/* Partner Name Overlay */}
       <div className="absolute top-1/2 left-6 -translate-y-1/2 opacity-20 pointer-events-none rotate-90 origin-left">
          <h3 className="text-5xl font-black text-white uppercase tracking-widest">{partnerName}</h3>
       </div>
