@@ -55,19 +55,16 @@ export default function HomePage() {
   
   const { data: currentUserProfile, loading: profileLoading } = useDoc<UserProfile>(currentUserProfileRef)
 
-  // Use a ref to track if we've already done the initial fetch to prevent loops
-  const hasFetched = typeof window !== 'undefined' && (window as any)._qivo_home_fetched;
-
   const fetchUsers = useCallback(async (isManual = false) => {
     if (!db) return
     if (isManual) setIsRefreshing(true)
     
     try {
-      // READ OPTIMIZATION: Lowered limit to 40 to save Firestore Reads
+      // OPTIMIZATION: Use a smaller limit (20) to save reads.
       const q = query(
         collection(db, "users"), 
         where("onboardingComplete", "==", true),
-        limit(40)
+        limit(30)
       )
       
       const snap = await getDocs(q)
@@ -80,7 +77,7 @@ export default function HomePage() {
         if (u.uid === currentUser?.uid) return false
         if (blockedList.includes(u.uid)) return false
         
-        // GENDER DISCOVERY LOGIC
+        // GENDER DISCOVERY LOGIC: Show opposite gender
         if (!currentUserProfile?.gender) return true;
         const myGender = currentUserProfile.gender.toLowerCase();
         const targetGender = u.gender?.toLowerCase();
@@ -91,8 +88,10 @@ export default function HomePage() {
 
       // Randomize for fresh "Recommend" vibe
       const sorted = filtered.sort(() => Math.random() - 0.5)
+      
       setUsers(sorted)
-      if (typeof window !== 'undefined') (window as any)._qivo_home_fetched = true;
+      // Save to session storage to prevent re-reads on back-navigation
+      sessionStorage.setItem('qivo_home_users', JSON.stringify(sorted))
     } catch (err) {
       console.error("[Home Fetch Error]:", err)
     } finally {
@@ -103,9 +102,16 @@ export default function HomePage() {
 
   useEffect(() => { 
     setIsMounted(true)
+    
+    // Check session storage first to save reads
+    const cached = sessionStorage.getItem('qivo_home_users')
+    if (cached) {
+      setUsers(JSON.parse(cached))
+      setInitialLoading(false)
+    }
   }, [])
 
-  // Optimized trigger: only fetch when profile is definitively ready or manual refresh
+  // Auto-fetch ONLY if we have no data and profile is ready
   useEffect(() => {
     if (isInitialized && !authLoading && !profileLoading && currentUserProfile && db && users.length === 0) {
       if (!currentUserProfile.onboardingComplete) {
@@ -132,11 +138,16 @@ export default function HomePage() {
   const hasMore = paginatedUsers.length < filteredUsers.length
 
   if (!isMounted || (authLoading && !users.length)) {
-    return <div className="flex-1 bg-white min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-[#00A2FF]" /></div>
+    return (
+      <div className="flex-1 bg-white min-h-screen flex items-center justify-center">
+        <Loader2 className="animate-spin text-[#00A2FF]" />
+      </div>
+    )
   }
 
   return (
     <div className="flex-1 pb-24 bg-[#F9FAFB] min-h-screen relative select-none">
+      {/* Brand Header */}
       <div className="absolute top-0 left-0 right-0 z-0 flex flex-col">
         <div className="h-[72px] bg-[#00A2FF] relative overflow-hidden">
           <div className="absolute -right-4 -top-10 rotate-[-12deg] opacity-30 select-none pointer-events-none">
@@ -147,21 +158,29 @@ export default function HomePage() {
       </div>
       
       <div className="relative z-10 pt-0">
+        {/* Top Cards */}
         <div className="px-4 pt-4 pb-2">
           <div className="grid grid-cols-2 gap-4">
             <div 
               onClick={() => router.push('/mystery-note')}
               className="bg-gradient-to-br from-[#00A2FF] to-[#0081CC] p-4 flex flex-col justify-between h-28 rounded-2xl shadow-lg cursor-pointer active:scale-95 transition-transform"
             >
-              <div className="bg-white/30 p-2 rounded-2xl w-fit"><FileText className="w-5 h-5 text-white" /></div>
+              <div className="bg-white/30 p-2 rounded-2xl w-fit">
+                <FileText className="w-5 h-5 text-white" />
+              </div>
               <div className="space-y-0.5">
                 <h3 className="text-white font-semibold text-sm">Mystery Note</h3>
                 <p className="text-white/80 text-[8px] font-bold uppercase tracking-widest">Send a note</p>
               </div>
             </div>
 
-            <div onClick={() => router.push('/tasks')} className="bg-gradient-to-br from-[#A88CFF] to-[#7B61FF] p-4 flex flex-col justify-between h-28 rounded-2xl shadow-lg cursor-pointer active:scale-95 transition-transform">
-              <div className="bg-white/30 p-2 rounded-2xl w-fit"><Target className="w-5 h-5 text-black" /></div>
+            <div 
+              onClick={() => router.push('/tasks')} 
+              className="bg-gradient-to-br from-[#A88CFF] to-[#7B61FF] p-4 flex flex-col justify-between h-28 rounded-2xl shadow-lg cursor-pointer active:scale-95 transition-transform"
+            >
+              <div className="bg-white/30 p-2 rounded-2xl w-fit">
+                <Target className="w-5 h-5 text-white" />
+              </div>
               <div className="space-y-0.5">
                 <h3 className="text-white font-semibold text-sm">Task Center</h3>
                 <p className="text-white/80 text-[8px] font-bold uppercase tracking-widest">Earn rewards</p>
@@ -170,28 +189,40 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* Navigation Tabs */}
         <div className="sticky top-0 z-40 bg-[#F9FAFB]/90 backdrop-blur-md px-5 pt-3 pb-3 border-b border-black/5 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-6">
-              <button onClick={() => setActiveTab('Recommend')} className={cn("text-sm font-semibold transition-all", activeTab === 'Recommend' ? "text-[#00A2FF]" : "text-gray-400")}>Recommend</button>
-              <button onClick={() => setActiveTab('Nearby')} className={cn("text-sm font-semibold transition-all", activeTab === 'Nearby' ? "text-[#00A2FF]" : "text-gray-400")}>Nearby</button>
+              <button 
+                onClick={() => setActiveTab('Recommend')} 
+                className={cn("text-sm font-semibold transition-all", activeTab === 'Recommend' ? "text-[#00A2FF]" : "text-gray-400")}
+              >
+                Recommend
+              </button>
+              <button 
+                onClick={() => setActiveTab('Nearby')} 
+                className={cn("text-sm font-semibold transition-all", activeTab === 'Nearby' ? "text-[#00A2FF]" : "text-gray-400")}
+              >
+                Nearby
+              </button>
             </div>
-            <button onClick={handleRefresh} disabled={isRefreshing} className={cn("p-1.5 text-[#00A2FF] hover:bg-blue-50 rounded-full transition-colors", isRefreshing && "animate-spin opacity-50")}>
+            <button 
+              onClick={handleRefresh} 
+              disabled={isRefreshing} 
+              className={cn("p-1.5 text-[#00A2FF] hover:bg-blue-50 rounded-full transition-colors", isRefreshing && "animate-spin opacity-50")}
+            >
               <RotateCw className="w-5 h-5" />
             </button>
           </div>
         </div>
 
         <main className="px-4 pt-3 relative">
+          {/* Pacifico Background Stamp */}
           <div className="fixed inset-0 flex items-center justify-center opacity-[0.04] pointer-events-none -z-10 rotate-[-15deg]">
             <span className="text-[30vw] font-logo text-black whitespace-nowrap select-none">QIVO</span>
           </div>
 
-          {!db ? (
-            <div className="flex flex-col items-center justify-center py-20 opacity-40">
-               <p className="text-[10px] font-bold uppercase tracking-widest">System Connecting...</p>
-            </div>
-          ) : initialLoading ? (
+          {initialLoading ? (
             <div className="grid grid-cols-2 gap-4">
               {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="aspect-[1/1.2] bg-white animate-pulse rounded-2xl border" />)}
             </div>
@@ -210,7 +241,11 @@ export default function HomePage() {
             <div className="space-y-8">
               <div className="grid grid-cols-2 gap-3">
                 {paginatedUsers.map((user) => (
-                  <Card key={user.uid} className="relative overflow-hidden border-none aspect-[1/1.2] rounded-2xl group cursor-pointer shadow-xl bg-white" onClick={() => router.push(`/users/${user.uid}`)}>
+                  <Card 
+                    key={user.uid} 
+                    className="relative overflow-hidden border-none aspect-[1/1.2] rounded-2xl group cursor-pointer shadow-xl bg-white" 
+                    onClick={() => router.push(`/users/${user.uid}`)}
+                  >
                     <Image 
                       src={user.photoURL || "https://picsum.photos/seed/placeholder/400/500"} 
                       alt={user.name} 
@@ -218,7 +253,12 @@ export default function HomePage() {
                       className="object-cover" 
                       data-ai-hint="person profile"
                     />
-                    <div className="absolute top-2.5 right-2.5 bg-[#00A2FF] px-4 py-1.5 rounded-full z-30 text-white font-bold text-[12px] uppercase shadow-md active:scale-95 transition-all" onClick={(e) => { e.stopPropagation(); router.push(`/chats?startWith=${user.uid}`); }}>CHAT</div>
+                    <div 
+                      className="absolute top-2.5 right-2.5 bg-[#00A2FF] px-4 py-1.5 rounded-full z-30 text-white font-bold text-[12px] uppercase shadow-md active:scale-95 transition-all" 
+                      onClick={(e) => { e.stopPropagation(); router.push(`/chats?startWith=${user.uid}`); }}
+                    >
+                      CHAT
+                    </div>
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
                     <div className="absolute inset-x-0 bottom-0 p-3">
                       <div className="flex items-center gap-1.5">
@@ -227,12 +267,15 @@ export default function HomePage() {
                       </div>
                       <div className="flex items-center gap-1.5 mt-1">
                         <span className="bg-[#006400] text-white font-bold text-[10px] px-2.5 py-0.5 rounded-full">{calculateAge(user.dob)}</span>
-                        <span className="bg-white/10 backdrop-blur-md px-2.5 py-0.5 rounded-full text-white font-medium text-[10px] border border-white/20 truncate">{user.country || "Kenya"}</span>
+                        <span className="bg-white/10 backdrop-blur-md px-2.5 py-0.5 rounded-full text-white font-medium text-[10px] border border-white/20 truncate">
+                          {user.country || "KE"}
+                        </span>
                       </div>
                     </div>
                   </Card>
                 ))}
               </div>
+              
               {hasMore && (
                 <div className="flex justify-center pb-8 pt-4">
                   <Button 
