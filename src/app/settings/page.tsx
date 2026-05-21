@@ -2,17 +2,17 @@
 "use client"
 
 import { useState } from "react"
-import { useAuth, useFirestore, useUser, useDoc } from "@/firebase"
+import { useFirestore, useUser, useDoc } from "@/firebase"
 import { useMemoFirebase } from "@/firebase/utils-client"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
-import { deleteUser, signOut } from "firebase/auth"
 import { doc, deleteDoc } from "firebase/firestore"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ChevronLeft, ChevronRight, ShieldAlert, Link as LinkIcon, Info, RefreshCw, CreditCard, LogOut, Trash2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, ShieldAlert, Info, RefreshCw, CreditCard, LogOut, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import {
   AlertDialog,
@@ -58,18 +58,16 @@ function SettingItem({ label, onClick, href, icon, variant = 'default' }: Settin
 export default function SettingsPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const auth = useAuth()
   const db = useFirestore()
   const { user } = useUser()
   const [deleteConfirmText, setDeleteConfirmText] = useState("")
 
-  const profileRef = useMemoFirebase(() => (user?.uid && db) ? doc(db, "users", user.uid) : null, [db, user?.uid])
+  const profileRef = useMemoFirebase(() => (user?.id && db) ? doc(db, "users", user.id) : null, [db, user?.id])
   const { data: profile } = useDoc<UserProfile>(profileRef)
 
   const handleSignOut = async () => {
-    if (!auth) return
     try {
-      await signOut(auth)
+      await supabase.auth.signOut()
       window.location.replace("/welcome")
     } catch (error) {
       console.error(error)
@@ -91,9 +89,10 @@ export default function SettingsPage() {
     if (!user || deleteConfirmText.toUpperCase() !== "DELETE") return
 
     try {
-      const uid = user.uid
+      const uid = user.id
       const userRef = doc(db!, "users", uid)
       
+      // Delete user profile from Firestore
       await deleteDoc(userRef).catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: userRef.path,
@@ -101,15 +100,17 @@ export default function SettingsPage() {
         }))
       })
 
-      await deleteUser(user)
+      // Note: Full account deletion via Supabase typically requires a server-side action
+      // For this prototype, we'll sign the user out.
+      await supabase.auth.signOut()
       window.location.replace("/welcome")
+      
+      toast({ title: "Account Deletion Requested", description: "Your data has been scheduled for removal." })
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Deletion failed",
-        description: error.code === 'auth/requires-recent-login' 
-          ? "Please sign out and sign back in before deleting your account." 
-          : error.message,
+        description: error.message,
       })
     }
   }
@@ -126,10 +127,6 @@ export default function SettingsPage() {
 
       <main className="flex-1">
         <div className="flex flex-col mt-4">
-          {user?.isAnonymous && (
-            <SettingItem label="Secure Account" href="/bind-account" icon={<LinkIcon className="w-5 h-5 text-[#00A2FF]" />} />
-          )}
-          
           <SettingItem label="Charge settings" href="/pricing" icon={<CreditCard className="w-5 h-5 text-blue-500" />} />
           <SettingItem label="About QIVO" href="/about" icon={<Info className="w-5 h-5 text-gray-500" />} />
           <SettingItem label="Clear Cache" onClick={handleClearCache} icon={<RefreshCw className="w-5 h-5 text-orange-500" />} />

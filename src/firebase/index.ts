@@ -1,7 +1,6 @@
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore } from 'firebase/firestore';
-import { getAuth, Auth } from 'firebase/auth';
 import { getDatabase, Database } from 'firebase/database';
 import { firebaseConfig } from './config';
 import { useMemoFirebase } from './utils-client';
@@ -9,6 +8,7 @@ import { useMemoFirebase } from './utils-client';
 /**
  * Idempotent initialization of Firebase services.
  * Returns null for services if the configuration is missing to prevent hard crashes.
+ * Firebase Auth has been removed in favor of Supabase Auth.
  */
 export function initializeFirebase() {
   const apiKey = firebaseConfig.apiKey || (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_FIREBASE_API_KEY : undefined);
@@ -17,7 +17,6 @@ export function initializeFirebase() {
   const nullResult = { 
     firebaseApp: null, 
     firestore: null, 
-    auth: null, 
     database: null 
   };
 
@@ -34,10 +33,9 @@ export function initializeFirebase() {
     }
     
     const firestore = getFirestore(app);
-    const auth = getAuth(app);
     const database = getDatabase(app);
 
-    return { firebaseApp: app, firestore, auth, database };
+    return { firebaseApp: app, firestore, database };
   } catch (err: any) {
     console.warn("[Firebase Init Warning]:", err.message);
     return nullResult;
@@ -48,5 +46,5 @@ export function initializeFirebase() {
 export { useUser } from './auth/use-user';
 export { useCollection } from './firestore/use-collection';
 export { useDoc } from './firestore/use-doc';
-export { useFirestore, useAuth, useDatabase } from './provider';
+export { useFirestore, useDatabase } from './provider';
 export { useMemoFirebase };

@@ -1,59 +1,39 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Utility functions
+    
+    /**
+     * IMPORTANT: Firebase Auth has been removed.
+     * These rules are now set to allow read/write for the prototype.
+     * In a production environment, you must use Supabase Database or 
+     * implement custom authentication bridging.
+     */
+
     function isAuthenticated() {
-      return request.auth != null;
+      return true; // Firebase Auth disabled
     }
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+      return true; // Simplified for Supabase prototype transition
     }
     function isAdmin() {
-      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
-    function isAgent() {
-      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAgent == true;
+      // Logic still checks the 'isAdmin' field in the user document
+      return get(/databases/$(database)/documents/users/$(request.resource.data.uid)).data.isAdmin == true || 
+             get(/databases/$(database)/documents/users/$(request.path[4])).data.isAdmin == true;
     }
 
     // User Profiles
     match /users/{userId} {
-      // Profiles are public for discovery/explore
-      allow read: if isAuthenticated();
-      
-      // Only owner can create their initial profile
-      allow create: if isOwner(userId);
-      
-      // Only owner or admin can update. Owner cannot escalate their own roles.
-      allow update: if isAdmin() || (
-        isOwner(userId) && 
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isAdmin', 'isCoinSeller', 'isAgent', 'matchFlowId', 'agencyId', 'agencyStatus'])
-      );
-      
-      allow delete: if isAdmin();
+      allow read, write: if true;
     }
 
     // Agencies
     match /agencies/{agencyCode} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin() || isAgent();
+      allow read, write: if true;
       
       // Withdrawal requests nested under agencies
       match /withdrawals/{withdrawalId} {
-        // Participant or Agent can read
-        allow read: if isAuthenticated() && (
-          request.auth.uid == resource.data.uid || 
-          isAdmin() || 
-          request.auth.uid == get(/databases/$(database)/documents/agencies/$(agencyCode)).data.agentUid
-        );
-        
-        // Users can create their own requests
-        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.uid;
-        
-        // Only Agent or Admin can update status
-        allow update: if isAdmin() || (
-          isAuthenticated() && 
-          request.auth.uid == get(/databases/$(database)/documents/agencies/$(agencyCode)).data.agentUid
-        );
+        allow read, write: if true;
       }
     }
   }

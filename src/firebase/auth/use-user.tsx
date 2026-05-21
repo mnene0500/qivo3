@@ -1,14 +1,13 @@
+
 "use client"
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { initializeFirebase } from '@/firebase';
-import { signInAnonymously } from 'firebase/auth';
 
 /**
- * @fileOverview Hybrid Auth Hook.
- * Uses Supabase as the primary identity provider while bridging to Firebase 
- * to ensure database security rules remain functional.
+ * @fileOverview Pure Supabase Auth Hook.
+ * Manages user identity exclusively via Supabase.
+ * Firebase Auth has been completely removed.
  */
 export function useUser() {
   const [user, setUser] = useState<any>(null);
@@ -16,15 +15,9 @@ export function useUser() {
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    const { auth: firebaseAuth } = initializeFirebase();
-
     // 1. Get initial Supabase session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user);
-        // Silent bridge to Firebase for database access
-        if (firebaseAuth) signInAnonymously(firebaseAuth).catch(() => {});
-      }
+      setUser(session?.user || null);
       setLoading(false);
       setIsInitialized(true);
     });
@@ -33,12 +26,6 @@ export function useUser() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       const currentUser = session?.user || null;
       setUser(currentUser);
-      
-      if (currentUser && firebaseAuth) {
-        // Maintain Firebase session for Firestore/RTDB rules
-        signInAnonymously(firebaseAuth).catch(() => {});
-      }
-      
       setLoading(false);
       setIsInitialized(true);
     });
