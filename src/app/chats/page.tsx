@@ -8,7 +8,7 @@ import { BottomNav } from "@/components/layout/BottomNav"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Send, ChevronLeft, Loader2, User, Trash2, MoreVertical, Sparkles } from "lucide-react"
+import { Send, ChevronLeft, Loader2, User, Trash2, MoreVertical, Sparkles, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/firebase/auth/use-user"
 import { format } from "date-fns"
@@ -18,6 +18,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface Message {
   id: string | number
@@ -56,8 +66,13 @@ function ChatsContent() {
   const [userBalance, setUserBalance] = useState<number>(0)
   const [isSending, setIsSending] = useState(false)
   const [activeChatClearedAt, setActiveChatClearedAt] = useState<number>(0)
+  
+  // Long Press & Delete States
+  const [chatToDelete, setChatToDelete] = useState<ChatSummary | null>(null)
+  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null)
+  const [isLongPressing, setIsLongPressing] = useState(false)
 
-  // Fetch Current User Profile & Balance for Billing
+  // Fetch Current User Profile & Balance
   useEffect(() => {
     if (!currentUser?.id) return
     const fetchMyInfo = async () => {
@@ -68,7 +83,6 @@ function ChatsContent() {
     }
     fetchMyInfo()
     
-    // Subscribe to balance changes
     const balChan = supabase.channel(`my-bal-${currentUser.id}`)
       .on('postgres_changes', { event: 'UPDATE', table: 'balances', filter: `user_id=eq.${currentUser.id}` }, (payload) => {
         setUserBalance(payload.new.coins)
@@ -77,9 +91,9 @@ function ChatsContent() {
     return () => { supabase.removeChannel(balChan) }
   }, [currentUser?.id])
 
-  // 1. Fetch Chat List (Summaries)
+  // Fetch Chat List (Summaries)
   useEffect(() => {
-    if (!currentUser?.id) return
+    if (!currentUser?.id || startWithId) return
     
     const fetchSummaries = async () => {
       const { data: chatsData } = await supabase
@@ -116,9 +130,9 @@ function ChatsContent() {
     fetchSummaries()
     const channel = supabase.channel('chats_realtime').on('postgres_changes', { event: '*', table: 'chats' }, () => fetchSummaries()).subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [currentUser?.id])
+  }, [currentUser?.id, startWithId])
 
-  // 2. Set Active Chat ID & Profile
+  // Set Active Chat ID
   useEffect(() => {
     if (currentUser?.id && startWithId) {
       const ids = [currentUser.id, startWithId].sort()
@@ -135,7 +149,7 @@ function ChatsContent() {
     }
   }, [currentUser?.id, startWithId])
 
-  // 3. Listen for Messages
+  // Listen for Messages
   useEffect(() => {
     if (!chatId) return
     const fetchMessages = async () => {
@@ -156,62 +170,74 @@ function ChatsContent() {
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !chatId || !currentUser?.id || !startWithId || !userProfile) return
-    
-    // BILLING LOGIC: Men pay 15 coins, Women are free
     const isMan = userProfile.gender === 'male'
     const cost = 15
-
     if (isMan && userBalance < cost) {
-      toast({ variant: "destructive", title: "Insufficient Coins", description: "Men need 15 coins per message. Please recharge." })
+      toast({ variant: "destructive", title: "Insufficient Coins", description: "Men need 15 coins per message." })
       router.push("/recharge")
       return
     }
 
     const text = newMessage.trim()
     const timestamp = Date.now()
-    
-    const optimisticMsg: Message = {
-      id: `temp-${timestamp}`,
-      text: text,
-      sender_id: currentUser.id,
-      timestamp: timestamp,
-      is_optimistic: true
-    }
-    
+    const optimisticMsg: Message = { id: `temp-${timestamp}`, text, sender_id: currentUser.id, timestamp, is_optimistic: true }
     setMessages(prev => [optimisticMsg, ...prev])
     setNewMessage("")
 
     try {
       if (isMan) {
-        // Atomic deduction
         await supabase.from('balances').update({ coins: userBalance - cost }).eq('user_id', currentUser.id)
         await supabase.from('coin_history').insert({ user_id: currentUser.id, amount: -cost, type: 'chat', description: `Chat with ${partnerProfile?.name || 'User'}`, timestamp })
       }
-
       await Promise.all([
         supabase.from('chats').upsert({ id: chatId, last_message: text, last_message_at: timestamp, participant_ids: [currentUser.id, startWithId] }, { onConflict: 'id' }),
-        supabase.from('messages').insert({ chat_id: chatId, text: text, sender_id: currentUser.id, timestamp })
+        supabase.from('messages').insert({ chat_id: chatId, text, sender_id: currentUser.id, timestamp })
       ])
-    } catch (err: any) {
+    } catch (err) {
       setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id))
       toast({ variant: "destructive", title: "Message Failed" })
     }
   }
 
-  const handleClearChat = async () => {
-    if (!chatId || !currentUser?.id) return
-    if (!window.confirm("Clear this conversation?")) return
+  const handleClearChat = async (targetId?: string) => {
+    const id = targetId || chatId
+    if (!id || !currentUser?.id) return
     const now = Date.now()
     try {
-      const { data: existing } = await supabase.from('chats').select('cleared_at').eq('id', chatId).single()
+      const { data: existing } = await supabase.from('chats').select('cleared_at').eq('id', id).single()
       const newClearedAt = { ...(existing?.cleared_at || {}), [currentUser.id]: now }
-      await supabase.from('chats').update({ cleared_at: newClearedAt }).eq('id', chatId)
-      setActiveChatClearedAt(now)
-      setMessages([])
+      await supabase.from('chats').update({ cleared_at: newClearedAt }).eq('id', id)
+      
+      if (!targetId) {
+        setActiveChatClearedAt(now)
+        setMessages([])
+        router.push('/chats')
+      } else {
+        setChatSummaries(prev => prev.filter(s => s.id !== targetId))
+      }
       toast({ title: "Chat cleared" })
-      router.push('/chats')
     } catch (err) {
       toast({ variant: "destructive", title: "Failed to clear" })
+    }
+  }
+
+  // Long Press Handlers
+  const handleTouchStart = (chat: ChatSummary) => {
+    setIsLongPressing(false)
+    const timer = setTimeout(() => {
+      setIsLongPressing(true)
+      setChatToDelete(chat)
+    }, 600)
+    setLongPressTimer(timer)
+  }
+
+  const handleTouchEnd = (chat: ChatSummary) => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      setLongPressTimer(null)
+    }
+    if (!isLongPressing) {
+      router.push(`/chats?startWith=${chat.partner_id}`)
     }
   }
 
@@ -230,7 +256,15 @@ function ChatsContent() {
             <p className="font-bold text-sm text-black uppercase tracking-widest">No conversations yet</p>
           </div>
         ) : chatSummaries.map(s => (
-          <div key={s.id} onClick={() => router.push(`/chats?startWith=${s.partner_id}`)} className="p-5 border-b border-gray-50 flex items-center gap-4 active:bg-gray-50 transition-colors cursor-pointer">
+          <div 
+            key={s.id} 
+            onMouseDown={() => handleTouchStart(s)}
+            onMouseUp={() => handleTouchEnd(s)}
+            onMouseLeave={() => { if(longPressTimer) clearTimeout(longPressTimer) }}
+            onTouchStart={() => handleTouchStart(s)}
+            onTouchEnd={() => handleTouchEnd(s)}
+            className="p-5 border-b border-gray-50 flex items-center gap-4 active:bg-gray-50 transition-colors cursor-pointer"
+          >
             <Avatar className="w-14 h-14 border border-gray-100"><AvatarImage src={s.partner_photo} className="object-cover" /><AvatarFallback>{s.partner_name?.[0]}</AvatarFallback></Avatar>
             <div className="flex-1 min-w-0">
               <div className="flex justify-between items-center mb-1">
@@ -242,6 +276,30 @@ function ChatsContent() {
           </div>
         ))}
       </main>
+
+      <AlertDialog open={!!chatToDelete} onOpenChange={(open) => !open && setChatToDelete(null)}>
+        <AlertDialogContent className="rounded-[2.5rem] max-w-[85vw] p-8 border-none shadow-2xl">
+          <AlertDialogHeader className="items-center text-center">
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
+              <AlertCircle className="w-8 h-8 text-red-500" />
+            </div>
+            <AlertDialogTitle className="text-xl font-bold tracking-tight">Delete Chat?</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-relaxed">
+              This will remove the chat from your list. Your partner will still see the messages.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row gap-3 mt-6">
+            <AlertDialogCancel className="flex-1 h-14 rounded-full border-2 font-bold uppercase text-[10px] tracking-widest mt-0">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => chatToDelete && handleClearChat(chatToDelete.id)} 
+              className="flex-1 h-14 rounded-full bg-red-500 hover:bg-red-600 font-bold uppercase text-[10px] tracking-widest"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <BottomNav />
     </div>
   )
@@ -249,14 +307,11 @@ function ChatsContent() {
   return (
     <div className="flex flex-col h-screen bg-white select-none">
       <header className="h-16 border-b flex items-center px-4 gap-4 sticky top-0 bg-white z-50">
-        <Button variant="ghost" size="icon" onClick={() => router.push('/chats')} className="rounded-full">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full">
           <ChevronLeft className="w-6 h-6 text-black" />
         </Button>
         <div className="flex items-center gap-3 flex-1">
-          <Avatar className="w-9 h-9">
-            <AvatarImage src={partnerProfile?.photo_url} className="object-cover" />
-            <AvatarFallback>{partnerProfile?.name?.[0]}</AvatarFallback>
-          </Avatar>
+          <Avatar className="w-9 h-9"><AvatarImage src={partnerProfile?.photo_url} className="object-cover" /><AvatarFallback>{partnerProfile?.name?.[0]}</AvatarFallback></Avatar>
           <div className="flex flex-col">
             <span className="font-black text-sm text-black leading-none">{partnerProfile?.name || '...'}</span>
             <span className="text-[9px] font-bold text-green-500 uppercase tracking-widest mt-1">Online</span>
@@ -265,7 +320,7 @@ function ChatsContent() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="rounded-full"><MoreVertical className="w-5 h-5 text-gray-400" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="rounded-2xl min-w-[160px]">
-            <DropdownMenuItem onClick={handleClearChat} className="text-red-500 font-bold gap-2 p-3"><Trash2 className="w-4 h-4" /> Delete Chat</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleClearChat()} className="text-red-500 font-bold gap-2 p-3"><Trash2 className="w-4 h-4" /> Delete Chat</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
