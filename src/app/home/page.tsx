@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo, useState, useEffect, useCallback } from "react"
@@ -23,6 +22,10 @@ interface UserProfile {
   is_deleted?: boolean
 }
 
+/**
+ * GLOBAL PERSISTENCE CACHE
+ * Stops costs from spiking by preserving feed data across navigations.
+ */
 let globalUserCache: UserProfile[] = [];
 let globalScrollY = 0;
 
@@ -58,7 +61,7 @@ export default function HomePage() {
       try {
         const { data, error } = await supabase
           .from('users')
-          .select('*')
+          .select('onboarding_complete, country')
           .eq('uid', currentUser.id)
           .maybeSingle();
 
@@ -67,7 +70,7 @@ export default function HomePage() {
           return;
         }
 
-        setProfile(data);
+        setProfile(data as any);
         if (!data.onboarding_complete) {
           router.replace("/fastonboard");
         }
@@ -79,6 +82,7 @@ export default function HomePage() {
     checkProfile();
   }, [isInitialized, currentUser, authLoading, router])
 
+  // Restore scroll position when navigating back
   useEffect(() => {
     if (!initialLoading) {
        setTimeout(() => window.scrollTo(0, globalScrollY), 50);
@@ -99,13 +103,13 @@ export default function HomePage() {
     try {
       const { data } = await supabase
         .from('users')
-        .select('*')
+        .select('uid, name, photo_url, country, dob, is_verified, onboarding_complete, is_deleted')
         .eq('onboarding_complete', true)
         .or('is_deleted.is.null,is_deleted.eq.false')
         .limit(60);
 
       if (data) {
-        const filtered = data.filter(u => u.uid !== currentUser?.id)
+        const filtered = (data as UserProfile[]).filter(u => u.uid !== currentUser?.id)
         const shuffled = filtered.sort(() => Math.random() - 0.5)
         setUsers(shuffled)
         globalUserCache = shuffled
@@ -172,7 +176,6 @@ export default function HomePage() {
                   <Image src={u.photo_url || ""} alt={u.name} fill className="object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
                   
-                  {/* Quick Chat Button - Blue background with "CHAT" name */}
                   <div 
                     onClick={(e) => { e.stopPropagation(); router.push(`/chats?startWith=${u.uid}`); }}
                     className="absolute top-2.5 right-2.5 px-3 h-8 bg-[#00A2FF] rounded-full flex items-center justify-center text-white shadow-xl active:scale-90 transition-all z-20 hover:bg-[#0081CC]"

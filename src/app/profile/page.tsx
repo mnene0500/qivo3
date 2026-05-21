@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useState } from "react"
@@ -55,7 +54,11 @@ interface UserProfile {
   agency_status?: string
 }
 
+/**
+ * CACHE TO PREVENT SUPABASE SPIKES
+ */
 let globalProfileCache: UserProfile | null = null;
+let globalBalancesCache = { coins: 0, diamonds: 0 };
 
 function JoinAgencyDialog({ userUid }: { userUid: string }) {
   const [code, setCode] = useState("")
@@ -107,33 +110,43 @@ export default function MePage() {
   const { toast } = useToast()
   
   const [copied, setCopied] = useState(false)
-  const [balances, setBalances] = useState({ coins: 0, diamonds: 0 })
+  const [balances, setBalances] = useState(globalBalancesCache)
   const [profile, setProfile] = useState<UserProfile | null>(globalProfileCache)
   const [isReady, setIsReady] = useState(!!globalProfileCache)
 
   useEffect(() => {
     if (!user && isInitialized && !authLoading) router.replace("/welcome")
     if (user) {
-      supabase.from('users').select('*').eq('uid', user.id).single().then(({ data }) => {
+      // Avoid fetch if cache exists
+      if (!profile) {
+        supabase.from('users').select('*').eq('uid', user.id).maybeSingle().then(({ data }) => {
+          if (data) {
+            setProfile(data as any)
+            globalProfileCache = data as any
+            setIsReady(true)
+          }
+        })
+      }
+      
+      supabase.from('balances').select('coins, diamonds').eq('user_id', user.id).maybeSingle().then(({ data }) => {
         if (data) {
-          setProfile(data)
-          globalProfileCache = data
-          setIsReady(true)
+          const newBal = { coins: data.coins || 0, diamonds: Number(data.diamonds) || 0 }
+          setBalances(newBal)
+          globalBalancesCache = newBal
         }
-      })
-      supabase.from('balances').select('*').eq('user_id', user.id).single().then(({ data }) => {
-        if (data) setBalances({ coins: data.coins || 0, diamonds: Number(data.diamonds) || 0 })
       })
       
       const channel = supabase.channel(`balance:${user.id}`)
         .on('postgres_changes', { event: 'UPDATE', table: 'balances', filter: `user_id=eq.${user.id}` }, (payload) => {
-          setBalances({ coins: payload.new.coins, diamonds: Number(payload.new.diamonds) })
+          const updatedBal = { coins: payload.new.coins, diamonds: Number(payload.new.diamonds) }
+          setBalances(updatedBal)
+          globalBalancesCache = updatedBal
         })
         .subscribe()
         
       return () => { supabase.removeChannel(channel) }
     }
-  }, [user, isInitialized, authLoading, router])
+  }, [user, isInitialized, authLoading, router, profile])
 
   const handleCopyId = () => {
     if (profile?.match_flow_id) { 
