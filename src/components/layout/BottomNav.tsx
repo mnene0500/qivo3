@@ -23,6 +23,7 @@ export function BottomNav() {
     
     const fetchUnread = async () => {
       // Check for presence of any chat where the user is a participant
+      // With RLS, this will naturally only return chats the user belongs to
       const { data } = await supabase
         .from('chats')
         .select('id')

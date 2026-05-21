@@ -54,10 +54,10 @@ function ChatsContent() {
     if (!currentUser?.id) return
     
     const fetchSummaries = async () => {
+      // RLS ensures only the current user's chats are returned
       const { data: chatsData } = await supabase
         .from('chats')
         .select('*')
-        .contains('participant_ids', [currentUser.id])
         .order('last_message_at', { ascending: false })
 
       if (chatsData) {
@@ -88,8 +88,7 @@ function ChatsContent() {
     const channel = supabase.channel('chats_realtime')
       .on('postgres_changes', { 
         event: '*', 
-        table: 'chats',
-        filter: `participant_ids=cs.{${currentUser.id}}`
+        table: 'chats'
       }, () => fetchSummaries())
       .subscribe()
 
@@ -179,7 +178,7 @@ function ChatsContent() {
 
     } catch (err: any) {
       setMessages(prev => prev.filter(m => m.id !== tempId))
-      toast({ variant: "destructive", title: "Message not sent", description: "You may not have permission for this chat." })
+      toast({ variant: "destructive", title: "Access Denied", description: "You don't have permission to message this user." })
     }
   }
 
