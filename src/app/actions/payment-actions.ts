@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 
 /**
  * @fileOverview PesaPal integration actions for API v3 using Supabase.
- * Purged of all Firebase logic.
+ * Includes IPN registration and listing for admin diagnostics.
  */
 
 export interface TransactionStatusResponse {
@@ -45,6 +45,47 @@ export async function getAccessToken(): Promise<string> {
   } catch (err: any) {
     console.error("[PesaPal Auth] Exception:", err.message);
     throw err;
+  }
+}
+
+export async function registerIPN() {
+  try {
+    const token = await getAccessToken();
+    const response = await fetch(`${PESAPAL_CONFIG.API_BASE_URL}/api/Services/RegisterIPN`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        url: PESAPAL_CONFIG.IPN_URL,
+        ipn_notification_type: 'GET',
+      }),
+    });
+
+    const data = await response.json();
+    return data;
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}
+
+export async function getIpnList() {
+  try {
+    const token = await getAccessToken();
+    const response = await fetch(`${PESAPAL_CONFIG.API_BASE_URL}/api/Services/GetIPNList`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+    return data;
+  } catch (error: any) {
+    return { error: error.message };
   }
 }
 
@@ -100,7 +141,6 @@ export async function initiatePesaPalPayment(amount: number, user: { uid: string
 
 export async function fulfillPaymentAction(orderTrackingId: string, merchantReference: string) {
   try {
-    // 1. Verify Status with PesaPal
     const token = await getAccessToken();
     const statusRes = await fetch(`${PESAPAL_CONFIG.API_BASE_URL}/api/Transactions/GetTransactionStatus?orderTrackingId=${orderTrackingId}`, {
       method: 'GET',
@@ -110,19 +150,16 @@ export async function fulfillPaymentAction(orderTrackingId: string, merchantRefe
     if (!statusRes.ok) return { success: false, error: "Status check failed" };
     const status = await statusRes.json();
     
-    // Status 1 = Completed
     if (status && status.status_code === 1) {
       const uid = merchantReference.split('_')[1];
       if (!uid) return { success: false, error: "Invalid Ref" };
 
-      // 2. Idempotency Check
       const { data: existing } = await supabase.from('processed_payments').select('*').eq('order_tracking_id', orderTrackingId).maybeSingle();
       if (existing) return { success: true, coins: existing.coins };
 
       const amount = Number(status.amount);
-      let coinsToAward = Math.floor(amount * 10); // Simple 10x multiplier for prototype
+      let coinsToAward = Math.floor(amount * 10);
 
-      // 3. Award Coins
       const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', uid).single();
       const currentCoins = bal?.coins || 0;
       

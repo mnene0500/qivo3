@@ -2,27 +2,34 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useUser, useDoc, useFirestore } from "@/firebase"
-import { doc } from "firebase/firestore"
+import { supabase } from "@/lib/supabase"
+import { useUser } from "@/firebase/auth/use-user"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ShieldCheck, Loader2, RefreshCw, AlertCircle, Copy, Check, ExternalLink } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 /**
- * @fileOverview QIVO PesaPal Admin Dashboard.
+ * @fileOverview QIVO PesaPal Admin Dashboard via Supabase.
  * Allows administrators to run live diagnostics and retrieve the PESAPAL_IPN_ID.
  */
 export default function PesaPalAdminPage() {
   const router = useRouter()
   const { user } = useUser()
-  const db = useFirestore()
   const { toast } = useToast()
   
   const [diagnostics, setDiagnostics] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [profile, setProfile] = useState<any>(null)
+  const [profileLoading, setProfileLoading] = useState(true)
 
-  const { data: profile } = useDoc<any>(user?.uid ? doc(db, "users", user.uid) : null)
+  useEffect(() => {
+    if (!user?.id) return
+    supabase.from('users').select('*').eq('uid', user.id).single().then(({ data }) => {
+      setProfile(data)
+      setProfileLoading(false)
+    })
+  }, [user?.id])
 
   const runDiagnostics = async () => {
     setLoading(true)
@@ -38,11 +45,11 @@ export default function PesaPalAdminPage() {
   }
 
   useEffect(() => {
-    if (profile && !profile.isAdmin) {
+    if (!profileLoading && profile && !profile.is_admin) {
       toast({ title: "Access Denied", description: "Admin privileges required." })
       router.push("/home")
     }
-  }, [profile, router, toast])
+  }, [profile, profileLoading, router, toast])
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
@@ -51,7 +58,7 @@ export default function PesaPalAdminPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  if (!profile?.isAdmin) {
+  if (profileLoading || !profile?.is_admin) {
     return (
       <div className="flex-1 flex items-center justify-center bg-white min-h-screen">
         <Loader2 className="w-8 h-8 animate-spin text-[#00A2FF]" />
