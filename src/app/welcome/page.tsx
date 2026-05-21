@@ -9,6 +9,9 @@ import { useUser } from "@/firebase/auth/use-user"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 
+/**
+ * @fileOverview Cinematic Welcome Page with Supabase Auth Gates.
+ */
 export default function WelcomePage() {
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -41,7 +44,6 @@ export default function WelcomePage() {
         router.replace("/fastonboard")
       }
     } catch (err) {
-      console.error("Auth check failed:", err);
       router.replace("/fastonboard")
     }
   }

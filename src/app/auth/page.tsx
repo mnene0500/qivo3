@@ -7,8 +7,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { ChevronLeft, Mail, UserPlus, Loader2 } from "lucide-react"
+import { ChevronLeft, Mail, Loader2 } from "lucide-react"
 
+/**
+ * @fileOverview Unified Auth page for Email and Google Login via Supabase.
+ */
 export default function UnifiedAuthPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -72,35 +75,10 @@ export default function UnifiedAuthPage() {
       if (signUpError) throw signUpError
       
       const user = data.user
-      if (!user) throw new Error("Registration failed to return user data.")
+      if (!user) throw new Error("Registration failed.")
 
-      const qId = Math.floor(1000000 + Math.random() * 900000000).toString();
-      
-      // 1. Create User Profile
-      const { error: profileError } = await supabase.from('users').upsert({
-        uid: user.id,
-        email: user.email,
-        name: email.split('@')[0],
-        match_flow_id: qId,
-        onboarding_complete: false,
-        country: "Kenya",
-        photo_url: `https://picsum.photos/seed/${user.id}/400/400`,
-        is_verified: false,
-        is_admin: false
-      })
-
-      if (profileError) {
-        console.error("Profile creation error:", profileError);
-        throw new Error("Failed to create profile.");
-      }
-
-      // 2. Create Initial Balance
-      await supabase.from('balances').upsert({
-        user_id: user.id,
-        coins: 150,
-        diamonds: 0
-      })
-
+      // Note: Initial profile creation happens in fastonboard/page.tsx
+      // to handle both Email and Social users consistently.
       router.push("/fastonboard")
     } catch (error: any) {
       toast({ variant: "destructive", title: "Registration failed", description: error.message })

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react"
@@ -20,6 +19,10 @@ const LOOKING_FOR_OPTIONS = [
   "Serious partner", "Casual friendship", "Networking", "Dating", "Travel buddy"
 ]
 
+/**
+ * @fileOverview Instant onboarding for both Email and Social Login users.
+ * Robust profile creation using UPSERT to handle missing records.
+ */
 export default function FastOnboardingPage() {
   const [gender, setGender] = useState("")
   const [country, setCountry] = useState("")
@@ -47,18 +50,21 @@ export default function FastOnboardingPage() {
       const timestamp = Date.now()
       const qId = Math.floor(1000000 + Math.random() * 900000000).toString();
 
-      // 1. Upsert Profile (Ensures record exists to satisfy foreign keys)
-      // We use upsert so that if the user already has a partial profile, we update it.
+      // Ensure we pick up metadata from Google/Social providers if available
+      const socialName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || "User";
+      const socialPhoto = user.user_metadata?.avatar_url || user.user_metadata?.picture || `https://picsum.photos/seed/${user.id}/400/400`;
+
+      // 1. Create or Update Profile (UPSERT fixes the FK constraint errors)
       const { error: profileErr } = await supabase.from('users').upsert({
         uid: user.id,
         email: user.email,
-        name: user.user_metadata?.full_name || user.email?.split('@')[0] || "User",
+        name: socialName,
         gender,
         country,
         looking_for: lookingFor,
         onboarding_complete: true,
         match_flow_id: qId,
-        photo_url: user.user_metadata?.avatar_url || `https://picsum.photos/seed/${user.id}/400/400`,
+        photo_url: socialPhoto,
         updated_at: new Date().toISOString()
       }, { onConflict: 'uid' })
 
@@ -73,6 +79,7 @@ export default function FastOnboardingPage() {
 
       if (balanceErr) throw balanceErr;
 
+      // 3. Log initial bonus in history
       if (initialCoins > 0) {
         await supabase.from('coin_history').insert({
           user_id: user.id,
