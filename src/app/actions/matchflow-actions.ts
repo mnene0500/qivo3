@@ -60,7 +60,7 @@ export async function createAgencyAction(agentUid: string, agencyName: string) {
   try {
     const code = Math.floor(10000 + Math.random() * 90000).toString();
     await supabase.from('agencies').insert({ code, agent_uid: agentUid, name: agencyName });
-    await supabase.from('users').update({ agency_id: code, agency_status: 'approved' }).eq('uid', agentUid);
+    await supabase.from('users').update({ agency_id: code, agency_status: 'approved', is_agent: true }).eq('uid', agentUid);
     return { success: true, code };
   } catch (error: any) { return { success: false, error: error.message }; }
 }
@@ -76,7 +76,8 @@ export async function requestWithdrawalAction(uid: string, diamonds: number, amo
       agency_id: agencyId, 
       diamonds, 
       amount_kes: amountKes, 
-      status: 'pending' 
+      status: 'pending',
+      timestamp: Date.now()
     });
     
     return { success: true };
@@ -89,6 +90,20 @@ export async function joinAgencyAction(userUid: string, agencyCode: string) {
     if (!agency) return { success: false, error: "Invalid Agency Code." };
     
     await supabase.from('users').update({ agency_id: agencyCode.trim(), agency_status: 'pending' }).eq('uid', userUid);
+    return { success: true };
+  } catch (error: any) { return { success: false, error: error.message }; }
+}
+
+export async function reviewRecruitmentAction(agentUid: string, targetUid: string, status: 'approved' | 'rejected') {
+  try {
+    await supabase.from('users').update({ agency_status: status }).eq('uid', targetUid);
+    return { success: true };
+  } catch (error: any) { return { success: false, error: error.message }; }
+}
+
+export async function updateWithdrawalStatusAction(agentUid: string, agencyId: string, withdrawalId: string, status: 'paid' | 'rejected') {
+  try {
+    await supabase.from('withdrawals').update({ status }).eq('id', withdrawalId);
     return { success: true };
   } catch (error: any) { return { success: false, error: error.message }; }
 }

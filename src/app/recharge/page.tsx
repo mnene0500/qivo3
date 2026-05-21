@@ -1,11 +1,9 @@
-
 "use client"
 
 import { useState, Suspense, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { doc } from "firebase/firestore"
-import { ref, onValue, off } from "firebase/database"
-import { useFirestore, useUser, useDoc, useMemoFirebase, useDatabase } from "@/firebase"
+import { supabase } from "@/lib/supabase"
+import { useUser } from "@/firebase/auth/use-user"
 import { Button } from "@/components/ui/button"
 import { 
   ChevronLeft, 
@@ -38,8 +36,6 @@ function RechargeContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user } = useUser()
-  const db = useFirestore()
-  const rtdb = useDatabase()
   const { toast } = useToast()
   
   const [selectedPackage, setSelectedPackage] = useState<number | null>(null)
@@ -49,9 +45,26 @@ function RechargeContent() {
   const [fulfillmentError, setFulfillmentError] = useState<string | null>(null)
   
   const [currentCoins, setCurrentCoins] = useState(0)
+  const [profile, setProfile] = useState<any>(null)
 
-  const userRef = useMemoFirebase(() => (user?.uid && db) ? doc(db, "users", user.uid) : null, [db, user?.uid])
-  const { data: profile } = useDoc<any>(userRef)
+  useEffect(() => {
+    if (!user?.id) return
+    const fetchData = async () => {
+      const { data: u } = await supabase.from('users').select('*').eq('uid', user.id).single()
+      const { data: b } = await supabase.from('balances').select('coins').eq('user_id', user.id).single()
+      if (u) setProfile(u)
+      if (b) setCurrentCoins(b.coins || 0)
+    }
+    fetchData()
+
+    const channel = supabase.channel(`recharge-bal:${user.id}`)
+      .on('postgres_changes', { event: 'UPDATE', table: 'balances', filter: `user_id=eq.${user.id}` }, (payload) => {
+        setCurrentCoins(payload.new.coins || 0)
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [user?.id])
 
   useEffect(() => {
     const orderId = searchParams.get("OrderTrackingId") || searchParams.get("orderTrackingId");
@@ -80,23 +93,14 @@ function RechargeContent() {
     }
   }, [searchParams, router, toast]);
 
-  useEffect(() => {
-    if (!user?.uid || !rtdb) return
-    const balanceRef = ref(rtdb, `balances/${user.uid}/coins`)
-    const unsubscribe = onValue(balanceRef, (snapshot) => {
-      if (snapshot.exists()) setCurrentCoins(snapshot.val() || 0)
-    })
-    return () => off(balanceRef, 'value', unsubscribe)
-  }, [user?.uid, rtdb])
-
   const handlePayment = async () => {
     const pkg = PACKAGES.find(p => p.amount === selectedPackage)
     if (!user || !profile || !pkg) return
     setLoading(true)
     try {
       const result = await initiatePesaPalPayment(pkg.price, {
-        uid: user.uid,
-        email: user.email || `user_${user.uid}@qivo.app`,
+        uid: user.id,
+        email: user.email || `user_${user.id}@qivo.app`,
         name: profile.name || "QIVO User"
       })
       if (result.success && result.redirect_url) setPaymentUrl(result.redirect_url)

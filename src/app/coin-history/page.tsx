@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ref, onValue, query as rtdbQuery, limitToLast, off } from "firebase/database"
-import { useUser, useDatabase } from "@/firebase"
+import { supabase } from "@/lib/supabase"
+import { useUser } from "@/firebase/auth/use-user"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, Coins, ArrowUpRight, ArrowDownRight, Loader2, ShoppingBag } from "lucide-react"
 import { format } from "date-fns"
@@ -20,31 +20,31 @@ interface Transaction {
 export default function CoinHistoryPage() {
   const router = useRouter()
   const { user } = useUser()
-  const rtdb = useDatabase()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user?.uid) return
-    const historyRef = ref(rtdb, `coin_history/${user.uid}`)
-    const historyQuery = rtdbQuery(historyRef, limitToLast(100))
-    
-    const unsubscribe = onValue(historyQuery, (snapshot) => {
-      const data = snapshot.val()
-      if (data) {
-        const list = Object.entries(data).map(([id, val]: [string, any]) => ({ 
-          id, 
-          ...val 
-        })).sort((a, b) => b.timestamp - a.timestamp)
-        setTransactions(list)
-      } else { 
-        setTransactions([]) 
-      }
+    if (!user?.id) return
+    const fetchHistory = async () => {
+      const { data } = await supabase
+        .from('coin_history')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('timestamp', { ascending: false })
+        .limit(100)
+      
+      if (data) setTransactions(data)
       setLoading(false)
-    })
+    }
     
-    return () => off(historyRef, 'value', unsubscribe)
-  }, [user?.uid, rtdb])
+    fetchHistory()
+
+    const channel = supabase.channel(`coin-history:${user.id}`)
+      .on('postgres_changes', { event: 'INSERT', table: 'coin_history', filter: `user_id=eq.${user.id}` }, () => fetchHistory())
+      .subscribe()
+    
+    return () => { supabase.removeChannel(channel) }
+  }, [user?.id])
 
   return (
     <div className="flex-1 bg-white min-h-screen flex flex-col select-none">
