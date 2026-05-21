@@ -3,9 +3,8 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore"
-import { ref, set as rtdbSet, push } from "firebase/database"
-import { useFirestore, useUser, useDatabase } from "@/firebase"
+import { supabase } from "@/lib/supabase"
+import { useUser } from "@/firebase/auth/use-user"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -32,16 +31,14 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false)
   
   const { user } = useUser()
-  const db = useFirestore()
-  const rtdb = useDatabase()
   const router = useRouter()
   const { toast } = useToast()
 
   const totalSteps = 3
 
   useEffect(() => {
-    if (user?.displayName && !name) {
-      setName(user.displayName)
+    if (user?.email && !name) {
+      setName(user.email.split('@')[0])
     }
   }, [user, name])
 
@@ -59,50 +56,42 @@ export default function OnboardingPage() {
   }
 
   const handleComplete = async () => {
-    if (!user || !db || !rtdb) return
+    if (!user) return
     setLoading(true)
 
     try {
-      const userRef = doc(db, "users", user.uid)
       const qId = Math.floor(1000000 + Math.random() * 900000000).toString();
-      
       const initialCoins = gender === 'male' ? 150 : 0
       const initialDiamonds = gender === 'female' ? 150 : 0
       const timestamp = Date.now()
 
-      const updateData: any = {
-        uid: user.uid,
-        email: user.email || `anon_${user.uid}@qivo.app`,
+      // 1. Update Profile
+      const { error: profileErr } = await supabase.from('users').upsert({
+        uid: user.id,
+        email: user.email,
         name: name,
         gender,
-        dob: dob,
+        dob,
         country,
-        lookingFor: lookingFor,
-        onboardingComplete: true,
-        photoURL: user.photoURL || `https://picsum.photos/seed/${user.uid}/400/400`,
-        updatedAt: serverTimestamp(),
-        createdAt: serverTimestamp(),
-        matchFlowId: qId,
-        isDeleted: false,
-        isVerified: false,
-        isAdmin: false,
-        isCoinSeller: false,
-        blocking: [],
-        blockedBy: []
-      }
+        looking_for: lookingFor,
+        onboarding_complete: true,
+        match_flow_id: qId,
+        photo_url: `https://picsum.photos/seed/${user.id}/400/400`,
+        updated_at: new Date().toISOString()
+      })
 
-      await setDoc(userRef, updateData, { merge: true })
+      if (profileErr) throw profileErr;
       
-      const balanceRef = ref(rtdb, `balances/${user.uid}`)
-      await rtdbSet(balanceRef, {
+      // 2. Setup Initial Balance
+      await supabase.from('balances').upsert({
+        user_id: user.id,
         coins: initialCoins,
-        diamonds: initialDiamonds,
-        updatedAt: timestamp,
-        isVerified: false
+        diamonds: initialDiamonds
       })
 
       if (initialCoins > 0) {
-        await push(ref(rtdb, `coin_history/${user.uid}`), {
+        await supabase.from('coin_history').insert({
+          user_id: user.id,
           amount: initialCoins,
           type: 'bonus',
           description: 'Welcome Bonus',
