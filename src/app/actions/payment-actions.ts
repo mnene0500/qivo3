@@ -158,6 +158,7 @@ export async function fulfillPaymentAction(orderTrackingId: string, merchantRefe
       if (existing) return { success: true, coins: existing.coins };
 
       const amount = Number(status.amount);
+      // Logic: awarded coins = KES * 10
       let coinsToAward = Math.floor(amount * 10);
 
       const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', uid).single();
