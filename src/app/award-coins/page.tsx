@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ChevronLeft, Coins, Trophy, Loader2, AlertCircle } from "lucide-react"
-import { useUser } from "@/firebase"
+import { useUser } from "@/firebase/auth/use-user"
 import { useToast } from "@/hooks/use-toast"
 import { awardCoinsAction } from "@/app/actions/matchflow-actions"
 
@@ -28,7 +28,7 @@ export default function AwardCoinsPage() {
 
     setLoading(true)
     try {
-      const result = await awardCoinsAction(user.uid, targetId, numAmount)
+      const result = await awardCoinsAction(user.id, targetId, numAmount)
       if (result.success) {
         toast({ title: "Coins Awarded", description: result.message })
         router.back()
@@ -44,7 +44,7 @@ export default function AwardCoinsPage() {
 
   return (
     <div className="flex-1 bg-white min-h-screen flex flex-col">
-      <header className="px-4 h-16 flex items-center justify-between border-b">
+      <header className="px-4 h-16 flex items-center justify-between border-b bg-white sticky top-0 z-50">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full text-black">
           <ChevronLeft className="w-6 h-6" />
         </Button>
@@ -59,7 +59,7 @@ export default function AwardCoinsPage() {
           </div>
           <div className="space-y-1">
             <h2 className="text-2xl font-black text-black tracking-tight">Send QIVO Coins</h2>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Certified Seller Tools</p>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Authorized Merchant Portal</p>
           </div>
         </div>
 
@@ -85,7 +85,7 @@ export default function AwardCoinsPage() {
             />
             <div className="flex items-center gap-1.5 px-2 text-[9px] font-bold text-amber-600 uppercase">
               <AlertCircle className="w-3 h-3" />
-              Limit: 500 - 50,000 Coins
+              Limit: 500 - 100,000 Coins
             </div>
           </div>
 
@@ -97,7 +97,7 @@ export default function AwardCoinsPage() {
             {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : (
               <div className="flex items-center gap-2">
                 <Trophy className="w-5 h-5" />
-                Confirm Award
+                Confirm Transfer
               </div>
             )}
           </Button>

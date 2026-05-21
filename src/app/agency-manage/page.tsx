@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useUser } from "@/firebase/auth/use-user"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, Check, X, Loader2, User, Users, Briefcase, Banknote, MessageSquare, ChevronDown } from "lucide-react"
+import { ChevronLeft, Check, X, Loader2, User, Users, Briefcase, Banknote, MessageSquare } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
 import { reviewRecruitmentAction, updateWithdrawalStatusAction } from "@/app/actions/matchflow-actions"
@@ -24,7 +24,6 @@ interface UserProfile {
 interface WithdrawalRequest {
   id: string
   user_id: string
-  userName?: string 
   diamonds: number
   amount_kes: number
   status: string
@@ -45,29 +44,30 @@ export default function AgencyManagePage() {
   const [members, setMembers] = useState<UserProfile[]>([])
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([])
 
-  useEffect(() => {
+  const fetchData = async () => {
     if (!user?.id) return
-    const fetchData = async () => {
-      const { data: p } = await supabase.from('users').select('*').eq('uid', user.id).single()
-      if (p) {
-        setProfile(p)
-        const aid = p.agency_id
-        if (aid) {
-          // Fetch applicants
-          const { data: apps } = await supabase.from('users').select('*').eq('agency_id', aid).eq('agency_status', 'pending')
-          setApplicants(apps || [])
-          
-          // Fetch members
-          const { data: mems } = await supabase.from('users').select('*').eq('agency_id', aid).eq('agency_status', 'approved')
-          setMembers(mems || [])
+    const { data: p } = await supabase.from('users').select('*').eq('uid', user.id).single()
+    if (p) {
+      setProfile(p)
+      const aid = p.agency_id
+      if (aid) {
+        // 1. Fetch applicants (pending)
+        const { data: apps } = await supabase.from('users').select('*').eq('agency_id', aid).eq('agency_status', 'pending')
+        setApplicants(apps || [])
+        
+        // 2. Fetch members (approved)
+        const { data: mems } = await supabase.from('users').select('*').eq('agency_id', aid).eq('agency_status', 'approved')
+        setMembers(mems || [])
 
-          // Fetch withdrawals
-          const { data: withs } = await supabase.from('withdrawals').select('*').eq('agency_id', aid).eq('status', 'pending')
-          setWithdrawals(withs || [])
-        }
+        // 3. Fetch withdrawals (pending)
+        const { data: withs } = await supabase.from('withdrawals').select('*').eq('agency_id', aid).eq('status', 'pending')
+        setWithdrawals(withs as any || [])
       }
-      setLoading(false)
     }
+    setLoading(false)
+  }
+
+  useEffect(() => {
     fetchData()
   }, [user?.id])
 
@@ -75,8 +75,8 @@ export default function AgencyManagePage() {
     if (!user) return
     const res = await reviewRecruitmentAction(user.id, applicantUid, status)
     if (res.success) {
-      toast({ title: status === 'approved' ? "Approved" : "Rejected" })
-      setApplicants(applicants.filter(a => a.uid !== applicantUid))
+      toast({ title: status === 'approved' ? "Member Approved" : "Applicant Rejected" })
+      fetchData()
     }
   }
 
@@ -85,13 +85,13 @@ export default function AgencyManagePage() {
     setIsProcessing(true)
     const res = await updateWithdrawalStatusAction(user.id, profile.agency_id, requestId, status)
     if (res.success) {
-      toast({ title: `Request ${status}` })
-      setWithdrawals(withdrawals.filter(w => w.id !== requestId))
+      toast({ title: `Payout marked as ${status}` })
+      fetchData()
     }
     setIsProcessing(false)
   }
 
-  if (loading) return <div className="flex-1 flex items-center justify-center bg-white"><Loader2 className="animate-spin text-[#00A2FF]" /></div>
+  if (loading) return <div className="flex-1 flex items-center justify-center bg-white min-h-screen"><Loader2 className="animate-spin text-[#00A2FF]" /></div>
 
   return (
     <div className="flex-1 bg-white min-h-screen flex flex-col select-none">
@@ -115,7 +115,10 @@ export default function AgencyManagePage() {
             {applicants.length === 0 ? <div className="p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">No pending applications</div> : applicants.map(app => (
               <div key={app.uid} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
                 <div className="flex items-center gap-3"><Avatar className="w-10 h-10"><AvatarImage src={app.photo_url} /><AvatarFallback><User /></AvatarFallback></Avatar><span className="font-bold text-sm">{app.name}</span></div>
-                <div className="flex gap-2"><Button size="icon" onClick={() => handleReview(app.uid, 'approved')} className="bg-green-500 rounded-full h-9 w-9"><Check className="w-4 h-4 text-white" /></Button><Button size="icon" onClick={() => handleReview(app.uid, 'rejected')} variant="outline" className="border-red-200 text-red-500 rounded-full h-9 w-9"><X className="w-4 h-4" /></Button></div>
+                <div className="flex gap-2">
+                  <Button size="icon" onClick={() => handleReview(app.uid, 'approved')} className="bg-green-500 rounded-full h-9 w-9 shadow-lg shadow-green-100"><Check className="w-4 h-4 text-white" /></Button>
+                  <Button size="icon" onClick={() => handleReview(app.uid, 'rejected')} variant="outline" className="border-red-200 text-red-500 rounded-full h-9 w-9"><X className="w-4 h-4" /></Button>
+                </div>
               </div>
             ))}
           </div>
@@ -123,10 +126,10 @@ export default function AgencyManagePage() {
 
         {activeTab === 'members' && (
           <div className="space-y-4">
-            <h2 className="text-[10px] font-bold uppercase text-gray-400 tracking-widest px-1">Agency Owner</h2>
+            <h2 className="text-[10px] font-bold uppercase text-gray-400 tracking-widest px-1">Agency Agent</h2>
             <div className="flex items-center gap-3 p-4 bg-[#00A2FF]/5 border border-[#00A2FF]/10 rounded-2xl">
               <Avatar className="w-12 h-12 border-2 border-[#00A2FF]"><AvatarImage src={profile?.photo_url} /><AvatarFallback><User /></AvatarFallback></Avatar>
-              <div className="flex-1"><span className="font-bold text-sm block">{profile?.name}</span><span className="text-[9px] font-bold text-[#00A2FF] uppercase tracking-widest">Agent / Owner</span></div>
+              <div className="flex-1"><span className="font-bold text-sm block">{profile?.name} (You)</span><span className="text-[9px] font-bold text-[#00A2FF] uppercase tracking-widest">Agency Owner</span></div>
             </div>
             <h2 className="text-[10px] font-bold uppercase text-gray-400 tracking-widest px-1 mt-6">Team Members ({members.length})</h2>
             <div className="space-y-3">
@@ -145,10 +148,13 @@ export default function AgencyManagePage() {
             {withdrawals.length === 0 ? <div className="p-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">No pending payouts</div> : withdrawals.map(req => (
               <div key={req.id} className="p-5 bg-white border rounded-2xl shadow-sm space-y-4">
                 <div className="flex justify-between items-start">
-                  <div><h4 className="font-bold text-sm">UID: {req.user_id.slice(0, 8)}</h4><p className="text-[10px] font-bold text-gray-400 uppercase">Requested: {format(req.timestamp, "MMM d")}</p></div>
+                  <div><h4 className="font-bold text-sm">UID: {req.user_id.slice(0, 8)}...</h4><p className="text-[10px] font-bold text-gray-400 uppercase">Requested: {format(req.timestamp, "MMM d, HH:mm")}</p></div>
                   <div className="text-right"><p className="text-lg font-bold text-green-600">Ksh {req.amount_kes}</p><p className="text-[10px] font-bold text-gray-400 uppercase">{req.diamonds} Diamonds</p></div>
                 </div>
-                <div className="flex gap-2"><Button disabled={isProcessing} onClick={() => handleWithdrawalReview(req.id, 'paid')} className="flex-1 bg-green-600 text-white font-bold h-12 rounded-full uppercase tracking-widest text-[10px]">Mark as Paid</Button><Button disabled={isProcessing} onClick={() => handleWithdrawalReview(req.id, 'rejected')} variant="outline" className="flex-1 border-red-200 text-red-500 font-bold h-12 rounded-full uppercase tracking-widest text-[10px]">Reject</Button></div>
+                <div className="flex gap-2">
+                  <Button disabled={isProcessing} onClick={() => handleWithdrawalReview(req.id, 'paid')} className="flex-1 bg-green-600 text-white font-bold h-12 rounded-full uppercase tracking-widest text-[10px] shadow-lg shadow-green-100">Pay User</Button>
+                  <Button disabled={isProcessing} onClick={() => handleWithdrawalReview(req.id, 'rejected')} variant="outline" className="flex-1 border-red-200 text-red-500 font-bold h-12 rounded-full uppercase tracking-widest text-[10px]">Reject</Button>
+                </div>
               </div>
             ))}
           </div>

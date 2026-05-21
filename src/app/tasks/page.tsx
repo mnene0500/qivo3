@@ -16,6 +16,7 @@ export default function TaskCenterPage() {
   
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   useEffect(() => {
     if (!user?.id) return
@@ -25,6 +26,14 @@ export default function TaskCenterPage() {
       setLoading(false)
     }
     fetchProfile()
+
+    const channel = supabase.channel(`task-user:${user.id}`)
+      .on('postgres_changes', { event: 'UPDATE', table: 'users', filter: `uid=eq.${user.id}` }, (payload) => {
+        setProfile(payload.new)
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [user?.id])
 
   const days = [
@@ -51,37 +60,42 @@ export default function TaskCenterPage() {
   const currentStreak = profile?.check_in_streak || 0
 
   const handleCheckIn = async () => {
-    if (!user || hasCheckedInToday) return
+    if (!user || hasCheckedInToday || isProcessing) return
+    setIsProcessing(true)
+    
     const streakIndex = currentStreak % 7
     const rewardAmount = days[streakIndex].reward
     const timestamp = Date.now()
     
-    // 1. Update User Record
-    await supabase.from('users').update({
-      last_check_in_date: new Date().toISOString(),
-      check_in_streak: (profile.check_in_streak || 0) + 1
-    }).eq('uid', user.id)
+    try {
+      // 1. Update User Record (Streak and Date)
+      await supabase.from('users').update({
+        last_check_in_date: new Date().toISOString(),
+        check_in_streak: currentStreak + 1
+      }).eq('uid', user.id)
 
-    // 2. Award Coins
-    const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', user.id).single()
-    await supabase.from('balances').update({ coins: (bal?.coins || 0) + rewardAmount }).eq('user_id', user.id)
+      // 2. Award Coins Atomically
+      const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', user.id).single()
+      await supabase.from('balances').update({ coins: (bal?.coins || 0) + rewardAmount }).eq('user_id', user.id)
 
-    // 3. Log History
-    await supabase.from('coin_history').insert({
-      user_id: user.id,
-      amount: rewardAmount,
-      type: 'task',
-      description: 'Daily Check-in Reward',
-      timestamp: timestamp
-    })
+      // 3. Log History for record keeping
+      await supabase.from('coin_history').insert({
+        user_id: user.id,
+        amount: rewardAmount,
+        type: 'task',
+        description: `Daily Check-in Day ${streakIndex + 1}`,
+        timestamp: timestamp
+      })
 
-    toast({ 
-      title: "Check-in Successful!", 
-      description: `You earned ${rewardAmount} coins. Keep it up!` 
-    })
-    
-    // Refresh local UI state
-    setProfile({ ...profile, check_in_streak: currentStreak + 1, last_check_in_date: new Date().toISOString() })
+      toast({ 
+        title: "Check-in Successful!", 
+        description: `You earned ${rewardAmount} coins. Come back tomorrow!` 
+      })
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Task Failed", description: "Network error. Try again." })
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   return (
@@ -100,30 +114,33 @@ export default function TaskCenterPage() {
 
       <main className="mt-8 px-4 space-y-6">
         {loading ? (
-          <div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div>
+          <div className="flex justify-center py-20"><Loader2 className="animate-spin text-[#00A2FF]" /></div>
         ) : (
           <section className="bg-white p-6 rounded-3xl shadow-sm border border-black/5">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
                 <Trophy className="w-5 h-5 text-yellow-500" />
-                <h2 className="text-xs font-bold text-black uppercase tracking-widest">Daily Check-in</h2>
+                <h2 className="text-xs font-bold text-black uppercase tracking-widest">Daily Rewards</h2>
               </div>
-              <span className="text-[10px] font-semibold text-gray-400">Total: {currentStreak} Days</span>
+              <span className="text-[10px] font-semibold text-gray-400">Streak: {currentStreak} Days</span>
             </div>
             
             <div className="grid grid-cols-4 gap-3">
               {days.map((d, i) => {
-                const isChecked = i < (currentStreak % 7) || (currentStreak > 0 && currentStreak % 7 === 0 && i < 7)
-                const isToday = hasCheckedInToday && (i === (currentStreak - 1) % 7)
+                // Calculation: Is the user past this index in their current 7-day cycle?
+                const currentCycleIndex = currentStreak % 7
+                const isChecked = i < currentCycleIndex || (currentStreak > 0 && currentCycleIndex === 0 && i < 7)
+                const isTodayActive = hasCheckedInToday && (i === (currentStreak - 1) % 7)
+                
                 return (
                   <div 
                     key={i} 
                     className={cn(
                       "aspect-square rounded-2xl flex flex-col items-center justify-center border-2 transition-all", 
-                      (isChecked || isToday) ? "bg-green-50 border-green-200" : "bg-gray-50 border-transparent"
+                      (isChecked || isTodayActive) ? "bg-green-50 border-green-200" : "bg-gray-50 border-transparent"
                     )}
                   >
-                    {(isChecked || isToday) ? (
+                    {(isChecked || isTodayActive) ? (
                       <CheckCircle2 className="w-6 h-6 text-green-500" />
                     ) : (
                       <>
@@ -139,16 +156,27 @@ export default function TaskCenterPage() {
             
             <Button 
               onClick={handleCheckIn} 
-              disabled={hasCheckedInToday}
+              disabled={hasCheckedInToday || isProcessing}
               className={cn(
                 "w-full mt-6 h-14 rounded-full text-white font-bold uppercase tracking-widest text-sm shadow-lg active:scale-95 transition-all", 
                 hasCheckedInToday ? "bg-gray-300 shadow-none cursor-default" : "bg-[#00A2FF] shadow-blue-100"
               )}
             >
-              {hasCheckedInToday ? "Already Checked-in" : "Check-in Now"}
+              {isProcessing ? <Loader2 className="animate-spin" /> : hasCheckedInToday ? "Claimed Today" : "Claim Daily Reward"}
             </Button>
           </section>
         )}
+
+        <section className="bg-white p-6 rounded-3xl shadow-sm border border-black/5 space-y-4">
+          <h2 className="text-[10px] font-black uppercase tracking-widest text-gray-400">App Incentives</h2>
+          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+             <div className="flex items-center gap-3">
+               <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-blue-500"><Trophy className="w-5 h-5" /></div>
+               <div><p className="text-xs font-bold">Identity Verification</p><p className="text-[9px] text-gray-400 font-medium">Verify your profile for a badge</p></div>
+             </div>
+             <Button size="sm" onClick={() => router.push('/verify-identity')} className="rounded-full bg-[#00A2FF] text-[9px] font-bold h-7">GO</Button>
+          </div>
+        </section>
       </main>
     </div>
   )
