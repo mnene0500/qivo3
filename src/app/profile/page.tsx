@@ -112,22 +112,23 @@ export default function MePage() {
   const [copied, setCopied] = useState(false)
   const [balances, setBalances] = useState(globalBalancesCache)
   const [profile, setProfile] = useState<UserProfile | null>(globalProfileCache)
+  
+  // Directly use cache to prevent blinking
   const [isReady, setIsReady] = useState(!!globalProfileCache)
 
   useEffect(() => {
     if (!user && isInitialized && !authLoading) router.replace("/welcome")
     if (user) {
-      // Avoid fetch if cache exists
-      if (!profile) {
-        supabase.from('users').select('*').eq('uid', user.id).maybeSingle().then(({ data }) => {
-          if (data) {
-            setProfile(data as any)
-            globalProfileCache = data as any
-            setIsReady(true)
-          }
-        })
-      }
+      // Sync profile from Supabase
+      supabase.from('users').select('*').eq('uid', user.id).maybeSingle().then(({ data }) => {
+        if (data) {
+          setProfile(data as any)
+          globalProfileCache = data as any
+          setIsReady(true)
+        }
+      })
       
+      // Sync balances
       supabase.from('balances').select('coins, diamonds').eq('user_id', user.id).maybeSingle().then(({ data }) => {
         if (data) {
           const newBal = { coins: data.coins || 0, diamonds: Number(data.diamonds) || 0 }
@@ -146,7 +147,7 @@ export default function MePage() {
         
       return () => { supabase.removeChannel(channel) }
     }
-  }, [user, isInitialized, authLoading, router, profile])
+  }, [user, isInitialized, authLoading, router])
 
   const handleCopyId = () => {
     if (profile?.match_flow_id) { 
@@ -157,10 +158,13 @@ export default function MePage() {
     }
   }
 
-  if (!isReady && isInitialized && !authLoading) return <div className="flex-1 flex flex-col items-center justify-center min-h-screen bg-[#F8F9FA]"><Loader2 className="w-8 h-8 animate-spin text-[#00A2FF]" /></div>
+  // If no cache and still loading, show a silent background to prevent blinking
+  if (!isReady && isInitialized && !authLoading && !profile) {
+    return <div className="flex-1 bg-[#F8F9FA] min-h-screen" />
+  }
   
   return (
-    <div className="flex-1 pb-24 bg-[#F8F9FA] min-h-screen relative select-none">
+    <div className="flex-1 pb-24 bg-[#F8F9FA] min-h-screen relative select-none animate-in fade-in duration-300">
       <div className="absolute top-0 left-0 w-full h-[280px] bg-[#00A2FF] z-0" />
       <div className="relative z-10">
         <header className="relative pt-12 pb-10 px-6 flex flex-col items-center text-center">

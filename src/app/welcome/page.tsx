@@ -11,29 +11,23 @@ import { useToast } from "@/hooks/use-toast"
 
 /**
  * @fileOverview Cinematic Welcome Page with Supabase Auth Gates.
- * Optimized Google Login redirect logic.
+ * Optimized to remove intrusive splash loaders.
  */
 export default function WelcomePage() {
-  const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(false)
-  
   const { user, loading: authLoading, isInitialized } = useUser()
   const router = useRouter()
   const { toast } = useToast()
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (isInitialized && !authLoading && user && mounted) {
+    if (isInitialized && !authLoading && user) {
       checkProfileStatus(user.id)
     }
-  }, [user, isInitialized, authLoading, mounted])
+  }, [user, isInitialized, authLoading])
 
   const checkProfileStatus = async (uid: string) => {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('users')
         .select('onboarding_complete')
         .eq('uid', uid)
@@ -80,18 +74,9 @@ export default function WelcomePage() {
     setTimeout(() => window.location.reload(), 1000)
   }
 
-  if (!mounted || (isInitialized && user)) {
-    return (
-      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-4">
-        <div className="flex flex-col items-center gap-6">
-          <Loader2 className="w-10 h-10 animate-spin text-[#00A2FF]" />
-          <div className="text-center space-y-1">
-            <p className="text-[10px] font-black text-[#00A2FF] uppercase tracking-[0.4em] animate-pulse">Entering QIVO</p>
-            <p className="text-[8px] font-bold text-gray-600 uppercase tracking-widest">Securing Connection...</p>
-          </div>
-        </div>
-      </div>
-    )
+  // If session is still loading or user is being redirected, show a silent black background
+  if (!isInitialized || (isInitialized && user)) {
+    return <div className="fixed inset-0 bg-black" />
   }
 
   return (
