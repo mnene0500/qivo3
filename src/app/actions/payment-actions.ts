@@ -2,7 +2,6 @@
 'use server';
 
 import { supabase } from '@/lib/supabase';
-import { PESAPAL_CONFIG } from '@/lib/pesapal-config';
 import { processFulfillment } from '@/services/payment-service';
 
 /**
@@ -11,14 +10,11 @@ import { processFulfillment } from '@/services/payment-service';
 
 export async function initiatePesaPalPayment(amount: number, user: { uid: string, email: string, name: string }) {
   try {
-    console.log(`[Payment] Initiating transaction for ${user.uid} - Amount: ${amount}`);
-    
     const { data, error } = await supabase.functions.invoke('payment-ops', {
       body: { 
         action: 'initiate',
         amount,
-        user,
-        callback_url: PESAPAL_CONFIG.CALLBACK_URL
+        user
       }
     });
 
@@ -37,28 +33,6 @@ export async function initiatePesaPalPayment(amount: number, user: { uid: string
 /**
  * Server Action wrapper for fulfillment.
  */
-export async function fulfillPaymentAction(orderTrackingId: string, merchantReference: string) {
-  return processFulfillment(orderTrackingId, merchantReference);
-}
-
-/**
- * Registers the IPN URL for the current environment with PesaPal.
- */
-export async function registerIPN() {
-  const { data, error } = await supabase.functions.invoke('payment-ops', {
-    body: { action: 'register_ipn' }
-  });
-  if (error) throw new Error(error.message);
-  return data;
-}
-
-/**
- * Retrieves a list of all registered IPNs from PesaPal.
- */
-export async function getIpnList() {
-  const { data, error } = await supabase.functions.invoke('payment-ops', {
-    body: { action: 'get_ipns' }
-  });
-  if (error) throw new Error(error.message);
-  return data;
+export async function fulfillPaymentAction(orderTrackingId: string, user_uid: string) {
+  return processFulfillment(orderTrackingId, user_uid);
 }

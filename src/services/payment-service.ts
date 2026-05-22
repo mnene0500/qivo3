@@ -3,28 +3,27 @@ import { supabase } from '@/lib/supabase';
 
 /**
  * @fileOverview Shared Business Logic for PesaPal fulfillment.
- * This service can be called safely from both API Routes and Server Actions.
+ * Direct PesaPal status verification via Edge Function.
  */
 
-export async function processFulfillment(orderTrackingId: string, merchantReference: string) {
+export async function processFulfillment(orderTrackingId: string, user_uid: string) {
   try {
-    console.log(`[PaymentService] Verifying order: ${orderTrackingId}`);
+    console.log(`[PaymentService] Verifying order ${orderTrackingId} for user ${user_uid}`);
     
-    // Call the Edge Function which contains the actual PesaPal API check
     const { data, error } = await supabase.functions.invoke('payment-ops', {
       body: { 
         action: 'fulfill',
         orderTrackingId,
-        merchantReference
+        user_uid
       }
     });
 
     if (error) {
-      console.error(`[PaymentService Error] Order ${orderTrackingId}:`, error.message);
+      console.error(`[PaymentService Error] Verification failed:`, error.message);
       return { success: false, error: error.message };
     }
     
-    return data || { success: false, error: "Empty response from verification service." };
+    return data || { success: false, error: "Verification response empty." };
   } catch (err: any) { 
     console.error(`[PaymentService Crash] Order ${orderTrackingId}:`, err);
     return { success: false, error: err.message || "Critical verification failure." }; 

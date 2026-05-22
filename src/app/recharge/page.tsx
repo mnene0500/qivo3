@@ -12,17 +12,11 @@ import {
   History, 
   CheckCircle2,
   Zap,
-  ShieldCheck,
-  X
+  ShieldCheck
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { initiatePesaPalPayment, fulfillPaymentAction } from "@/app/actions/payment-actions"
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog"
 
 const PACKAGES = [
   { amount: 500, price: 80.0 },
@@ -33,10 +27,6 @@ const PACKAGES = [
   { amount: 20000, price: 1800.0 },
 ]
 
-/**
- * @fileOverview Secure Recharge Page.
- * Coins are ONLY awarded after backend status verification.
- */
 function RechargeContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -45,7 +35,6 @@ function RechargeContent() {
   
   const [selectedPackage, setSelectedPackage] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
   const [isFulfilling, setIsFulfilling] = useState(false)
   const [fulfillmentSuccess, setFulfillmentSuccess] = useState(false)
   const [currentCoins, setCurrentCoins] = useState<number | null>(null)
@@ -53,12 +42,9 @@ function RechargeContent() {
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null)
   const successTriggeredRef = useRef(false)
 
-  // Track transaction parameters from PesaPal redirect
   const orderId = searchParams.get("OrderTrackingId") || searchParams.get("orderTrackingId")
-  const merchantRef = searchParams.get("OrderMerchantReference") || searchParams.get("orderMerchantReference")
-  const hasOrderParams = !!orderId && !!merchantRef
+  const hasOrderParams = !!orderId
 
-  // 1. Initial balance fetch & Real-time update listener
   useEffect(() => {
     if (!user?.id) return
     
@@ -69,20 +55,14 @@ function RechargeContent() {
     fetchData()
 
     const channel = supabase.channel(`recharge-sync:${user.id}`)
-      .on('postgres_changes', { 
-        event: 'UPDATE', 
-        table: 'balances', 
-        filter: `user_id=eq.${user.id}` 
-      }, (payload) => {
+      .on('postgres_changes', { event: 'UPDATE', table: 'balances', filter: `user_id=eq.${user.id}` }, (payload) => {
         const newBal = Number(payload.new.coins) || 0
-        // SUCCESS: If balance increases while we are on this page, payment verified!
         if (currentCoins !== null && newBal > currentCoins && !successTriggeredRef.current) {
           successTriggeredRef.current = true
           setFulfillmentSuccess(true)
           setIsFulfilling(false)
           if (pollTimerRef.current) clearInterval(pollTimerRef.current)
           
-          // Close and return to profile after celebration
           setTimeout(() => {
              router.replace('/profile')
           }, 3000)
@@ -96,39 +76,25 @@ function RechargeContent() {
     }
   }, [user?.id, currentCoins, router])
 
-  // 2. VERIFICATION LOGIC: Polling the backend for transaction status
   useEffect(() => {
-    if (orderId && merchantRef && !fulfillmentSuccess && !successTriggeredRef.current) {
+    if (orderId && user?.id && !fulfillmentSuccess && !successTriggeredRef.current) {
       setIsFulfilling(true);
 
       const verifyStatus = async () => {
-        if (successTriggeredRef.current) {
-          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-          return;
-        }
-        
-        // Backend verification call
-        const res = await fulfillPaymentAction(orderId, merchantRef);
-
-        if (res.success && res.verified && !successTriggeredRef.current) {
-          // verification handled by balance listener, but we can force state here
-        } else if (res.error) {
-          // If the backend definitively rejects, stop polling
+        if (successTriggeredRef.current) return;
+        const res = await fulfillPaymentAction(orderId, user.id);
+        if (res.error) {
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
           toast({ variant: "destructive", title: "Verification Failed", description: res.error });
           router.replace('/recharge');
         }
       };
 
-      // Poll every 5 seconds until balance updates or we navigate away
       verifyStatus();
       pollTimerRef.current = setInterval(verifyStatus, 5000);
     }
-
-    return () => {
-      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-    };
-  }, [orderId, merchantRef, fulfillmentSuccess, router, toast]);
+    return () => { if (pollTimerRef.current) clearInterval(pollTimerRef.current); };
+  }, [orderId, user?.id, fulfillmentSuccess, router, toast]);
 
   const handlePayment = async () => {
     const pkg = PACKAGES.find(p => p.amount === selectedPackage)
@@ -141,7 +107,6 @@ function RechargeContent() {
         name: user.user_metadata?.full_name || "QIVO User"
       })
       if (result.success && result.redirect_url) {
-        // Step 1: Redirect user to payment provider
         window.location.href = result.redirect_url;
       } else {
         toast({ variant: "destructive", title: "Error", description: result.error })
@@ -155,7 +120,6 @@ function RechargeContent() {
 
   if (authLoading || !isInitialized) return <div className="flex-1 flex items-center justify-center h-screen bg-white"><Loader2 className="animate-spin text-[#00A2FF]" /></div>
 
-  // VERIFICATION VIEW (Wait for IPN or status check)
   if (isFulfilling || fulfillmentSuccess || hasOrderParams) {
     return (
       <div className="flex-1 bg-white min-h-screen flex flex-col items-center justify-center p-8 space-y-10 animate-in fade-in duration-300">
@@ -179,9 +143,6 @@ function RechargeContent() {
             {fulfillmentSuccess ? "TRANSACTION COMPLETE" : "DO NOT REFRESH THIS PAGE"}
           </p>
         </div>
-        {fulfillmentSuccess && (
-          <Button onClick={() => router.replace('/profile')} className="rounded-full bg-black text-white font-black uppercase text-[10px] tracking-widest h-16 px-12 shadow-2xl animate-in slide-in-from-bottom-4">Return to App</Button>
-        )}
       </div>
     )
   }
@@ -193,7 +154,6 @@ function RechargeContent() {
         <h1 className="text-sm font-black text-black uppercase tracking-widest">Recharge</h1>
         <Button variant="ghost" size="icon" onClick={() => router.push("/coin-history")} className="rounded-full"><History className="w-5 h-5 text-black" /></Button>
       </header>
-
       <main className="flex-1 overflow-y-auto no-scrollbar pb-32">
         <div className="px-6 pt-8 space-y-8">
           <div className="bg-gradient-to-br from-[#00A2FF] to-[#0066CC] rounded-[2.5rem] p-8 shadow-2xl text-white relative overflow-hidden">
@@ -203,7 +163,6 @@ function RechargeContent() {
               <div className="flex items-center gap-4 mt-1"><span className="text-6xl font-black tracking-tighter">{currentCoins ?? "..."}</span><span className="text-xs font-bold opacity-60 uppercase tracking-widest">Coins</span></div>
             </div>
           </div>
-
           <div className="space-y-4">
             <div className="flex items-center gap-2 px-1">
               <ShieldCheck className="w-4 h-4 text-[#00A2FF]" />
@@ -234,7 +193,6 @@ function RechargeContent() {
           </div>
         </div>
       </main>
-
       <footer className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-xl p-6 border-t z-50">
         <Button 
           disabled={loading || !selectedPackage} 
