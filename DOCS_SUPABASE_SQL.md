@@ -1,7 +1,7 @@
 
-# QIVO Production SQL (Secure with RLS)
+# QIVO Production SQL (Run this FIRST)
 
-Run this entire script in your **Supabase SQL Editor** to initialize the economy, gifting, and calling systems. This script handles tables, real-time settings, and Row Level Security (RLS).
+Run this in your **Supabase SQL Editor** to initialize the economy, gifting, and recruitment tables.
 
 ```sql
 -- 1. SETUP HELPER FUNCTIONS
