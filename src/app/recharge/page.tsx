@@ -11,7 +11,8 @@ import {
   History, 
   CheckCircle2,
   Zap,
-  ShieldCheck
+  ShieldCheck,
+  AlertCircle
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
@@ -37,6 +38,7 @@ function RechargeContent() {
   const [isVerifying, setIsVerifying] = useState(false)
   const [fulfillmentSuccess, setFulfillmentSuccess] = useState(false)
   const [currentCoins, setCurrentCoins] = useState<number | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null)
   const successTriggeredRef = useRef(false)
@@ -81,31 +83,39 @@ function RechargeContent() {
   useEffect(() => {
     if (orderTrackingId && user?.id && !fulfillmentSuccess && !successTriggeredRef.current) {
       setIsVerifying(true);
+      setErrorMessage(null);
 
       const runVerification = async () => {
         if (successTriggeredRef.current) return;
         
-        // Calling verify action which invokes 'fulfill' on the Edge Function
         const res = await verifyPaymentAction(orderTrackingId, user.id);
         
-        if (res.error && !res.error.toLowerCase().includes("completed")) {
-          // If there is a terminal error (not just pending), stop polling
-          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+        if (!res.success) {
+          // If the error message is NOT "not completed" (meaning it's still pending), it's a real failure
+          if (res.message && !res.message.toLowerCase().includes("not completed")) {
+            setErrorMessage(res.message || res.error || "Verification failed");
+            if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+          }
+          // If it's just "not completed", we keep polling silently
+        } else {
+          // Success handled by real-time listener, but we can set local state too
+          setFulfillmentSuccess(true);
           setIsVerifying(false);
-          toast({ variant: "destructive", title: "Verification Update", description: res.error });
+          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
         }
       };
 
       runVerification();
-      pollTimerRef.current = setInterval(runVerification, 10000); // Poll every 10 seconds
+      pollTimerRef.current = setInterval(runVerification, 8000); // Poll every 8 seconds
     }
     return () => { if (pollTimerRef.current) clearInterval(pollTimerRef.current); };
-  }, [orderTrackingId, user?.id, fulfillmentSuccess, toast]);
+  }, [orderTrackingId, user?.id, fulfillmentSuccess]);
 
   const handlePayment = async () => {
     const pkg = PACKAGES.find(p => p.amount === selectedPackage)
     if (!user || !pkg) return
     setLoading(true)
+    setErrorMessage(null)
     try {
       const result = await initiatePesaPalPayment(pkg.price, {
         uid: user.id,
@@ -116,45 +126,48 @@ function RechargeContent() {
       if (result.success && result.redirect_url) {
         window.location.href = result.redirect_url;
       } else {
-        const errorMsg = result.error || "Gateway response invalid.";
-        toast({ 
-          variant: "destructive", 
-          title: "Payment Error", 
-          description: errorMsg 
-        })
+        const errorMsg = result.error || "Payment gateway returned an error.";
+        setErrorMessage(errorMsg)
+        toast({ variant: "destructive", title: "Gateway Error", description: errorMsg })
         setLoading(false)
       }
     } catch (err) {
-      toast({ variant: "destructive", title: "Critical Error", description: "Failed to reach payment server." })
+      setErrorMessage("Connection to payment server failed.")
+      toast({ variant: "destructive", title: "Network Error" })
       setLoading(false)
     }
   }
 
   if (authLoading || !isInitialized) return <div className="flex-1 flex items-center justify-center h-screen bg-white"><Loader2 className="animate-spin text-[#00A2FF]" /></div>
 
-  if (isVerifying || fulfillmentSuccess) {
+  if (isVerifying || fulfillmentSuccess || errorMessage) {
     return (
       <div className="flex-1 bg-white min-h-screen flex flex-col items-center justify-center p-8 space-y-10 animate-in fade-in duration-300">
         <div className="relative">
           <div className="w-32 h-32 border-4 border-blue-50 rounded-full flex items-center justify-center">
             {fulfillmentSuccess ? (
               <CheckCircle2 className="w-20 h-20 text-green-500 animate-in zoom-in" />
+            ) : errorMessage ? (
+              <AlertCircle className="w-16 h-16 text-red-500" />
             ) : (
               <Zap className="w-12 h-12 text-[#00A2FF] animate-pulse" />
             )}
           </div>
-          {!fulfillmentSuccess && (
+          {!fulfillmentSuccess && !errorMessage && (
             <div className="w-32 h-32 border-4 border-[#00A2FF] border-t-transparent rounded-full animate-spin absolute inset-0" />
           )}
         </div>
         <div className="text-center space-y-2">
-          <h2 className={cn("text-3xl font-black italic tracking-tighter uppercase", fulfillmentSuccess ? "text-green-600" : "text-black")}>
-            {fulfillmentSuccess ? "COINS ADDED!" : "VERIFYING..."}
+          <h2 className={cn("text-3xl font-black italic tracking-tighter uppercase", fulfillmentSuccess ? "text-green-600" : errorMessage ? "text-red-500" : "text-black")}>
+            {fulfillmentSuccess ? "COINS ADDED!" : errorMessage ? "ERROR" : "VERIFYING..."}
           </h2>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em]">
-            {fulfillmentSuccess ? "RELOADING PROFILE" : "PLEASE WAIT WHILE WE CONFIRM YOUR ORDER"}
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em] max-w-[280px]">
+            {fulfillmentSuccess ? "RELOADING PROFILE" : errorMessage ? errorMessage : "PLEASE WAIT WHILE WE CONFIRM YOUR ORDER"}
           </p>
         </div>
+        {errorMessage && (
+          <Button onClick={() => router.replace('/recharge')} className="rounded-full bg-black text-white font-bold uppercase tracking-widest px-8 h-14">Try Again</Button>
+        )}
       </div>
     )
   }

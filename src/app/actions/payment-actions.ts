@@ -18,24 +18,24 @@ export async function initiatePesaPalPayment(amount: number, user: { uid: string
     });
 
     if (error) {
-      console.error("[Payment Error] Edge Function:", error);
-      return { success: false, error: "Network error calling payment service." };
+      console.error("[Payment Error] Edge Function Invocation:", error);
+      return { success: false, error: `Backend Error: ${error.message}` };
     }
 
     if (!data.success) {
-      return { success: false, error: data.error || "Payment provider rejected request." };
+      return { success: false, error: data.error || "Gateway rejected the request." };
     }
 
     return data;
   } catch (err: any) { 
     console.error("[Payment Crash] Exception:", err);
-    return { success: false, error: "Payment system critical failure." }; 
+    return { success: false, error: "Critical payment system failure." }; 
   }
 }
 
 export async function verifyPaymentAction(orderTrackingId: string, user_uid: string) {
   try {
-    // Note: Calling 'fulfill' to match the user's Edge Function code
+    // Calling 'fulfill' as per the user's provided Edge Function code
     const { data, error } = await supabase.functions.invoke('payment-ops', {
       body: { 
         action: 'fulfill',
