@@ -137,11 +137,11 @@ export default function HomePage() {
 
   return (
     <div className="flex-1 pb-24 bg-white min-h-screen relative select-none animate-in fade-in duration-300">
-      <div className="bg-[#00A2FF] h-[72px] relative overflow-hidden">
+      <div className="bg-[#00A2FF] h-[64px] relative overflow-hidden">
         <h1 className="absolute -bottom-4 left-4 text-7xl font-black text-white opacity-10 -rotate-12 pointer-events-none select-none">QIVO</h1>
       </div>
 
-      <div className="relative px-4 grid grid-cols-2 gap-3 -mt-12 z-20">
+      <div className="relative px-4 grid grid-cols-2 gap-3 -mt-10 z-20 mb-4">
         <button 
           onClick={() => router.push('/mystery-note')}
           className="h-28 bg-gradient-to-br from-[#FFA800] to-[#FF8A00] rounded-[1.5rem] p-4 flex flex-col items-start justify-end gap-1 shadow-xl active:scale-95 transition-all text-white text-left"
@@ -166,7 +166,6 @@ export default function HomePage() {
       </div>
 
       <div className="sticky top-0 z-30 bg-white">
-        <div className="h-3 bg-white" />
         <div className="px-6 py-2 flex items-center justify-between border-b border-black/5">
           <div className="flex items-center gap-6">
             <button 
