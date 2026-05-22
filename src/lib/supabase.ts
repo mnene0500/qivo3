@@ -29,6 +29,7 @@ export async function uploadBase64Image(base64: string, bucket: string, path: st
     // 2. Extract mime type and actual base64 data
     const matches = base64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.*)$/);
     if (!matches || matches.length !== 3) {
+      console.error("[Storage] Regex mismatch on base64 string.");
       throw new Error("Invalid image format. Please select another photo.");
     }
 
@@ -45,6 +46,7 @@ export async function uploadBase64Image(base64: string, bucket: string, path: st
     const blob = new Blob([byteArray], { type: mimeType });
 
     // 4. Upload to Supabase Storage
+    console.log(`[Storage] Uploading to ${bucket}/${path} (${blob.size} bytes)`);
     const { data, error } = await supabase.storage
       .from(bucket)
       .upload(path, blob, { 
@@ -54,15 +56,16 @@ export async function uploadBase64Image(base64: string, bucket: string, path: st
       });
 
     if (error) {
-      console.error("Storage Error:", error.message);
+      console.error("[Storage Error] API returned error:", error.message);
       throw error;
     }
 
     // 5. Retrieve Public URL
     const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
+    console.log(`[Storage] Upload complete. Public URL: ${publicUrl}`);
     return publicUrl;
   } catch (err: any) {
-    console.error("Upload process crashed:", err.message);
+    console.error("[Storage Crash] Upload process failed:", err.message);
     throw new Error(`Upload failed: ${err.message}`);
   }
 }

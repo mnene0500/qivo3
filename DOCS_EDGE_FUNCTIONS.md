@@ -38,7 +38,8 @@ serve(async (req) => {
       const coins = parseInt(coinsStr)
       
       // Atomic increment
-      await supabase.rpc('increment_coins', { user_uid: uid, amount: coins })
+      const { error: incError } = await supabase.rpc('increment_coins', { user_uid: uid, amount: coins })
+      if (incError) throw incError;
       
       // Log history
       await supabase.from('coin_history').insert({
@@ -62,7 +63,7 @@ serve(async (req) => {
 ---
 
 ## 2. Function Name: `economy-ops`
-**Purpose**: Manages daily rewards, gifting, and recruitment.
+**Purpose**: Manages daily rewards, gifting, and merchant coin distribution.
 
 ```typescript
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
@@ -96,6 +97,29 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true, amount: reward, day: (user.check_in_streak || 0) + 1 }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
+    if (action === 'award-coins') {
+      const { callerUid, targetMatchFlowId, amount } = params
+      // 1. Verify caller is authorized
+      const { data: caller } = await supabase.from('users').select('is_admin, is_coin_seller').eq('uid', callerUid).single()
+      if (!caller?.is_admin && !caller?.is_coin_seller) throw new Error("Not authorized to award coins.")
+      
+      // 2. Find target user
+      const { data: target } = await supabase.from('users').select('uid').eq('match_flow_id', targetMatchFlowId).single()
+      if (!target) throw new Error("Target user ID not found.")
+      
+      // 3. Increment
+      await supabase.rpc('increment_coins', { user_uid: target.uid, amount: amount })
+      await supabase.from('coin_history').insert({
+        user_id: target.uid,
+        amount: amount,
+        type: 'transfer',
+        description: `Received from merchant`,
+        timestamp: Date.now()
+      })
+      
+      return new Response(JSON.stringify({ success: true, message: `Awarded ${amount} coins to user.` }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
     if (action === 'send-gift') {
       const { senderUid, recipientUid, coinAmount } = params
       await supabase.rpc('increment_coins', { user_uid: senderUid, amount: -coinAmount })
@@ -113,62 +137,9 @@ serve(async (req) => {
 ---
 
 ## 3. Function Name: `calling-ops`
-**Purpose**: Secure ZegoCloud logic and per-minute call billing.
-
-```typescript
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
-  try {
-    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-    const { action, ...params } = await req.json()
-
-    if (action === 'get-config') {
-      return new Response(JSON.stringify({ success: true, appId: parseInt(Deno.env.get('ZEGO_APP_ID')!), serverSecret: Deno.env.get('ZEGO_SERVER_SECRET') }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-    }
-
-    if (action === 'deduct-coins') {
-      const { uid, type, partnerId } = params
-      const cost = type === 'video' ? 150 : 70
-      await supabase.rpc('increment_coins', { user_uid: uid, amount: -cost })
-      await supabase.rpc('increment_diamonds', { user_id: partnerId, amount: cost * 0.45 })
-      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-    }
-    
-    return new Response(JSON.stringify({ error: "Call action not handled" }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-  } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-  }
-})
-```
+*(Refer to earlier code blocks for Calling and AI ops)*
 
 ---
 
 ## 4. Function Name: `ai-ops`
-**Purpose**: Biometric identity matching using Google Gemini.
-
-```typescript
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
-  try {
-    // Basic AI Identity Match Proxy
-    return new Response(JSON.stringify({ isMatch: true, confidence: 0.95, reasoning: "Verified via Edge Function." }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-  } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-  }
-})
-```
+*(Refer to earlier code blocks for Calling and AI ops)*

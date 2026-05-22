@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
@@ -10,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { ChevronLeft, Loader2, Save, Camera, Plus, X, Calendar } from "lucide-react"
+import { ChevronLeft, Loader2, Save, Camera, Plus, X } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Cropper from "react-easy-crop"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -58,7 +59,7 @@ export default function EditProfilePage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('users').select('*').eq('uid', user.id).single().then(({ data }) => {
+    supabase.from('users').select('*').eq('uid', user.id).maybeSingle().then(({ data }) => {
       if (data) {
         setFormData({
           name: data.name || "",
@@ -135,18 +136,38 @@ export default function EditProfilePage() {
     setSaving(true)
     try {
       const finalFormData = { ...formData };
+      
+      // 1. Handle Profile Photo
       if (formData.photo_url.startsWith('data:image')) {
+        toast({ title: "Uploading profile photo..." });
         finalFormData.photo_url = await uploadBase64Image(formData.photo_url, 'photos', `${user.id}/profile_${Date.now()}.jpg`);
       }
-      finalFormData.additional_photos = await Promise.all(
-        formData.additional_photos.map(async (p, i) => p.startsWith('data:image') ? await uploadBase64Image(p, 'photos', `${user.id}/gallery_${i}_${Date.now()}.jpg`) : p)
-      );
 
-      await supabase.from('users').update(finalFormData).eq('uid', user.id)
-      toast({ title: "Profile Updated" })
-      router.back()
+      // 2. Handle Gallery Photos
+      if (formData.additional_photos.some(p => p.startsWith('data:image'))) {
+        toast({ title: "Uploading gallery..." });
+        const uploadedPhotos = [];
+        for (let i = 0; i < formData.additional_photos.length; i++) {
+          const p = formData.additional_photos[i];
+          if (p.startsWith('data:image')) {
+            const url = await uploadBase64Image(p, 'photos', `${user.id}/gallery_${i}_${Date.now()}.jpg`);
+            uploadedPhotos.push(url);
+          } else {
+            uploadedPhotos.push(p);
+          }
+        }
+        finalFormData.additional_photos = uploadedPhotos;
+      }
+
+      // 3. Update Database
+      const { error } = await supabase.from('users').update(finalFormData).eq('uid', user.id)
+      if (error) throw error;
+
+      toast({ title: "Profile Saved", description: "Your updates are now live." })
+      router.replace('/profile')
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: error.message })
+      console.error("[Profile Save Error]", error.message);
+      toast({ variant: "destructive", title: "Save Failed", description: error.message })
     } finally {
       setSaving(false)
     }
@@ -161,7 +182,7 @@ export default function EditProfilePage() {
         <h1 className="text-base font-black text-black">Edit Profile</h1>
         <Button variant="ghost" size="icon" onClick={handleSave} disabled={saving} className="text-[#00A2FF]">{saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}</Button>
       </header>
-      <main className="flex-1 p-6 space-y-8 overflow-y-auto">
+      <main className="flex-1 p-6 space-y-8 overflow-y-auto no-scrollbar">
         <div className="flex flex-col items-center">
           <div className="relative group cursor-pointer" onClick={() => { setTargetPhotoIndex('profile'); fileInputRef.current?.click(); }}>
             <Avatar className="w-28 h-28 border-4 border-gray-50 shadow-xl"><AvatarImage src={formData.photo_url} className="object-cover" /><AvatarFallback className="bg-gray-100"><Camera className="w-8 h-8 text-gray-300" /></AvatarFallback></Avatar>

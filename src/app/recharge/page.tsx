@@ -49,14 +49,15 @@ function RechargeContent() {
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null)
   const successTriggeredRef = useRef(false)
 
-  // Only consider active if params are actually present in the URL
-  const hasOrderParams = !!(searchParams.get("OrderTrackingId") || searchParams.get("orderTrackingId"))
+  const orderId = searchParams.get("OrderTrackingId") || searchParams.get("orderTrackingId")
+  const merchantRef = searchParams.get("OrderMerchantReference") || searchParams.get("orderMerchantReference")
+  const hasOrderParams = !!orderId && !!merchantRef
 
   useEffect(() => {
     if (!user?.id) return
     
     const fetchData = async () => {
-      const { data: b } = await supabase.from('balances').select('coins').eq('user_id', user.id).single()
+      const { data: b } = await supabase.from('balances').select('coins').eq('user_id', user.id).maybeSingle()
       if (b) setCurrentCoins(Number(b.coins) || 0)
     }
     fetchData()
@@ -73,6 +74,11 @@ function RechargeContent() {
           setFulfillmentSuccess(true)
           setIsFulfilling(false)
           if (pollTimerRef.current) clearInterval(pollTimerRef.current)
+          
+          // Force close after a short delay to show the "Success" screen
+          setTimeout(() => {
+             router.replace('/profile')
+          }, 3000)
         }
       })
       .subscribe()
@@ -81,12 +87,9 @@ function RechargeContent() {
       supabase.removeChannel(channel)
       if (pollTimerRef.current) clearInterval(pollTimerRef.current)
     }
-  }, [user?.id, currentCoins])
+  }, [user?.id, currentCoins, router])
 
   useEffect(() => {
-    const orderId = searchParams.get("OrderTrackingId") || searchParams.get("orderTrackingId")
-    const merchantRef = searchParams.get("OrderMerchantReference") || searchParams.get("orderMerchantReference")
-
     if (orderId && merchantRef && !fulfillmentSuccess && !successTriggeredRef.current) {
       setIsFulfilling(true)
       const verify = async () => {
@@ -102,7 +105,7 @@ function RechargeContent() {
       pollTimerRef.current = setInterval(verify, 3000)
     }
     return () => { if (pollTimerRef.current) clearInterval(pollTimerRef.current) }
-  }, [searchParams, fulfillmentSuccess])
+  }, [orderId, merchantRef, fulfillmentSuccess])
 
   const handlePayment = async () => {
     const pkg = PACKAGES.find(p => p.amount === selectedPackage)
@@ -127,7 +130,6 @@ function RechargeContent() {
   }
 
   const handleCloseSuccess = () => {
-    // Clear URL parameters and reset state
     router.replace('/profile')
   }
 
@@ -156,7 +158,7 @@ function RechargeContent() {
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em]">{fulfillmentSuccess ? "FULFILLMENT COMPLETE" : "STAY ON THIS PAGE"}</p>
         </div>
         {fulfillmentSuccess ? (
-          <Button onClick={handleCloseSuccess} className="rounded-full bg-black text-white font-black uppercase text-[10px] tracking-widest h-16 px-12 shadow-2xl animate-in slide-in-from-bottom-4">Enter Wallet</Button>
+          <Button onClick={handleCloseSuccess} className="rounded-full bg-black text-white font-black uppercase text-[10px] tracking-widest h-16 px-12 shadow-2xl animate-in slide-in-from-bottom-4">Return to App</Button>
         ) : (
           <Button variant="ghost" onClick={() => router.replace('/recharge')} className="text-gray-300 font-bold uppercase text-[9px] tracking-widest gap-2">
              <X className="w-3 h-3" /> Cancel Verification
