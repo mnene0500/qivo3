@@ -12,7 +12,8 @@ import {
   Users, 
   ArrowRight,
   AlertCircle,
-  ShieldCheck
+  ShieldCheck,
+  CheckCircle2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
@@ -44,6 +45,7 @@ function RechargeContent() {
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
   const [isFulfilling, setIsFulfilling] = useState(false)
   const [fulfillmentError, setFulfillmentError] = useState<string | null>(null)
+  const [fulfillmentSuccess, setFulfillmentSuccess] = useState(false)
   
   const [currentCoins, setCurrentCoins] = useState(0)
   const [profile, setProfile] = useState<any>(null)
@@ -74,18 +76,24 @@ function RechargeContent() {
     if (orderId && merchantRef) {
       const runFulfillment = async () => {
         setIsFulfilling(true);
+        setFulfillmentError(null);
         try {
+          // Add a small delay to allow webhook to process first if it's running
+          await new Promise(r => setTimeout(r, 1000));
+          
           const res = await fulfillPaymentAction(orderId, merchantRef);
           if (res.success) {
+            setFulfillmentSuccess(true);
             toast({ title: "Success!", description: `Added ${res.coins || ''} coins to your wallet.` });
-            setTimeout(() => router.replace("/profile"), 2000);
+            setTimeout(() => router.replace("/profile"), 2500);
           } else {
             setFulfillmentError(res.error || "Verification pending...");
-            setTimeout(() => router.replace("/profile"), 3000);
+            // Keep error on screen for 5 seconds so user can read it
+            setTimeout(() => router.replace("/profile"), 5000);
           }
         } catch (e: any) {
-          setFulfillmentError("Connection error.");
-          setTimeout(() => router.replace("/profile"), 3000);
+          setFulfillmentError("Connection error during sync.");
+          setTimeout(() => router.replace("/profile"), 5000);
         } finally {
           setIsFulfilling(false);
         }
@@ -107,29 +115,42 @@ function RechargeContent() {
       if (result.success && result.redirect_url) setPaymentUrl(result.redirect_url)
       else toast({ variant: "destructive", title: "Error", description: result.error })
     } catch (err) {
-      toast({ variant: "destructive", title: "Error", description: "Failed to connect." })
+      toast({ variant: "destructive", title: "Error", description: "Failed to connect to secure line." })
     } finally {
       setLoading(false)
     }
   }
 
-  if (isFulfilling || fulfillmentError) {
+  if (isFulfilling || fulfillmentError || fulfillmentSuccess) {
     return (
-      <div className="flex-1 bg-white min-h-screen flex flex-col items-center justify-center p-8 space-y-8 animate-in fade-in duration-500">
+      <div className="flex-1 bg-white min-h-screen flex flex-col items-center justify-center p-8 space-y-8 animate-in fade-in duration-500 select-none">
         <div className="relative">
-          <div className="w-24 h-24 border-4 border-blue-50 rounded-full" />
-          {!fulfillmentError ? (
-            <div className="w-24 h-24 border-4 border-[#00A2FF] border-t-transparent rounded-full animate-spin absolute inset-0" />
+          <div className="w-28 h-28 border-4 border-blue-50 rounded-full" />
+          {isFulfilling ? (
+            <div className="w-28 h-28 border-4 border-[#00A2FF] border-t-transparent rounded-full animate-spin absolute inset-0" />
+          ) : fulfillmentSuccess ? (
+            <div className="absolute inset-0 flex items-center justify-center text-green-500 animate-in zoom-in">
+              <CheckCircle2 className="w-16 h-16" />
+            </div>
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-amber-500">
-              <AlertCircle className="w-12 h-12" />
+            <div className="absolute inset-0 flex items-center justify-center text-amber-500 animate-in zoom-in">
+              <AlertCircle className="w-16 h-16" />
             </div>
           )}
         </div>
-        <div className="text-center space-y-2">
-          <h2 className="text-2xl font-black text-black uppercase">{fulfillmentError ? "Hold on..." : "Confirming..."}</h2>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.3em]">{fulfillmentError || "Syncing payment status..."}</p>
+        <div className="text-center space-y-3">
+          <h2 className="text-2xl font-black text-black uppercase tracking-tight">
+            {isFulfilling ? "Verifying..." : (fulfillmentSuccess ? "Payment Confirmed!" : "Sync Issue")}
+          </h2>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.3em] leading-relaxed max-w-[200px] mx-auto">
+            {isFulfilling ? "Syncing your wallet with the bank..." : (fulfillmentSuccess ? "Coins added to your account." : fulfillmentError)}
+          </p>
         </div>
+        {!isFulfilling && (
+          <Button variant="ghost" className="text-[9px] font-black text-gray-300 uppercase tracking-widest" onClick={() => router.replace("/profile")}>
+            Closing automatically...
+          </Button>
+        )}
       </div>
     )
   }

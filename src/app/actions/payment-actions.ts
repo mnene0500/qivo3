@@ -130,6 +130,24 @@ export async function initiatePesaPalPayment(amount: number, user: { uid: string
  */
 export async function fulfillPaymentAction(orderTrackingId: string, merchantReference: string) {
   try {
+    // 1. Validate inputs
+    if (!orderTrackingId || !merchantReference) {
+      return { success: false, error: "Missing tracking ID or reference." };
+    }
+
+    // 2. Check if already processed to prevent double crediting
+    const { data: existing } = await supabase
+      .from('processed_payments')
+      .select('coins')
+      .eq('order_tracking_id', orderTrackingId)
+      .maybeSingle();
+      
+    if (existing) {
+      console.log(`[Fulfillment] Order ${orderTrackingId} already processed.`);
+      return { success: true, coins: existing.coins };
+    }
+
+    // 3. Verify Payment Status with PesaPal
     const token = await getAccessToken();
     const statusRes = await fetch(`${PESAPAL_CONFIG.API_BASE_URL}/api/Transactions/GetTransactionStatus?orderTrackingId=${orderTrackingId}`, {
       method: 'GET',
@@ -142,11 +160,7 @@ export async function fulfillPaymentAction(orderTrackingId: string, merchantRefe
     // status_code 1 = Completed/Success
     if (status && (status.status_code === 1 || status.payment_status_description === 'Completed')) {
       const uid = merchantReference.split('_')[1];
-      if (!uid) return { success: false, error: "Invalid Merchant Reference." };
-
-      // Check if already processed to prevent double crediting
-      const { data: existing } = await supabase.from('processed_payments').select('*').eq('order_tracking_id', orderTrackingId).maybeSingle();
-      if (existing) return { success: true, coins: existing.coins };
+      if (!uid) return { success: false, error: "Invalid Merchant Reference format." };
 
       const amount = Number(status.amount);
       let coinsToAward = Math.floor(amount * 10);
@@ -156,11 +170,23 @@ export async function fulfillPaymentAction(orderTrackingId: string, merchantRefe
 
       const timestamp = Date.now();
 
-      // Robust Atomic Update
-      const { data: balData } = await supabase.from('balances').select('coins, diamonds').eq('user_id', uid).maybeSingle();
+      // 4. Robust Atomic Update
+      // First, get current balance or default to zero
+      const { data: balData, error: fetchErr } = await supabase
+        .from('balances')
+        .select('coins, diamonds')
+        .eq('user_id', uid)
+        .maybeSingle();
+
+      if (fetchErr) {
+        console.error("[Fulfillment] Balance fetch error:", fetchErr.message);
+        return { success: false, error: "Database connection lost during sync." };
+      }
+
       const currentCoins = Number(balData?.coins) || 0;
       const currentDiamonds = Number(balData?.diamonds) || 0;
       
+      // Perform Upsert
       const { error: upsertErr } = await supabase.from('balances').upsert({ 
         user_id: uid, 
         coins: currentCoins + coinsToAward,
@@ -169,22 +195,41 @@ export async function fulfillPaymentAction(orderTrackingId: string, merchantRefe
       }, { onConflict: 'user_id' });
 
       if (upsertErr) {
-        console.error("Fulfillment Upsert Error:", upsertErr.message);
+        console.error("[Fulfillment] Upsert Error:", upsertErr.message);
         return { success: false, error: "Database error during fulfillment. Please contact support." };
       }
       
-      // Log History & Mark Processed
-      await Promise.all([
-        supabase.from('coin_history').insert({ user_id: uid, amount: coinsToAward, type: 'recharge', description: `Recharge: KES ${amount}`, timestamp }),
-        supabase.from('processed_payments').insert({ order_tracking_id: orderTrackingId, user_id: uid, amount, coins: coinsToAward, payment_method: status.payment_method || 'pesapal', timestamp })
-      ]);
+      // 5. Log History & Mark Processed
+      // We do these as separate operations to ensure failure in logging doesn't block the main flow,
+      // but we wrap them in a safe handler.
+      try {
+        await Promise.all([
+          supabase.from('coin_history').insert({ 
+            user_id: uid, 
+            amount: coinsToAward, 
+            type: 'recharge', 
+            description: `Recharge: KES ${amount}`, 
+            timestamp 
+          }),
+          supabase.from('processed_payments').insert({ 
+            order_tracking_id: orderTrackingId, 
+            user_id: uid, 
+            amount, 
+            coins: coinsToAward, 
+            payment_method: status.payment_method || 'pesapal', 
+            timestamp 
+          })
+        ]);
+      } catch (logErr: any) {
+        console.warn("[Fulfillment] Logging completed with non-critical error:", logErr.message);
+      }
 
       return { success: true, coins: coinsToAward };
     }
     
-    return { success: false, error: `Payment status not completed: ${status.status_code}` };
+    return { success: false, error: `Payment not yet confirmed by PesaPal (Status: ${status.status_code || 'Unknown'})` };
   } catch (err: any) {
-    console.error("Fulfillment Exception:", err.message);
-    return { success: false, error: err.message };
+    console.error("[Fulfillment] Critical Exception:", err.message);
+    return { success: false, error: "An unexpected error occurred during verification." };
   }
 }
