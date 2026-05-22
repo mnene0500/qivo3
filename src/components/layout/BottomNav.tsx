@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "link"
+import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Home, MessageSquare, User } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -27,7 +27,7 @@ export function BottomNav() {
       
       if (data) {
         const count = data.reduce((acc, chat) => {
-          const lastSeen = chat.last_seen_at?.[user.id] || 0;
+          const lastSeen = (chat.last_seen_at as Record<string, number>)?.[user.id] || 0;
           const lastMsg = chat.last_message_at || 0;
           return (lastMsg > lastSeen) ? acc + 1 : acc;
         }, 0);

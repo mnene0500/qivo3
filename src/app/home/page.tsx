@@ -134,7 +134,9 @@ export default function HomePage() {
   return (
     <div className="flex-1 pb-24 bg-white min-h-screen relative select-none animate-in fade-in duration-300">
       {/* HEADER WITH BLUE BACKGROUND - FIXED TO 72PX */}
-      <div className="bg-[#00A2FF] h-[72px] relative overflow-hidden" />
+      <div className="bg-[#00A2FF] h-[72px] relative overflow-hidden">
+        <h1 className="absolute -bottom-4 left-4 text-7xl font-black text-white opacity-10 -rotate-12 pointer-events-none select-none">QIVO</h1>
+      </div>
 
       {/* TOP ACTION CARDS - PULLED UP HIGHER INTO THE BLUE */}
       <div className="relative px-4 grid grid-cols-2 gap-3 -mt-12 z-20">
