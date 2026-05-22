@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { BottomNav } from "@/components/layout/BottomNav"
-import { RotateCw, BadgeCheck, Loader2 } from "lucide-react"
+import { RotateCw, BadgeCheck, Loader2, Sparkles, Trophy } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/firebase/auth/use-user"
@@ -145,54 +145,76 @@ export default function HomePage() {
 
   return (
     <div className="flex-1 pb-24 bg-white min-h-screen relative select-none animate-in fade-in duration-300">
-      {/* TIGHT HEADER WITH TABS AND REFRESH */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md px-6 pt-4 pb-4 flex items-center justify-between border-b border-gray-50">
+      {/* HEADER WITH TABS AND REFRESH */}
+      <header className="sticky top-0 z-50 bg-white px-6 py-4 flex items-center justify-between border-b border-gray-50">
         <div className="flex items-center gap-8">
           <button 
             onClick={() => setActiveTab('Recommend')} 
             className={cn(
-              "text-lg font-bold transition-all relative", 
-              activeTab === 'Recommend' ? "text-[#00A2FF]" : "text-gray-300"
+              "text-lg font-bold transition-all relative pb-1", 
+              activeTab === 'Recommend' ? "text-black" : "text-gray-300"
             )}
           >
             Recommend
-            {activeTab === 'Recommend' && <div className="absolute -bottom-1 left-0 right-0 h-1 bg-[#00A2FF] rounded-full" />}
+            {activeTab === 'Recommend' && <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-[#00A2FF] rounded-full" />}
           </button>
           <button 
             onClick={() => setActiveTab('Nearby')} 
             className={cn(
-              "text-lg font-bold transition-all relative", 
-              activeTab === 'Nearby' ? "text-[#00A2FF]" : "text-gray-300"
+              "text-lg font-bold transition-all relative pb-1", 
+              activeTab === 'Nearby' ? "text-black" : "text-gray-300"
             )}
           >
             Nearby
-            {activeTab === 'Nearby' && <div className="absolute -bottom-1 left-0 right-0 h-1 bg-[#00A2FF] rounded-full" />}
+            {activeTab === 'Nearby' && <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-[#00A2FF] rounded-full" />}
           </button>
         </div>
         <button 
           onClick={() => fetchUsers(true)} 
           disabled={isRefreshing}
           className={cn(
-            "p-2 text-[#00A2FF] active:scale-90 transition-transform", 
-            isRefreshing && "animate-spin"
+            "p-2 text-gray-400 active:scale-90 transition-transform", 
+            isRefreshing && "animate-spin text-[#00A2FF]"
           )}
         >
           <RotateCw className="w-6 h-6" />
         </button>
       </header>
 
-      <main className="px-4 pt-4">
+      <main className="px-4 pt-4 space-y-6">
+        {/* TOP ACTION BUTTONS */}
+        <div className="grid grid-cols-2 gap-3 px-1">
+          <button 
+            onClick={() => router.push('/mystery-note')}
+            className="h-20 bg-blue-50 rounded-2xl flex flex-col items-center justify-center gap-1.5 active:scale-95 transition-all border border-blue-100/50 group"
+          >
+            <div className="w-8 h-8 bg-[#00A2FF] rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
+              <Sparkles className="w-4 h-4 fill-current" />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#00A2FF]">Mystery Note</span>
+          </button>
+          <button 
+            onClick={() => router.push('/tasks')}
+            className="h-20 bg-yellow-50 rounded-2xl flex flex-col items-center justify-center gap-1.5 active:scale-95 transition-all border border-yellow-100/50"
+          >
+            <div className="w-8 h-8 bg-yellow-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-yellow-200">
+              <Trophy className="w-4 h-4 fill-current" />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-yellow-600">Task Center</span>
+          </button>
+        </div>
+
         {filteredUsers.length === 0 ? (
           <div className="py-20 text-center opacity-40">
              <RotateCw className="w-10 h-10 mx-auto text-gray-300 mb-4" />
              <p className="text-[10px] font-black uppercase tracking-widest">Finding matches...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 pb-10">
             {filteredUsers.map((u) => (
               <Card 
                 key={u.uid} 
-                className="relative overflow-hidden border-none aspect-[1/1.3] rounded-[1.5rem] shadow-md bg-gray-50 group active:scale-95 transition-all cursor-pointer"
+                className="relative overflow-hidden border-none aspect-[1/1.3] rounded-[1.8rem] shadow-sm bg-gray-50 group active:scale-95 transition-all cursor-pointer"
                 onClick={() => router.push(`/users/${u.uid}`)}
               >
                 <Image 
@@ -202,24 +224,24 @@ export default function HomePage() {
                   className="object-cover"
                   sizes="(max-width: 768px) 50vw, 25vw"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-80" />
                 
-                {/* TIGHT CHAT BUTTON AT TOP RIGHT */}
+                {/* HIGH-FIDELITY CHAT BUTTON */}
                 <div 
                   onClick={(e) => { e.stopPropagation(); router.push(`/chats?startWith=${u.uid}`); }}
-                  className="absolute top-2.5 right-2.5 px-4 h-8 bg-[#00A2FF] rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-all z-20"
+                  className="absolute top-3 right-3 px-4 h-8 bg-[#00A2FF] rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-all z-20"
                 >
                   <span className="text-[10px] font-black uppercase tracking-widest">CHAT</span>
                 </div>
 
                 <div className="absolute inset-x-0 bottom-0 p-3 text-white">
                   <div className="flex items-center gap-1 mb-2">
-                    <h4 className="font-bold text-base truncate">{u.name}</h4>
-                    {u.is_verified && <BadgeCheck className="w-4 h-4 text-[#00A2FF] fill-white" />}
+                    <h4 className="font-bold text-sm truncate tracking-tight">{u.name}</h4>
+                    {u.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-[#00A2FF] fill-white" />}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="bg-green-600 text-white font-bold text-[10px] px-2 py-0.5 rounded-lg">{calculateAge(u.dob)}</span>
-                    <span className="bg-black/30 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-lg truncate">
+                    <span className="bg-[#006400] text-white font-bold text-[9px] px-2 py-0.5 rounded-lg">{calculateAge(u.dob)}</span>
+                    <span className="bg-black/30 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-lg truncate uppercase tracking-tighter">
                       {u.country}
                     </span>
                   </div>
