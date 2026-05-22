@@ -1,7 +1,8 @@
 
 # QIVO Manual Edge Function Blueprints
 
-Copy the code block for each function and paste it into the Supabase Editor (`index.ts`).
+Each of these must be created as a **separate Edge Function** in the Supabase Dashboard. 
+Paste the code into the `index.ts` file of the respective function.
 
 ## 1. Function Name: `payment-ops`
 **Settings**: Enforce JWT: No
