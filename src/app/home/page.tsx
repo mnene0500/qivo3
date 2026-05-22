@@ -133,45 +133,45 @@ export default function HomePage() {
 
   return (
     <div className="flex-1 pb-24 bg-white min-h-screen relative select-none animate-in fade-in duration-300">
-      {/* HEADER WITH BLUE BACKGROUND AND WATERMARK */}
-      <div className="bg-[#00A2FF] h-32 relative overflow-hidden">
+      {/* HEADER WITH BLUE BACKGROUND AND WATERMARK - REDUCED HEIGHT */}
+      <div className="bg-[#00A2FF] h-20 relative overflow-hidden">
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
           <span className="text-8xl font-logo font-black text-white -rotate-12 tracking-tighter">QIVO</span>
         </div>
       </div>
 
-      {/* TOP ACTION CARDS - MOVED TO FLOW TO PREVENT OVERLAP */}
-      <div className="relative px-4 grid grid-cols-2 gap-3 -mt-16 z-20">
+      {/* TOP ACTION CARDS - ADJUSTED MARGIN */}
+      <div className="relative px-4 grid grid-cols-2 gap-3 -mt-8 z-20">
         <button 
           onClick={() => router.push('/mystery-note')}
-          className="h-32 bg-gradient-to-br from-[#FFA800] to-[#FF8A00] rounded-[1.5rem] p-4 flex flex-col items-start justify-end gap-1 shadow-xl active:scale-95 transition-all text-white text-left"
+          className="h-28 bg-gradient-to-br from-[#FFA800] to-[#FF8A00] rounded-[1.5rem] p-4 flex flex-col items-start justify-end gap-1 shadow-xl active:scale-95 transition-all text-white text-left"
         >
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-1">
-            <FileText className="w-5 h-5 text-white" />
+          <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center mb-1">
+            <FileText className="w-4 h-4 text-white" />
           </div>
-          <p className="text-lg font-black leading-none">Mystery Note</p>
-          <p className="text-[9px] font-bold opacity-80 tracking-widest">SEND A NOTE</p>
+          <p className="text-base font-black leading-none">Mystery Note</p>
+          <p className="text-[8px] font-bold opacity-80 tracking-widest">SEND A NOTE</p>
         </button>
         
         <button 
           onClick={() => router.push('/tasks')}
-          className="h-32 bg-gradient-to-br from-[#7C69FF] to-[#A28EFF] rounded-[1.5rem] p-4 flex flex-col items-start justify-end gap-1 shadow-xl active:scale-95 transition-all text-white text-left"
+          className="h-28 bg-gradient-to-br from-[#7C69FF] to-[#A28EFF] rounded-[1.5rem] p-4 flex flex-col items-start justify-end gap-1 shadow-xl active:scale-95 transition-all text-white text-left"
         >
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-1">
-            <Target className="w-5 h-5 text-white" />
+          <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center mb-1">
+            <Target className="w-4 h-4 text-white" />
           </div>
-          <p className="text-lg font-black leading-none">Task Center</p>
-          <p className="text-[9px] font-bold opacity-80 tracking-widest">EARN REWARDS</p>
+          <p className="text-base font-black leading-none">Task Center</p>
+          <p className="text-[8px] font-bold opacity-80 tracking-widest">EARN REWARDS</p>
         </button>
       </div>
 
-      {/* TAB SELECTOR */}
-      <div className="px-6 py-4 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm sm:shadow-none">
-        <div className="flex items-center gap-8">
+      {/* TAB SELECTOR - COMPACT PADDING */}
+      <div className="px-6 py-2 flex items-center justify-between bg-white sticky top-0 z-30 shadow-sm sm:shadow-none">
+        <div className="flex items-center gap-6">
           <button 
             onClick={() => setActiveTab('Recommend')} 
             className={cn(
-              "text-lg font-bold transition-all relative pb-1", 
+              "text-base font-bold transition-all relative pb-1", 
               activeTab === 'Recommend' ? "text-[#00A2FF]" : "text-gray-300"
             )}
           >
@@ -181,7 +181,7 @@ export default function HomePage() {
           <button 
             onClick={() => setActiveTab('Nearby')} 
             className={cn(
-              "text-lg font-bold transition-all relative pb-1", 
+              "text-base font-bold transition-all relative pb-1", 
               activeTab === 'Nearby' ? "text-[#00A2FF]" : "text-gray-300"
             )}
           >
@@ -197,15 +197,15 @@ export default function HomePage() {
             isRefreshing && "animate-spin"
           )}
         >
-          <RotateCw className="w-6 h-6" />
+          <RotateCw className="w-5 h-5" />
         </button>
       </div>
 
-      <main className="px-4 pt-2 space-y-6">
+      <main className="px-4 pt-1 space-y-4">
         {initialLoading && users.length === 0 ? (
-          <div className="py-20 flex justify-center"><Loader2 className="animate-spin text-[#00A2FF] w-8 h-8" /></div>
+          <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-[#00A2FF] w-8 h-8" /></div>
         ) : filteredUsers.length === 0 ? (
-          <div className="py-20 text-center opacity-40">
+          <div className="py-12 text-center opacity-40">
              <RotateCw className="w-10 h-10 mx-auto text-gray-300 mb-4" />
              <p className="text-[10px] font-black uppercase tracking-widest">Finding matches...</p>
           </div>
