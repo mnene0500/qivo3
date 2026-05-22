@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useState, Suspense, useEffect } from "react"
+import { useState, Suspense, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { useUser } from "@/firebase/auth/use-user"
@@ -50,6 +51,9 @@ function RechargeContent() {
   
   const [currentCoins, setCurrentCoins] = useState(0)
   const [profile, setProfile] = useState<any>(null)
+  
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const pollCountRef = useRef(0)
 
   // Auth Guard
   useEffect(() => {
@@ -58,6 +62,7 @@ function RechargeContent() {
     }
   }, [user, isInitialized, authLoading, router])
 
+  // 1. Fetch initial data and listen for REALTIME balance updates
   useEffect(() => {
     if (!user?.id) return
     
@@ -65,53 +70,73 @@ function RechargeContent() {
       const { data: u } = await supabase.from('users').select('*').eq('uid', user.id).single()
       const { data: b } = await supabase.from('balances').select('coins').eq('user_id', user.id).single()
       if (u) setProfile(u)
-      if (b) setCurrentCoins(b.coins || 0)
+      if (b) setCurrentCoins(Number(b.coins) || 0)
     }
     fetchData()
 
     const channel = supabase.channel(`recharge-bal:${user.id}`)
       .on('postgres_changes', { event: 'UPDATE', table: 'balances', filter: `user_id=eq.${user.id}` }, (payload) => {
-        const newBal = payload.new.coins || 0
-        
-        if (newBal > currentCoins) {
+        const newBal = Number(payload.new.coins) || 0
+        // If balance actually increased, we are DONE.
+        if (newBal > currentCoins && currentCoins > 0) {
           setCurrentCoins(newBal)
           setIsFulfilling(false)
           setFulfillmentSuccess(true)
+          if (pollTimerRef.current) clearInterval(pollTimerRef.current)
         }
       })
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
+    return () => { 
+      supabase.removeChannel(channel)
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current)
+    }
   }, [user?.id, currentCoins])
 
-  const triggerVerification = async () => {
-    const orderId = searchParams.get("OrderTrackingId") || searchParams.get("orderTrackingId");
-    const merchantRef = searchParams.get("OrderMerchantReference") || searchParams.get("orderMerchantReference");
+  // 2. AGGRESSIVE AUTO-VERIFICATION LOOP
+  const runSingleVerification = async () => {
+    const orderId = searchParams.get("OrderTrackingId") || searchParams.get("orderTrackingId")
+    const merchantRef = searchParams.get("OrderMerchantReference") || searchParams.get("orderMerchantReference")
     
-    if (orderId && merchantRef && !fulfillmentSuccess) {
-      setIsFulfilling(true);
-      setFulfillmentError(null);
-      try {
-        const res = await fulfillPaymentAction(orderId, merchantRef);
-        if (res.success) {
-          setFulfillmentSuccess(true);
-          toast({ title: "Success!", description: `Coins added to your wallet.` });
-          setTimeout(() => router.replace("/profile"), 2500);
-        } else {
-          // If the status isn't "Completed" yet, we wait for the IPN or manual refresh
-          console.warn("Fulfillment pending:", res.error);
-          // Don't set error immediately, let the user manually refresh or wait
-        }
-      } catch (e: any) {
-        setFulfillmentError("Connection issue. Please try refreshing.");
-      } finally {
+    if (!orderId || !merchantRef || fulfillmentSuccess) return;
+
+    try {
+      const res = await fulfillPaymentAction(orderId, merchantRef);
+      if (res.success) {
+        setFulfillmentSuccess(true);
         setIsFulfilling(false);
+        if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+        toast({ title: "Success!", description: "Coins added to your wallet." });
+        setTimeout(() => router.replace("/profile"), 2500);
       }
+    } catch (e) {
+      console.error("Poll Error:", e);
     }
   }
 
   useEffect(() => {
-    triggerVerification();
+    const orderId = searchParams.get("OrderTrackingId") || searchParams.get("orderTrackingId")
+    const merchantRef = searchParams.get("OrderMerchantReference") || searchParams.get("orderMerchantReference")
+
+    if (orderId && merchantRef && !fulfillmentSuccess) {
+      setIsFulfilling(true);
+      // Run immediately
+      runSingleVerification();
+      
+      // Then poll every 3 seconds for 1 minute (20 attempts)
+      pollTimerRef.current = setInterval(() => {
+        pollCountRef.current += 1;
+        if (pollCountRef.current > 20) {
+          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+          setIsFulfilling(false);
+          setFulfillmentError("Confirmation is taking a bit longer. We'll keep checking in the background.");
+          return;
+        }
+        runSingleVerification();
+      }, 3000);
+    }
+
+    return () => { if (pollTimerRef.current) clearInterval(pollTimerRef.current) };
   }, [searchParams]);
 
   const handlePayment = async () => {
@@ -137,55 +162,48 @@ function RechargeContent() {
     return <div className="flex-1 flex items-center justify-center h-screen bg-white"><Loader2 className="animate-spin text-[#00A2FF]" /></div>
   }
 
-  if (isFulfilling || fulfillmentError || fulfillmentSuccess || searchParams.get("OrderTrackingId")) {
+  // SHOW ACTIVE LOADING SCREEN IF VERIFYING
+  if (isFulfilling || fulfillmentSuccess || searchParams.get("OrderTrackingId")) {
     return (
       <div className="flex-1 bg-white min-h-screen flex flex-col items-center justify-center p-8 space-y-8 animate-in fade-in duration-500 select-none">
         <div className="relative">
           <div className="w-28 h-28 border-4 border-blue-50 rounded-full" />
-          {isFulfilling ? (
+          {!fulfillmentSuccess ? (
             <div className="w-28 h-28 border-4 border-[#00A2FF] border-t-transparent rounded-full animate-spin absolute inset-0" />
-          ) : fulfillmentSuccess ? (
-            <div className="absolute inset-0 flex items-center justify-center text-green-500 animate-in zoom-in">
-              <CheckCircle2 className="w-16 h-16" />
-            </div>
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-amber-500 animate-in zoom-in">
-              <AlertCircle className="w-16 h-16" />
+            <div className="absolute inset-0 flex items-center justify-center text-green-500 animate-in zoom-in">
+              <CheckCircle2 className="w-20 h-20" />
             </div>
           )}
         </div>
         
         <div className="text-center space-y-3">
-          <h2 className="text-2xl font-black text-black uppercase tracking-tight">
-            {isFulfilling ? "Verifying..." : (fulfillmentSuccess ? "Payment Confirmed!" : "Pending Confirmation")}
+          <h2 className="text-3xl font-black text-black tracking-tighter uppercase">
+            {fulfillmentSuccess ? "Payment Confirmed!" : "FAST VERIFYING..."}
           </h2>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.3em] leading-relaxed max-w-[200px] mx-auto">
-            {isFulfilling ? "Synchronizing ledger via Realtime..." : (fulfillmentSuccess ? "Coins added successfully." : (fulfillmentError || "Waiting for payment confirmation from provider."))}
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.3em] leading-relaxed max-w-[240px] mx-auto">
+            {fulfillmentSuccess 
+              ? "Your coins have arrived. Enjoy!" 
+              : "Checking secure ledger. Do not close this page."}
           </p>
         </div>
 
-        {!fulfillmentSuccess && !isFulfilling && (
-          <div className="flex flex-col gap-4 w-full max-w-[200px]">
-            <Button 
-              onClick={triggerVerification}
-              className="rounded-full bg-black text-white font-black uppercase text-[10px] tracking-widest h-12"
-            >
-              <RefreshCw className="w-3 h-3 mr-2" /> Verify Now
-            </Button>
-            <Button 
-              variant="ghost" 
-              className="text-[9px] font-black text-gray-300 uppercase tracking-widest" 
-              onClick={() => router.replace("/profile")}
-            >
-              Skip and check later
-            </Button>
-          </div>
+        {fulfillmentSuccess && (
+          <Button 
+            onClick={() => router.replace("/profile")}
+            className="rounded-full bg-black text-white font-black uppercase text-[10px] tracking-widest h-14 px-10 animate-in slide-in-from-bottom-2"
+          >
+            Enter Wallet
+          </Button>
         )}
 
-        {fulfillmentSuccess && (
-          <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest animate-pulse">
-            Redirecting to profile...
-          </p>
+        {fulfillmentError && !fulfillmentSuccess && (
+          <div className="text-center space-y-4">
+            <p className="text-xs font-bold text-amber-600 bg-amber-50 px-4 py-2 rounded-xl">{fulfillmentError}</p>
+            <Button variant="ghost" className="text-[10px] font-black text-gray-300 uppercase tracking-widest" onClick={() => router.replace("/profile")}>
+              Check Profile Anyway
+            </Button>
+          </div>
         )}
       </div>
     )
