@@ -5,7 +5,6 @@ import { supabase } from '@/lib/supabase';
 
 /**
  * @fileOverview Secure Economy Actions via Supabase Edge Functions.
- * Enhanced error handling to prevent generic "System busy" messages.
  */
 
 export async function dailyCheckInAction(uid: string) {

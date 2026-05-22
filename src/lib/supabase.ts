@@ -12,27 +12,39 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
  * Robust base64 to binary conversion for storage.
+ * Final version ensures proper MIME type extraction and clean binary upload.
  */
 export async function uploadBase64Image(base64: string, bucket: string, path: string): Promise<string> {
   try {
+    // If it's already a URL, return it
     if (base64.startsWith('http')) return base64;
 
-    const regex = /^data:(image\/[a-zA-Z]*);base64,(.*)$/;
-    const matches = base64.match(regex);
-    
+    // 1. Extract clean base64 data and MIME type
+    const matches = base64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.*)$/);
     if (!matches || matches.length !== 3) {
       throw new Error("Invalid image string format.");
     }
 
     const contentType = matches[1];
-    const byteCharacters = atob(matches[2]);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: contentType });
+    const b64Data = matches[2];
 
+    // 2. Convert to binary using native browser APIs
+    const byteCharacters = atob(b64Data);
+    const byteArrays = [];
+
+    for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+      const slice = byteCharacters.slice(offset, offset + 512);
+      const byteNumbers = new Array(slice.length);
+      for (let i = 0; i < slice.length; i++) {
+        byteNumbers[i] = slice.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      byteArrays.push(byteArray);
+    }
+
+    const blob = new Blob(byteArrays, { type: contentType });
+
+    // 3. Upload to Supabase Storage
     const { error } = await supabase.storage.from(bucket).upload(path, blob, {
       contentType,
       upsert: true,
@@ -41,6 +53,7 @@ export async function uploadBase64Image(base64: string, bucket: string, path: st
 
     if (error) throw error;
 
+    // 4. Return the public URL
     const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
     return publicUrl;
   } catch (err: any) {

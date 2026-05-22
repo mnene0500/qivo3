@@ -45,6 +45,7 @@ function RechargeContent() {
   const orderId = searchParams.get("OrderTrackingId") || searchParams.get("orderTrackingId")
   const hasOrderParams = !!orderId
 
+  // 1. Initial balance fetch and Real-time sync
   useEffect(() => {
     if (!user?.id) return
     
@@ -57,15 +58,19 @@ function RechargeContent() {
     const channel = supabase.channel(`recharge-sync:${user.id}`)
       .on('postgres_changes', { event: 'UPDATE', table: 'balances', filter: `user_id=eq.${user.id}` }, (payload) => {
         const newBal = Number(payload.new.coins) || 0
+        // SUDDEN SUCCESS: Detect when coins are added by Edge Function
         if (currentCoins !== null && newBal > currentCoins && !successTriggeredRef.current) {
           successTriggeredRef.current = true
           setFulfillmentSuccess(true)
           setIsFulfilling(false)
           if (pollTimerRef.current) clearInterval(pollTimerRef.current)
           
+          toast({ title: "Coins Added!", description: "Your balance was updated." })
+          
+          // HARD STOP: Close payment side completely
           setTimeout(() => {
              router.replace('/profile')
-          }, 3000)
+          }, 2500)
         }
       })
       .subscribe()
@@ -76,6 +81,7 @@ function RechargeContent() {
     }
   }, [user?.id, currentCoins, router])
 
+  // 2. Poll for verification if redirected with Order ID
   useEffect(() => {
     if (orderId && user?.id && !fulfillmentSuccess && !successTriggeredRef.current) {
       setIsFulfilling(true);
@@ -83,7 +89,8 @@ function RechargeContent() {
       const verifyStatus = async () => {
         if (successTriggeredRef.current) return;
         const res = await fulfillPaymentAction(orderId, user.id);
-        if (res.error) {
+        // We only stop on critical errors. On "Pending", we keep polling.
+        if (res.error && !res.error.includes("not completed")) {
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
           toast({ variant: "destructive", title: "Verification Failed", description: res.error });
           router.replace('/recharge');
@@ -120,7 +127,8 @@ function RechargeContent() {
 
   if (authLoading || !isInitialized) return <div className="flex-1 flex items-center justify-center h-screen bg-white"><Loader2 className="animate-spin text-[#00A2FF]" /></div>
 
-  if (isFulfilling || fulfillmentSuccess || hasOrderParams) {
+  // FULFILLMENT OVERLAY
+  if (isFulfilling || fulfillmentSuccess) {
     return (
       <div className="flex-1 bg-white min-h-screen flex flex-col items-center justify-center p-8 space-y-10 animate-in fade-in duration-300">
         <div className="relative">

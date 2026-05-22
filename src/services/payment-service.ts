@@ -10,6 +10,7 @@ export async function processFulfillment(orderTrackingId: string, user_uid: stri
   try {
     console.log(`[PaymentService] Verifying order ${orderTrackingId} for user ${user_uid}`);
     
+    // Call the final production edge function
     const { data, error } = await supabase.functions.invoke('payment-ops', {
       body: { 
         action: 'fulfill',
