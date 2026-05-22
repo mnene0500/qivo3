@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { ChevronLeft, X, Coins, Trophy, CheckCircle2, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import { dailyCheckInAction } from "@/app/actions/matchflow-actions"
 
 export default function TaskCenterPage() {
   const router = useRouter()
@@ -63,40 +65,16 @@ export default function TaskCenterPage() {
     if (!user || hasCheckedInToday || isProcessing) return
     setIsProcessing(true)
     
-    // Streak index is 0 for Day 1, 1 for Day 2 ... 6 for Day 7.
-    // If streak is 7, they just finished Day 7 yesterday. Index is 7 % 7 = 0 (Day 1 again).
-    const streakIndex = currentStreak % 7
-    const rewardAmount = days[streakIndex].reward
-    const timestamp = Date.now()
-    
     try {
-      // 1. Fetch current balance first for atomic update
-      const { data: balData } = await supabase.from('balances').select('coins').eq('user_id', user.id).maybeSingle()
-      const currentCoins = balData?.coins || 0
-
-      // 2. Update Streak & Balance in parallel
-      await Promise.all([
-        supabase.from('users').update({
-          last_check_in_date: new Date().toISOString(),
-          check_in_streak: currentStreak + 1
-        }).eq('uid', user.id),
-        supabase.from('balances').upsert({ 
-          user_id: user.id, 
-          coins: currentCoins + rewardAmount 
-        }, { onConflict: 'user_id' }),
-        supabase.from('coin_history').insert({
-          user_id: user.id,
-          amount: rewardAmount,
-          type: 'task',
-          description: `Daily Check-in Day ${streakIndex + 1}`,
-          timestamp: timestamp
+      const res = await dailyCheckInAction(user.id);
+      if (res.success) {
+        toast({ 
+          title: "Check-in Successful!", 
+          description: `You earned ${res.amount} coins. Day ${res.day} collected!` 
         })
-      ])
-
-      toast({ 
-        title: "Check-in Successful!", 
-        description: `You earned ${rewardAmount} coins. Day ${streakIndex + 1} collected!` 
-      })
+      } else {
+        toast({ variant: "destructive", title: "Wait", description: res.error })
+      }
     } catch (err: any) {
       toast({ variant: "destructive", title: "Task Failed", description: "Network error. Please check your connection." })
     } finally {
@@ -133,9 +111,7 @@ export default function TaskCenterPage() {
             
             <div className="grid grid-cols-4 gap-3">
               {days.map((d, i) => {
-                // If user checked in today, the last index collected is (currentStreak - 1) % 7
                 const lastIndexCollected = hasCheckedInToday ? (currentStreak - 1) % 7 : -1
-                // A day is "checked" if it's already been collected in the current 7-day cycle
                 const isCollected = i <= lastIndexCollected && hasCheckedInToday
                 
                 return (

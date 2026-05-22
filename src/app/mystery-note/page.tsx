@@ -26,11 +26,22 @@ export default function MysteryNotePage() {
 
   useEffect(() => {
     if (!user?.id) return
-    const fetchData = async () => {
+    
+    const fetchBalance = async () => {
       const { data: b } = await supabase.from('balances').select('coins').eq('user_id', user.id).maybeSingle()
       if (b) setUserCoins(Number(b.coins) || 0)
     }
-    fetchData()
+
+    fetchBalance()
+
+    // REALTIME: keep balance synced
+    const channel = supabase.channel(`mystery-note-bal:${user.id}`)
+      .on('postgres_changes', { event: 'UPDATE', table: 'balances', filter: `user_id=eq.${user.id}` }, (payload) => {
+        setUserCoins(Number(payload.new.coins) || 0)
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [user?.id])
 
   const totalCost = recipientCount * COST_PER_PERSON
@@ -38,6 +49,7 @@ export default function MysteryNotePage() {
   const handleSend = async () => {
     if (!user?.id || !message.trim()) return
     
+    // Safety check client side
     if (userCoins < totalCost) {
       toast({ variant: "destructive", title: "Insufficient Coins", description: `You need ${totalCost} coins.` })
       return
@@ -72,7 +84,13 @@ export default function MysteryNotePage() {
         </div>
         <div className="bg-white/15 backdrop-blur-2xl border border-white/20 rounded-[3rem] p-8 shadow-2xl space-y-8">
           <div className="space-y-4">
-            <h2 className="text-2xl font-black text-white leading-tight">Write something<br/>anonymous...</h2>
+            <div className="flex justify-between items-start">
+               <h2 className="text-2xl font-black text-white leading-tight">Write something<br/>anonymous...</h2>
+               <div className="flex flex-col items-end">
+                 <span className="text-[8px] font-black text-white/40 uppercase tracking-widest">My Balance</span>
+                 <span className="text-xs font-black text-white flex items-center gap-1"><Coins className="w-3 h-3 text-yellow-400" />{userCoins}</span>
+               </div>
+            </div>
             <div className="flex flex-wrap items-center gap-3">
                <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-400 rounded-full shadow-lg"><Coins className="w-3.5 h-3.5 text-yellow-800" /><span className="text-[10px] font-black text-yellow-900">{COST_PER_PERSON} coins / user</span></div>
                <div className="flex items-center gap-2 px-4 py-1.5 bg-white/10 rounded-full border border-white/20">

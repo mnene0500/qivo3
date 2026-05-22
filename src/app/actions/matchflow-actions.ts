@@ -58,9 +58,60 @@ export async function awardCoinsAction(callerUid: string, targetMatchFlowId: str
 }
 
 /**
+ * Handles the daily check-in process securely on the server.
+ * Prevents double-collection by verifying the date before awarding.
+ */
+export async function dailyCheckInAction(uid: string) {
+  try {
+    // 1. Fetch profile to check last check-in date
+    const { data: profile } = await supabase.from('users').select('last_check_in_date, check_in_streak').eq('uid', uid).single();
+    if (!profile) return { success: false, error: "Profile not found." };
+
+    const today = new Date().toISOString().split('T')[0];
+    const lastCheckIn = profile.last_check_in_date ? new Date(profile.last_check_in_date).toISOString().split('T')[0] : null;
+
+    if (lastCheckIn === today) {
+      return { success: false, error: "Already collected today." };
+    }
+
+    // 2. Calculate rewards
+    const days = [2, 2, 5, 2, 2, 2, 10];
+    const currentStreak = profile.check_in_streak || 0;
+    const streakIndex = currentStreak % 7;
+    const rewardAmount = days[streakIndex];
+    const timestamp = Date.now();
+
+    // 3. Update Balance & Streak Atomically
+    const { data: balData } = await supabase.from('balances').select('coins').eq('user_id', uid).maybeSingle();
+    const currentCoins = Number(balData?.coins) || 0;
+
+    await Promise.all([
+      supabase.from('users').update({
+        last_check_in_date: new Date().toISOString(),
+        check_in_streak: currentStreak + 1
+      }).eq('uid', uid),
+      supabase.from('balances').upsert({ 
+        user_id: uid, 
+        coins: currentCoins + rewardAmount,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' }),
+      supabase.from('coin_history').insert({
+        user_id: uid,
+        amount: rewardAmount,
+        type: 'task',
+        description: `Daily Check-in Day ${streakIndex + 1}`,
+        timestamp: timestamp
+      })
+    ]);
+
+    return { success: true, amount: rewardAmount, day: streakIndex + 1 };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Sends a gift and awards diamonds based on recipient gender.
- * Female recipients: 50% share
- * Male recipients: 40% share
  */
 export async function sendGiftAction(senderUid: string, recipientUid: string, coinAmount: number, giftName: string) {
   try {
@@ -150,7 +201,8 @@ export async function sendMysteryNoteAction(senderUid: string, message: string, 
     if (!profile) return { success: false, error: "Profile not found." };
 
     const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', senderUid).single();
-    if ((Number(bal?.coins) || 0) < totalCost) return { success: false, error: "Insufficient coins." };
+    const currentCoins = Number(bal?.coins) || 0;
+    if (currentCoins < totalCost) return { success: false, error: "Insufficient coins." };
 
     const targetGender = profile.gender === 'male' ? 'female' : 'male';
     const { data: targets } = await supabase
@@ -168,7 +220,9 @@ export async function sendMysteryNoteAction(senderUid: string, message: string, 
     const shuffled = targets.sort(() => Math.random() - 0.5).slice(0, recipientCount);
     const timestamp = Date.now();
 
-    await supabase.from('balances').update({ coins: (Number(bal?.coins) || 0) - totalCost }).eq('user_id', senderUid);
+    const { error: updateErr } = await supabase.from('balances').update({ coins: currentCoins - totalCost }).eq('user_id', senderUid);
+    if (updateErr) throw updateErr;
+
     await supabase.from('coin_history').insert({
       user_id: senderUid,
       amount: -totalCost,
