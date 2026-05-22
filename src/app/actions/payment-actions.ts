@@ -20,11 +20,15 @@ export async function initiatePesaPalPayment(amount: number, user: { uid: string
       }
     });
 
-    if (error) throw error;
-    return data;
-  } catch (error: any) { 
-    console.error("[Initiate Payment Proxy Error]", error);
-    return { success: false, error: "Payment service unavailable." }; 
+    if (error) {
+      console.error("[Initiate Payment Error]", error);
+      return { success: false, error: `Function Error: ${error.message || 'Check if payment-ops is deployed.'}` };
+    }
+
+    return data || { success: false, error: "Empty response from payment service." };
+  } catch (err: any) { 
+    console.error("[Initiate Payment Proxy Crash]", err);
+    return { success: false, error: "Payment service connection failed." }; 
   }
 }
 
