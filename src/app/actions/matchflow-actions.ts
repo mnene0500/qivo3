@@ -4,7 +4,8 @@ import { supabase, supabaseAdmin } from '@/lib/supabase';
 
 /**
  * @fileOverview Secure Supabase Server Actions for QIVO.
- * Uses supabaseAdmin (Service Role) for balance and role updates to ensure RLS doesn't block critical tasks.
+ * All financial and role-based actions use supabaseAdmin (Service Role) 
+ * to ensure atomic updates and bypass RLS for system operations.
  */
 
 export async function awardCoinsAction(callerUid: string, targetMatchFlowId: string, amount: number) {
@@ -21,7 +22,7 @@ export async function awardCoinsAction(callerUid: string, targetMatchFlowId: str
     // 2. Handle Merchant Balance (if not Admin)
     if (caller.is_coin_seller && !caller.is_admin) {
       const { data: bal } = await supabaseAdmin.from('balances').select('coins').eq('user_id', callerUid).single();
-      if ((bal?.coins || 0) < amount) return { success: false, error: "Insufficient business balance." };
+      if ((Number(bal?.coins) || 0) < amount) return { success: false, error: "Insufficient business balance." };
       
       await supabaseAdmin.from('balances').update({ coins: (Number(bal?.coins) || 0) - amount }).eq('user_id', callerUid);
       await supabaseAdmin.from('coin_history').insert({
@@ -103,30 +104,71 @@ export async function dailyCheckInAction(uid: string) {
   }
 }
 
+/**
+ * Sends a gift, deducting coins from sender and awarding diamonds to recipient.
+ * Reward Logic: 50% for females, 40% for males.
+ */
 export async function sendGiftAction(senderUid: string, recipientUid: string, coinAmount: number, giftName: string) {
   try {
-    const { data: senderBal } = await supabaseAdmin.from('balances').select('coins').eq('user_id', senderUid).single();
-    if (!senderBal || (Number(senderBal.coins) || 0) < coinAmount) {
+    // 1. Get both profiles and sender balance
+    const [senderProfile, recipientProfile, senderBal] = await Promise.all([
+      supabaseAdmin.from('users').select('name').eq('uid', senderUid).single(),
+      supabaseAdmin.from('users').select('name, gender').eq('uid', recipientUid).single(),
+      supabaseAdmin.from('balances').select('coins').eq('user_id', senderUid).single()
+    ]);
+
+    if (!senderBal.data || (Number(senderBal.data.coins) || 0) < coinAmount) {
       return { success: false, error: "Insufficient coins." };
     }
 
     const timestamp = Date.now();
-    await supabaseAdmin.from('balances').update({ 
-      coins: (Number(senderBal.coins) || 0) - coinAmount 
+    const rewardRate = recipientProfile.data?.gender === 'female' ? 0.5 : 0.4;
+    const diamondReward = Math.floor(coinAmount * rewardRate);
+
+    // 2. Sender Update (Deduct Coins)
+    const { error: senderErr } = await supabaseAdmin.from('balances').update({ 
+      coins: (Number(senderBal.data.coins) || 0) - coinAmount 
     }).eq('user_id', senderUid);
 
-    await supabaseAdmin.from('coin_history').insert({
-      user_id: senderUid,
-      amount: -coinAmount,
-      type: 'gift_sent',
-      description: `Sent ${giftName} gift`,
-      timestamp
-    });
+    if (senderErr) throw senderErr;
 
+    // 3. Recipient Update (Add Diamonds)
+    const { data: recBal } = await supabaseAdmin.from('balances').select('diamonds').eq('user_id', recipientUid).maybeSingle();
+    await supabaseAdmin.from('balances').upsert({
+      user_id: recipientUid,
+      diamonds: (Number(recBal?.diamonds) || 0) + diamondReward,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+
+    // 4. Ledgers
+    await Promise.all([
+      supabaseAdmin.from('coin_history').insert({
+        user_id: senderUid,
+        amount: -coinAmount,
+        type: 'gift_sent',
+        description: `Sent ${giftName} to ${recipientProfile.data?.name}`,
+        timestamp
+      }),
+      supabaseAdmin.from('diamond_history').insert({
+        user_id: recipientUid,
+        amount: diamondReward,
+        type: 'gift_received',
+        description: `Received ${giftName} from ${senderProfile.data?.name}`,
+        timestamp
+      })
+    ]);
+
+    // 5. Chat Integration
     const ids = [senderUid, recipientUid].sort();
     const chatId = `direct_${ids[0]}_${ids[1]}`;
     await Promise.all([
-      supabaseAdmin.from('messages').insert({ chat_id: chatId, sender_id: senderUid, text: `🎁 Sent a ${giftName}!`, timestamp, is_gift: true }),
+      supabaseAdmin.from('messages').insert({ 
+        chat_id: chatId, 
+        sender_id: senderUid, 
+        text: `🎁 Sent a ${giftName}!`, 
+        timestamp, 
+        is_gift: true 
+      }),
       supabaseAdmin.from('chats').upsert({ 
         id: chatId, 
         last_message: `🎁 ${giftName}`, 
@@ -137,7 +179,8 @@ export async function sendGiftAction(senderUid: string, recipientUid: string, co
 
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: "Transaction failed." };
+    console.error("Gifting transaction failed:", error);
+    return { success: false, error: "Gift delivery failed." };
   }
 }
 
