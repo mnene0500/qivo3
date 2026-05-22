@@ -2,7 +2,6 @@
 'use server';
 
 import { supabase } from '@/lib/supabase';
-import { processFulfillment } from '@/services/payment-service';
 
 /**
  * @fileOverview Secure PesaPal Proxies via Supabase Edge Functions.
@@ -31,8 +30,24 @@ export async function initiatePesaPalPayment(amount: number, user: { uid: string
 }
 
 /**
- * Server Action wrapper for fulfillment.
+ * Server Action to verify transaction status via Edge Function.
  */
-export async function fulfillPaymentAction(orderTrackingId: string, user_uid: string) {
-  return processFulfillment(orderTrackingId, user_uid);
+export async function verifyPaymentAction(orderTrackingId: string, user_uid: string) {
+  try {
+    const { data, error } = await supabase.functions.invoke('payment-ops', {
+      body: { 
+        action: 'verify',
+        orderTrackingId,
+        user_uid
+      }
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    
+    return data || { success: false, error: "Verification response empty." };
+  } catch (err: any) { 
+    return { success: false, error: err.message || "Critical verification failure." }; 
+  }
 }

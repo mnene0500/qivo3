@@ -1,8 +1,7 @@
 
 # QIVO Edge Function Deployment Guide (PRODUCTION)
 
-Create 4 separate functions in your Supabase Dashboard using the **"Via Editor"** method. 
-For each one, delete the default code and paste the corresponding block below. 
+Deploy these separate functions in your Supabase Dashboard using the **"Via Editor"** method. 
 
 ---
 
@@ -12,8 +11,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 }
 
 const PESA_ENV = "https://pay.pesapal.com/v3"
@@ -32,13 +31,13 @@ async function getPesapalToken() {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
   try {
-    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!)
     const body = await req.json()
     const { action } = body
 
-    if (action === 'initiate') {
+    if (action === "initiate") {
       const { amount, user } = body
       const token = await getPesapalToken()
       const orderId = crypto.randomUUID()
@@ -59,10 +58,10 @@ serve(async (req) => {
         body: JSON.stringify(order),
       })
       const data = await res.json()
-      return new Response(JSON.stringify({ success: true, redirect_url: data.redirect_url, order_id: orderId }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      return new Response(JSON.stringify({ success: true, redirect_url: data.redirect_url, order_id: orderId }), { headers: { ...corsHeaders, "Content-Type": "application/json" } })
     }
 
-    if (action === 'fulfill') {
+    if (action === "verify") {
       const { orderTrackingId, user_uid } = body
       const token = await getPesapalToken()
       
@@ -74,9 +73,12 @@ serve(async (req) => {
 
       if (statusData.payment_status_description === "Completed") {
         const coins = Math.floor(Number(statusData.amount) * 6.25)
+        
+        // 1. Atomically add coins
         const { error: rpcError } = await supabase.rpc("increment_coins", { user_uid, amount: coins })
         if (rpcError) throw rpcError
 
+        // 2. Log history
         await supabase.from("coin_history").insert({
           user_id: user_uid,
           amount: coins,
@@ -84,12 +86,13 @@ serve(async (req) => {
           description: "Pesapal verified recharge",
           timestamp: Date.now(),
         })
-        return new Response(JSON.stringify({ success: true, verified: true, coins_added: coins }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+
+        return new Response(JSON.stringify({ success: true, verified: true, coins_added: coins }), { headers: { ...corsHeaders, "Content-Type": "application/json" } })
       }
-      return new Response(JSON.stringify({ success: false, message: "Payment not completed" }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      return new Response(JSON.stringify({ success: false, message: "Payment not completed" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } })
     }
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } })
   }
 })
 ```
@@ -102,61 +105,57 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
   try {
-    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!)
     const { action, ...params } = await req.json()
 
-    if (action === 'daily-check-in') {
+    if (action === "daily-check-in") {
       const { uid } = params
-      const { data: user } = await supabase.from('users').select('*').eq('uid', uid).maybeSingle()
-      if (!user) throw new Error("Profile record not found. Please re-onboard.")
+      const { data: user } = await supabase.from("users").select("*").eq("uid", uid).maybeSingle()
+      if (!user) throw new Error("Profile not found")
       
       const reward = 5
-      await supabase.rpc('increment_coins', { user_uid: uid, amount: reward })
-      await supabase.from('users').update({ 
+      await supabase.rpc("increment_coins", { user_uid: uid, amount: reward })
+      await supabase.from("users").update({ 
         last_check_in_date: new Date().toISOString(), 
         check_in_streak: (user.check_in_streak || 0) + 1 
-      }).eq('uid', uid)
+      }).eq("uid", uid)
       
-      return new Response(JSON.stringify({ success: true, amount: reward, day: (user.check_in_streak || 0) + 1 }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      return new Response(JSON.stringify({ success: true, amount: reward, day: (user.check_in_streak || 0) + 1 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } })
     }
 
-    if (action === 'award-coins') {
-      const { callerUid, targetMatchFlowId, amount } = params
-      const { data: target } = await supabase.from('users').select('uid').eq('match_flow_id', targetMatchFlowId).single()
-      if (!target) throw new Error("Numeric ID not found.")
+    if (action === "award-coins") {
+      const { targetMatchFlowId, amount } = params
+      const { data: target } = await supabase.from("users").select("uid").eq("match_flow_id", targetMatchFlowId).single()
+      if (!target) throw new Error("User ID not found.")
       
-      await supabase.rpc('increment_coins', { user_uid: target.uid, amount: amount })
-      await supabase.from('coin_history').insert({ user_id: target.uid, amount: amount, type: 'transfer', description: `Admin Award`, timestamp: Date.now() })
-      return new Response(JSON.stringify({ success: true, message: `Awarded ${amount} coins.` }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      await supabase.rpc("increment_coins", { user_uid: target.uid, amount: amount })
+      await supabase.from("coin_history").insert({ 
+        user_id: target.uid, 
+        amount: amount, 
+        type: "transfer", 
+        description: "Merchant Award", 
+        timestamp: Date.now() 
+      })
+      return new Response(JSON.stringify({ success: true, message: `Awarded ${amount} coins.` }), { headers: { ...corsHeaders, "Content-Type": "application/json" } })
     }
 
-    if (action === 'send-gift') {
+    if (action === "send-gift") {
       const { senderUid, recipientUid, coinAmount } = params
-      await supabase.rpc('increment_coins', { user_uid: senderUid, amount: -coinAmount })
-      await supabase.rpc('increment_diamonds', { user_id: recipientUid, amount: coinAmount * 0.5 })
-      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      await supabase.rpc("increment_coins", { user_uid: senderUid, amount: -coinAmount })
+      await supabase.rpc("increment_diamonds", { user_id: recipientUid, amount: coinAmount * 0.5 })
+      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } })
     }
     
-    return new Response(JSON.stringify({ error: "Invalid action" }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: "Action not found" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } })
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: e.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } })
   }
 })
 ```
-
----
-
-## 3. Function Name: `calling-ops`
-*(Use existing calling code)*
-
----
-
-## 4. Function Name: `ai-ops`
-*(Use existing AI identity match code)*

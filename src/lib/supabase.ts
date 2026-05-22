@@ -22,6 +22,7 @@ export async function uploadBase64Image(base64: string, bucket: string, path: st
     // 1. Extract clean base64 data and MIME type
     const matches = base64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.*)$/);
     if (!matches || matches.length !== 3) {
+      console.error("[Storage] Invalid format for", path);
       throw new Error("Invalid image string format.");
     }
 
@@ -51,13 +52,16 @@ export async function uploadBase64Image(base64: string, bucket: string, path: st
       cacheControl: '3600'
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error("[Storage API Error]", error);
+      throw error;
+    }
 
     // 4. Return the public URL
     const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
     return publicUrl;
   } catch (err: any) {
-    console.error("[Storage Upload Error]", err.message);
+    console.error("[Storage Upload Crash]", err.message);
     throw err;
   }
 }

@@ -16,7 +16,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
-import { initiatePesaPalPayment, fulfillPaymentAction } from "@/app/actions/payment-actions"
+import { initiatePesaPalPayment, verifyPaymentAction } from "@/app/actions/payment-actions"
 
 const PACKAGES = [
   { amount: 500, price: 80.0 },
@@ -35,42 +35,41 @@ function RechargeContent() {
   
   const [selectedPackage, setSelectedPackage] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
-  const [isFulfilling, setIsFulfilling] = useState(false)
+  const [isVerifying, setIsVerifying] = useState(false)
   const [fulfillmentSuccess, setFulfillmentSuccess] = useState(false)
   const [currentCoins, setCurrentCoins] = useState<number | null>(null)
   
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null)
   const successTriggeredRef = useRef(false)
 
-  const orderId = searchParams.get("OrderTrackingId") || searchParams.get("orderTrackingId")
-  const hasOrderParams = !!orderId
+  const orderTrackingId = searchParams.get("OrderTrackingId") || searchParams.get("orderTrackingId")
 
-  // 1. Initial balance fetch and Real-time sync
+  // 1. Real-time balance listener
   useEffect(() => {
     if (!user?.id) return
     
-    const fetchData = async () => {
+    const fetchBalance = async () => {
       const { data: b } = await supabase.from('balances').select('coins').eq('user_id', user.id).maybeSingle()
       if (b) setCurrentCoins(Number(b.coins) || 0)
     }
-    fetchData()
+    fetchBalance()
 
     const channel = supabase.channel(`recharge-sync:${user.id}`)
       .on('postgres_changes', { event: 'UPDATE', table: 'balances', filter: `user_id=eq.${user.id}` }, (payload) => {
         const newBal = Number(payload.new.coins) || 0
-        // SUDDEN SUCCESS: Detect when coins are added by Edge Function
+        // SUCCESS DETECTION
         if (currentCoins !== null && newBal > currentCoins && !successTriggeredRef.current) {
           successTriggeredRef.current = true
           setFulfillmentSuccess(true)
-          setIsFulfilling(false)
+          setIsVerifying(false)
           if (pollTimerRef.current) clearInterval(pollTimerRef.current)
           
-          toast({ title: "Coins Added!", description: "Your balance was updated." })
+          toast({ title: "Coins Added!", description: "Transaction completed successfully." })
           
-          // HARD STOP: Close payment side completely
+          // FORCE REDIRECT - Close payment screen permanently
           setTimeout(() => {
              router.replace('/profile')
-          }, 2500)
+          }, 3000)
         }
       })
       .subscribe()
@@ -81,27 +80,30 @@ function RechargeContent() {
     }
   }, [user?.id, currentCoins, router])
 
-  // 2. Poll for verification if redirected with Order ID
+  // 2. PRODUCTION VERIFICATION FLOW
   useEffect(() => {
-    if (orderId && user?.id && !fulfillmentSuccess && !successTriggeredRef.current) {
-      setIsFulfilling(true);
+    if (orderTrackingId && user?.id && !fulfillmentSuccess && !successTriggeredRef.current) {
+      setIsVerifying(true);
 
-      const verifyStatus = async () => {
+      const runVerification = async () => {
         if (successTriggeredRef.current) return;
-        const res = await fulfillPaymentAction(orderId, user.id);
-        // We only stop on critical errors. On "Pending", we keep polling.
+        
+        const res = await verifyPaymentAction(orderTrackingId, user.id);
+        
         if (res.error && !res.error.includes("not completed")) {
+          // If critical error, stop polling
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+          setIsVerifying(false);
           toast({ variant: "destructive", title: "Verification Failed", description: res.error });
-          router.replace('/recharge');
         }
       };
 
-      verifyStatus();
-      pollTimerRef.current = setInterval(verifyStatus, 5000);
+      runVerification();
+      // Poll every 5 seconds until balance update is detected by the real-time channel
+      pollTimerRef.current = setInterval(runVerification, 5000);
     }
     return () => { if (pollTimerRef.current) clearInterval(pollTimerRef.current); };
-  }, [orderId, user?.id, fulfillmentSuccess, router, toast]);
+  }, [orderTrackingId, user?.id, fulfillmentSuccess]);
 
   const handlePayment = async () => {
     const pkg = PACKAGES.find(p => p.amount === selectedPackage)
@@ -114,12 +116,13 @@ function RechargeContent() {
         name: user.user_metadata?.full_name || "QIVO User"
       })
       if (result.success && result.redirect_url) {
+        // Redirection to PesaPal Payment Page
         window.location.href = result.redirect_url;
       } else {
-        toast({ variant: "destructive", title: "Error", description: result.error })
+        toast({ variant: "destructive", title: "Gateway Error", description: result.error })
       }
     } catch (err) {
-      toast({ variant: "destructive", title: "Gateway Error", description: "Could not connect to payment service." })
+      toast({ variant: "destructive", title: "Critical Error", description: "Payment gateway connection failed." })
     } finally {
       setLoading(false)
     }
@@ -127,8 +130,7 @@ function RechargeContent() {
 
   if (authLoading || !isInitialized) return <div className="flex-1 flex items-center justify-center h-screen bg-white"><Loader2 className="animate-spin text-[#00A2FF]" /></div>
 
-  // FULFILLMENT OVERLAY
-  if (isFulfilling || fulfillmentSuccess) {
+  if (isVerifying || fulfillmentSuccess) {
     return (
       <div className="flex-1 bg-white min-h-screen flex flex-col items-center justify-center p-8 space-y-10 animate-in fade-in duration-300">
         <div className="relative">
@@ -148,7 +150,7 @@ function RechargeContent() {
             {fulfillmentSuccess ? "COINS ADDED!" : "VERIFYING..."}
           </h2>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em]">
-            {fulfillmentSuccess ? "TRANSACTION COMPLETE" : "DO NOT REFRESH THIS PAGE"}
+            {fulfillmentSuccess ? "RELOADING PROFILE" : "DO NOT REFRESH OR GO BACK"}
           </p>
         </div>
       </div>
