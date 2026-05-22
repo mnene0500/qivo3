@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, Suspense, useEffect, useRef } from "react"
@@ -12,7 +11,8 @@ import {
   History, 
   CheckCircle2,
   Zap,
-  ShieldCheck
+  ShieldCheck,
+  AlertCircle
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
@@ -44,7 +44,7 @@ function RechargeContent() {
 
   const orderTrackingId = searchParams.get("OrderTrackingId") || searchParams.get("orderTrackingId")
 
-  // 1. Real-time balance listener
+  // 1. Real-time balance listener for instant celebration
   useEffect(() => {
     if (!user?.id) return
     
@@ -57,7 +57,6 @@ function RechargeContent() {
     const channel = supabase.channel(`recharge-sync:${user.id}`)
       .on('postgres_changes', { event: 'UPDATE', table: 'balances', filter: `user_id=eq.${user.id}` }, (payload) => {
         const newBal = Number(payload.new.coins) || 0
-        // SUCCESS DETECTION
         if (currentCoins !== null && newBal > currentCoins && !successTriggeredRef.current) {
           successTriggeredRef.current = true
           setFulfillmentSuccess(true)
@@ -66,7 +65,6 @@ function RechargeContent() {
           
           toast({ title: "Coins Added!", description: "Transaction completed successfully." })
           
-          // FORCE REDIRECT - Close payment screen permanently
           setTimeout(() => {
              router.replace('/profile')
           }, 3000)
@@ -80,7 +78,7 @@ function RechargeContent() {
     }
   }, [user?.id, currentCoins, router])
 
-  // 2. PRODUCTION VERIFICATION FLOW
+  // 2. Verification Flow
   useEffect(() => {
     if (orderTrackingId && user?.id && !fulfillmentSuccess && !successTriggeredRef.current) {
       setIsVerifying(true);
@@ -88,18 +86,17 @@ function RechargeContent() {
       const runVerification = async () => {
         if (successTriggeredRef.current) return;
         
+        // Standardized to 'verify' action
         const res = await verifyPaymentAction(orderTrackingId, user.id);
         
-        if (res.error && !res.error.includes("not completed")) {
-          // If critical error, stop polling
+        if (res.error && !res.error.toLowerCase().includes("completed")) {
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
           setIsVerifying(false);
-          toast({ variant: "destructive", title: "Verification Failed", description: res.error });
+          toast({ variant: "destructive", title: "Verification Error", description: res.error });
         }
       };
 
       runVerification();
-      // Poll every 5 seconds until balance update is detected by the real-time channel
       pollTimerRef.current = setInterval(runVerification, 5000);
     }
     return () => { if (pollTimerRef.current) clearInterval(pollTimerRef.current); };
@@ -115,14 +112,20 @@ function RechargeContent() {
         email: user.email || `user_${user.id}@qivo.app`,
         name: user.user_metadata?.full_name || "QIVO User"
       })
+
       if (result.success && result.redirect_url) {
-        // Redirection to PesaPal Payment Page
         window.location.href = result.redirect_url;
       } else {
-        toast({ variant: "destructive", title: "Gateway Error", description: result.error })
+        // Detailed error reporting
+        const errorMsg = result.error || "Gateway response invalid.";
+        toast({ 
+          variant: "destructive", 
+          title: "Payment Error", 
+          description: errorMsg 
+        })
       }
     } catch (err) {
-      toast({ variant: "destructive", title: "Critical Error", description: "Payment gateway connection failed." })
+      toast({ variant: "destructive", title: "Critical Error", description: "Failed to reach payment server." })
     } finally {
       setLoading(false)
     }

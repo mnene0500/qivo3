@@ -1,10 +1,9 @@
-
 'use server';
 
 import { supabase } from '@/lib/supabase';
 
 /**
- * @fileOverview Secure PesaPal Proxies via Supabase Edge Functions.
+ * @fileOverview Standardized Payment Actions using 'verify' terminology.
  */
 
 export async function initiatePesaPalPayment(amount: number, user: { uid: string, email: string, name: string }) {
@@ -18,20 +17,21 @@ export async function initiatePesaPalPayment(amount: number, user: { uid: string
     });
 
     if (error) {
-      console.error("[Payment Error] Edge Function fail:", error);
-      return { success: false, error: "Payment gateway connection timeout." };
+      console.error("[Payment Error] Edge Function:", error);
+      return { success: false, error: "Network error calling payment service." };
     }
 
-    return data || { success: false, error: "Empty response from server." };
+    if (!data.success) {
+      return { success: false, error: data.error || "Payment provider rejected request." };
+    }
+
+    return data;
   } catch (err: any) { 
-    console.error("[Payment Crash] Proxy exception:", err);
-    return { success: false, error: "Critical payment service failure." }; 
+    console.error("[Payment Crash] Exception:", err);
+    return { success: false, error: "Payment system critical failure." }; 
   }
 }
 
-/**
- * Server Action to verify transaction status via Edge Function.
- */
 export async function verifyPaymentAction(orderTrackingId: string, user_uid: string) {
   try {
     const { data, error } = await supabase.functions.invoke('payment-ops', {
@@ -46,8 +46,8 @@ export async function verifyPaymentAction(orderTrackingId: string, user_uid: str
       return { success: false, error: error.message };
     }
     
-    return data || { success: false, error: "Verification response empty." };
+    return data || { success: false, error: "Empty verification response." };
   } catch (err: any) { 
-    return { success: false, error: err.message || "Critical verification failure." }; 
+    return { success: false, error: "Internal verification crash." }; 
   }
 }
