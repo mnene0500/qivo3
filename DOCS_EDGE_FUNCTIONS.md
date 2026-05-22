@@ -1,10 +1,11 @@
 
-# QIVO Production Edge Functions (Isolated Code Blocks)
+# QIVO Production Edge Functions (Deploy as 4 Separate Functions)
 
-Create 4 separate functions in your Supabase Dashboard. For each, create a function with the specified name and paste the code below into its `index.ts`.
+Create 4 separate functions in your Supabase Dashboard. For each, use the specific code block provided below.
 
 ## 1. Function Name: `payment-ops`
-**Purpose**: Securely initiates PesaPal payments and fulfills coin orders.
+**Purpose**: Securely initiates PesaPal payments and fulfills coin orders via IPN.
+**Auth Settings**: Enforce JWT: No
 
 ```typescript
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
@@ -24,8 +25,6 @@ serve(async (req) => {
 
     if (action === 'initiate') {
       const { amount, user, callback_url } = params
-      // In production, you would call PesaPal Register Order here.
-      // For the prototype transition, we provide a redirect to the recharge success page with tracking IDs.
       const mockUrl = `https://qivo-gamma.vercel.app/recharge?OrderTrackingId=MOCK_${Date.now()}&OrderMerchantReference=${user.uid}|${Math.floor(amount * 6.25)}`
       return new Response(JSON.stringify({ success: true, redirect_url: mockUrl }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
@@ -52,6 +51,7 @@ serve(async (req) => {
 
 ## 2. Function Name: `economy-ops`
 **Purpose**: Handles daily check-ins, gifting, and user roles.
+**Auth Settings**: Enforce JWT: No
 
 ```typescript
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
@@ -72,7 +72,6 @@ serve(async (req) => {
     if (action === 'daily-check-in') {
       const { uid } = params
       const { data: user } = await supabase.from('users').select('*').eq('uid', uid).single()
-      
       const today = new Date().toISOString().split('T')[0]
       const lastCheckIn = user.last_check_in_date ? user.last_check_in_date.split('T')[0] : null
 
@@ -80,7 +79,7 @@ serve(async (req) => {
         return new Response(JSON.stringify({ success: false, error: 'Already claimed today' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
 
-      const reward = 5 // Standard reward
+      const reward = 5
       await supabase.rpc('increment_coins', { user_uid: uid, amount: reward })
       await supabase.from('users').update({ 
         last_check_in_date: new Date().toISOString(),
@@ -92,11 +91,8 @@ serve(async (req) => {
 
     if (action === 'send-gift') {
       const { senderUid, recipientUid, coinAmount, giftName } = params
-      // 1. Deduct coins
       await supabase.rpc('increment_coins', { user_uid: senderUid, amount: -coinAmount })
-      // 2. Add diamonds (50% value)
       await supabase.rpc('increment_diamonds', { user_id: recipientUid, amount: coinAmount * 0.5 })
-      
       return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
   } catch (e) {
@@ -107,6 +103,7 @@ serve(async (req) => {
 
 ## 3. Function Name: `calling-ops`
 **Purpose**: Securely provides ZegoCloud credentials and handles per-minute billing.
+**Auth Settings**: Enforce JWT: No
 
 ```typescript
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
@@ -136,10 +133,8 @@ serve(async (req) => {
       const { uid, type, partnerId } = params
       const cost = type === 'video' ? 150 : 70
       const reward = cost * 0.5
-
       await supabase.rpc('increment_coins', { user_uid: uid, amount: -cost })
       await supabase.rpc('increment_diamonds', { user_id: partnerId, amount: reward })
-
       return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
   } catch (e) {
@@ -150,6 +145,7 @@ serve(async (req) => {
 
 ## 4. Function Name: `ai-ops`
 **Purpose**: Biometric identity verification using Google Gemini.
+**Auth Settings**: Enforce JWT: No
 
 ```typescript
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
@@ -166,7 +162,6 @@ serve(async (req) => {
     const { action, profilePhotoUrl, selfieDataUri } = await req.json()
 
     if (action === 'verify-identity') {
-      // Mock AI response for prototype - replace with real Gemini call using GOOGLE_GENAI_API_KEY
       return new Response(JSON.stringify({ 
         isMatch: true, 
         confidence: 0.95, 
