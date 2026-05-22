@@ -24,6 +24,7 @@ interface UserProfile {
   blocked_by?: string[]
 }
 
+// Global persistence to prevent blinking/refreshing on tab switch
 let globalUserCache: UserProfile[] = [];
 let globalScrollY = 0;
 
@@ -78,6 +79,7 @@ export default function HomePage() {
   useEffect(() => {
     if (!statusChecked) return;
     if (!initialLoading) {
+      // Restore scroll position when returning to tab
       setTimeout(() => window.scrollTo({ top: globalScrollY, behavior: 'instant' }), 50);
     }
     const handleScroll = () => { globalScrollY = window.scrollY }
@@ -149,7 +151,7 @@ export default function HomePage() {
             <FileText className="w-4 h-4 text-white" />
           </div>
           <p className="text-base font-black leading-none">Mystery Note</p>
-          <p className="text-[8px] font-bold opacity-80 tracking-widest">SEND A NOTE</p>
+          <p className="text-[8px] font-bold opacity-80 tracking-widest uppercase">SEND A NOTE</p>
         </button>
         
         <button 
@@ -160,18 +162,18 @@ export default function HomePage() {
             <Target className="w-4 h-4 text-white" />
           </div>
           <p className="text-base font-black leading-none">Task Center</p>
-          <p className="text-[8px] font-bold opacity-80 tracking-widest">EARN REWARDS</p>
+          <p className="text-[8px] font-bold opacity-80 tracking-widest uppercase">EARN REWARDS</p>
         </button>
       </div>
 
       <div className="sticky top-0 z-30 bg-white">
-        <div className="h-8 bg-white" />
+        <div className="h-3 bg-white" />
         <div className="px-6 py-2 flex items-center justify-between border-b border-black/5">
           <div className="flex items-center gap-6">
             <button 
               onClick={() => setActiveTab('Recommend')} 
               className={cn(
-                "text-base font-bold transition-all relative pb-2", 
+                "text-sm font-black transition-all relative pb-2", 
                 activeTab === 'Recommend' ? "text-[#00A2FF]" : "text-gray-300"
               )}
             >
@@ -180,7 +182,7 @@ export default function HomePage() {
             <button 
               onClick={() => setActiveTab('Nearby')} 
               className={cn(
-                "text-base font-bold transition-all relative pb-2", 
+                "text-sm font-black transition-all relative pb-2", 
                 activeTab === 'Nearby' ? "text-[#00A2FF]" : "text-gray-300"
               )}
             >
@@ -195,25 +197,25 @@ export default function HomePage() {
               isRefreshing && "animate-spin"
             )}
           >
-            <RotateCw className="w-5 h-5" />
+            <RotateCw className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      <main className="px-4 pt-4 space-y-4">
+      <main className="px-4 pt-3 space-y-4">
         {initialLoading && users.length === 0 ? (
-          <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-[#00A2FF] w-8 h-8" /></div>
+          <div className="py-20 flex justify-center"><Loader2 className="animate-spin text-[#00A2FF] w-8 h-8" /></div>
         ) : filteredUsers.length === 0 ? (
-          <div className="py-12 text-center opacity-40">
+          <div className="py-20 text-center opacity-40">
              <RotateCw className="w-10 h-10 mx-auto text-gray-300 mb-4" />
              <p className="text-[10px] font-black uppercase tracking-widest">Finding matches...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 pb-10">
+          <div className="grid grid-cols-2 gap-2.5 pb-10">
             {filteredUsers.map((u) => (
               <Card 
                 key={u.uid} 
-                className="relative overflow-hidden border-none aspect-[1/1.3] rounded-[1.5rem] shadow-sm bg-gray-50 group active:scale-95 transition-all cursor-pointer"
+                className="relative overflow-hidden border-none aspect-[1/1.25] rounded-[1.2rem] shadow-sm bg-gray-50 group active:scale-95 transition-all cursor-pointer"
                 onClick={() => router.push(`/users/${u.uid}`)}
               >
                 <Image 
@@ -223,23 +225,23 @@ export default function HomePage() {
                   className="object-cover"
                   sizes="(max-width: 768px) 50vw, 300px"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-90" />
                 
                 <div 
                   onClick={(e) => { e.stopPropagation(); router.push(`/chats?startWith=${u.uid}`); }}
-                  className="absolute top-3 right-3 px-5 h-9 bg-[#00A2FF] rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-all z-20"
+                  className="absolute top-2.5 right-2.5 px-3.5 h-7 bg-[#00A2FF] rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-all z-20"
                 >
-                  <span className="text-[10px] font-black uppercase tracking-widest">CHAT</span>
+                  <span className="text-[8px] font-black uppercase tracking-widest">CHAT</span>
                 </div>
 
-                <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-                  <div className="flex items-center gap-1 mb-2">
-                    <h4 className="font-black text-lg truncate tracking-tight">{u.name}</h4>
-                    {u.is_verified && <BadgeCheck className="w-4 h-4 text-[#00A2FF] fill-white" />}
+                <div className="absolute inset-x-0 bottom-0 p-3 text-white">
+                  <div className="flex items-center gap-1 mb-1.5">
+                    <h4 className="font-black text-sm truncate tracking-tight">{u.name}</h4>
+                    {u.is_verified && <BadgeCheck className="w-3 h-3 text-[#00A2FF] fill-white" />}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="bg-[#00B200] text-white font-black text-[10px] px-3 py-1 rounded-full">{calculateAge(u.dob)}</span>
-                    <span className="bg-black/40 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1 rounded-full truncate border border-white/10">
+                  <div className="flex items-center gap-1.5">
+                    <span className="bg-[#00B200] text-white font-black text-[8px] px-2 py-0.5 rounded-md">{calculateAge(u.dob)}</span>
+                    <span className="bg-black/30 backdrop-blur-md text-white text-[8px] font-bold px-2 py-0.5 rounded-md truncate border border-white/5">
                       {u.country}
                     </span>
                   </div>

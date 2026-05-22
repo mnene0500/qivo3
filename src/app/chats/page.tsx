@@ -75,10 +75,10 @@ function ChatsContent() {
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null)
   const [isLongPressing, setIsLongPressing] = useState(false)
 
-  const markAsSeen = async (id: string) => {
+  const markAsSeen = async (id: string, customTime?: number) => {
     if (!currentUser?.id) return
     const { data } = await supabase.from('chats').select('last_seen_at').eq('id', id).single()
-    const newSeenAt = { ...(data?.last_seen_at || {}), [currentUser.id]: Date.now() }
+    const newSeenAt = { ...(data?.last_seen_at || {}), [currentUser.id]: customTime || Date.now() }
     await supabase.from('chats').update({ last_seen_at: newSeenAt }).eq('id', id)
   }
 
@@ -121,6 +121,7 @@ function ChatsContent() {
           if (c.last_message_at <= userClearedAt) return null
 
           const userSeenAt = c.last_seen_at?.[currentUser.id] || 0
+          // Unread logic: newer than seen AND I didn't send it
           const isUnread = c.last_message_at > userSeenAt && c.participant_ids[0] !== currentUser.id
 
           const { data: p } = await supabase.from('users').select('name, photo_url').eq('uid', pId).single()
@@ -216,8 +217,17 @@ function ChatsContent() {
         await supabase.from('balances').update({ coins: userBalance - cost }).eq('user_id', currentUser.id)
         await supabase.from('coin_history').insert({ user_id: currentUser.id, amount: -cost, type: 'chat', description: `Chat with ${partnerProfile?.name || 'User'}`, timestamp })
       }
+      
+      // Update seen time immediately to prevent own message from triggering unread count
+      await markAsSeen(chatId, timestamp);
+      
       await Promise.all([
-        supabase.from('chats').upsert({ id: chatId, last_message: text, last_message_at: timestamp, participant_ids: [currentUser.id, startWithId] }, { onConflict: 'id' }),
+        supabase.from('chats').upsert({ 
+          id: chatId, 
+          last_message: text, 
+          last_message_at: timestamp, 
+          participant_ids: [currentUser.id, startWithId] 
+        }, { onConflict: 'id' }),
         supabase.from('messages').insert({ chat_id: chatId, text, sender_id: currentUser.id, timestamp })
       ])
     } catch (err) {

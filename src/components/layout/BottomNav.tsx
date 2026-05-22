@@ -9,7 +9,8 @@ import { supabase } from "@/lib/supabase"
 import { useUser } from "@/firebase/auth/use-user"
 
 /**
- * @fileOverview High-fidelity Bottom Navigation with blue active states.
+ * @fileOverview High-fidelity Bottom Navigation with fixed positioning.
+ * Corrected unread logic to only show incoming messages.
  */
 export function BottomNav() {
   const pathname = usePathname()
@@ -27,9 +28,13 @@ export function BottomNav() {
       
       if (data) {
         const count = data.reduce((acc, chat) => {
-          const lastSeen = (chat.last_seen_at as Record<string, number>)?.[user.id] || 0;
-          const lastMsg = chat.last_message_at || 0;
-          return (lastMsg > lastSeen) ? acc + 1 : acc;
+          const userSeenAt = (chat.last_seen_at as Record<string, number>)?.[user.id] || 0;
+          const lastMsgAt = chat.last_message_at || 0;
+          
+          // Unread if: message is newer than my seen time AND I am NOT the last sender
+          // participant_ids[0] tracks the most recent sender in our chat implementation
+          const isUnread = lastMsgAt > userSeenAt && chat.participant_ids[0] !== user.id;
+          return isUnread ? acc + 1 : acc;
         }, 0);
         setTotalUnread(count);
       }
@@ -50,7 +55,7 @@ export function BottomNav() {
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t h-16 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t h-16 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_12px_rgba(0,0,0,0.02)]">
       {navItems.map((item) => {
         const isActive = pathname === item.href || (item.href === '/chats' && pathname?.startsWith('/chats'))
         
@@ -60,7 +65,7 @@ export function BottomNav() {
             href={item.href}
             className={cn(
               "flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all relative",
-              isActive ? "text-[#00A2FF]" : "text-gray-400"
+              isActive ? "text-[#00A2FF]" : "text-gray-300"
             )}
           >
             <div className={cn(
