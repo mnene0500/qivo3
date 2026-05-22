@@ -11,8 +11,7 @@ import {
   History, 
   CheckCircle2,
   Zap,
-  ShieldCheck,
-  AlertCircle
+  ShieldCheck
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
@@ -76,9 +75,9 @@ function RechargeContent() {
       supabase.removeChannel(channel)
       if (pollTimerRef.current) clearInterval(pollTimerRef.current)
     }
-  }, [user?.id, currentCoins, router])
+  }, [user?.id, currentCoins, router, toast])
 
-  // 2. Verification Flow
+  // 2. Verification Flow (Initiated ONLY when tracking ID is present)
   useEffect(() => {
     if (orderTrackingId && user?.id && !fulfillmentSuccess && !successTriggeredRef.current) {
       setIsVerifying(true);
@@ -86,21 +85,22 @@ function RechargeContent() {
       const runVerification = async () => {
         if (successTriggeredRef.current) return;
         
-        // Standardized to 'verify' action
+        // Calling verify action which invokes 'fulfill' on the Edge Function
         const res = await verifyPaymentAction(orderTrackingId, user.id);
         
         if (res.error && !res.error.toLowerCase().includes("completed")) {
+          // If there is a terminal error (not just pending), stop polling
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
           setIsVerifying(false);
-          toast({ variant: "destructive", title: "Verification Error", description: res.error });
+          toast({ variant: "destructive", title: "Verification Update", description: res.error });
         }
       };
 
       runVerification();
-      pollTimerRef.current = setInterval(runVerification, 5000);
+      pollTimerRef.current = setInterval(runVerification, 10000); // Poll every 10 seconds
     }
     return () => { if (pollTimerRef.current) clearInterval(pollTimerRef.current); };
-  }, [orderTrackingId, user?.id, fulfillmentSuccess]);
+  }, [orderTrackingId, user?.id, fulfillmentSuccess, toast]);
 
   const handlePayment = async () => {
     const pkg = PACKAGES.find(p => p.amount === selectedPackage)
@@ -116,17 +116,16 @@ function RechargeContent() {
       if (result.success && result.redirect_url) {
         window.location.href = result.redirect_url;
       } else {
-        // Detailed error reporting
         const errorMsg = result.error || "Gateway response invalid.";
         toast({ 
           variant: "destructive", 
           title: "Payment Error", 
           description: errorMsg 
         })
+        setLoading(false)
       }
     } catch (err) {
       toast({ variant: "destructive", title: "Critical Error", description: "Failed to reach payment server." })
-    } finally {
       setLoading(false)
     }
   }
@@ -153,7 +152,7 @@ function RechargeContent() {
             {fulfillmentSuccess ? "COINS ADDED!" : "VERIFYING..."}
           </h2>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em]">
-            {fulfillmentSuccess ? "RELOADING PROFILE" : "DO NOT REFRESH OR GO BACK"}
+            {fulfillmentSuccess ? "RELOADING PROFILE" : "PLEASE WAIT WHILE WE CONFIRM YOUR ORDER"}
           </p>
         </div>
       </div>

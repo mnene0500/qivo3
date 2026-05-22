@@ -3,7 +3,8 @@
 import { supabase } from '@/lib/supabase';
 
 /**
- * @fileOverview Standardized Payment Actions using 'verify' terminology.
+ * @fileOverview Production Payment Actions.
+ * Matches the Edge Function logic provided by the user (initiate / fulfill).
  */
 
 export async function initiatePesaPalPayment(amount: number, user: { uid: string, email: string, name: string }) {
@@ -34,9 +35,10 @@ export async function initiatePesaPalPayment(amount: number, user: { uid: string
 
 export async function verifyPaymentAction(orderTrackingId: string, user_uid: string) {
   try {
+    // Note: Calling 'fulfill' to match the user's Edge Function code
     const { data, error } = await supabase.functions.invoke('payment-ops', {
       body: { 
-        action: 'verify',
+        action: 'fulfill',
         orderTrackingId,
         user_uid
       }
