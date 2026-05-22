@@ -104,7 +104,8 @@ export default function HomePage() {
     return users
   }, [users, activeTab, profile])
 
-  if ((initialLoading && users.length === 0) || authLoading || !isInitialized) {
+  // NO SPINNER IF WE HAVE CACHED USERS
+  if ((initialLoading && users.length === 0) && isInitialized) {
     return (
       <div className="flex-1 bg-white min-h-screen flex items-center justify-center">
         <Loader2 className="animate-spin text-[#00A2FF] w-8 h-8" />
@@ -115,8 +116,12 @@ export default function HomePage() {
   return (
     <div className="flex-1 pb-24 bg-[#F9FAFB] min-h-screen relative select-none">
       {/* BRANDING HEADER - THE STAMP */}
-      <header className="sticky top-0 z-50 bg-white border-b shadow-sm h-16 flex items-center justify-between px-6">
-        <h1 className="text-3xl font-logo text-[#00A2FF] tracking-tighter">QIVO</h1>
+      <header className="sticky top-0 z-50 bg-white border-b shadow-sm h-20 flex items-center justify-between px-6 overflow-hidden">
+        <div className="relative">
+          <h1 className="text-5xl font-logo font-black text-[#00A2FF]/30 tracking-tighter transform -rotate-12 origin-left -translate-y-1">
+            QIVO
+          </h1>
+        </div>
         <div className="flex items-center gap-4">
           <button onClick={() => fetchUsers(true)} disabled={isRefreshing} className={cn("p-2 text-[#00A2FF]", isRefreshing && "animate-spin")}>
             <RotateCw className="w-5 h-5" />

@@ -51,6 +51,11 @@ interface ChatSummary {
   last_seen_at?: Record<string, number>
 }
 
+/**
+ * GLOBAL PERSISTENCE CACHE FOR CHATS
+ */
+let globalChatSummaries: ChatSummary[] = [];
+
 function ChatsContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -61,8 +66,8 @@ function ChatsContent() {
   const [chatId, setChatId] = useState<string | null>(null)
   const [newMessage, setNewMessage] = useState("")
   const [messages, setMessages] = useState<Message[]>([])
-  const [chatSummaries, setChatSummaries] = useState<ChatSummary[]>([])
-  const [loading, setLoading] = useState(true)
+  const [chatSummaries, setChatSummaries] = useState<ChatSummary[]>(globalChatSummaries)
+  const [loading, setLoading] = useState(globalChatSummaries.length === 0)
   const [partnerProfile, setPartnerProfile] = useState<any>(null)
   const [userProfile, setUserProfile] = useState<any>(null)
   const [userBalance, setUserBalance] = useState<number>(0)
@@ -131,7 +136,9 @@ function ChatsContent() {
             cleared_at: c.cleared_at
           } as ChatSummary
         }))
-        setChatSummaries(enhanced.filter(Boolean) as ChatSummary[])
+        const filtered = enhanced.filter(Boolean) as ChatSummary[];
+        setChatSummaries(filtered)
+        globalChatSummaries = filtered;
       }
       setLoading(false)
     }
@@ -254,7 +261,7 @@ function ChatsContent() {
         <Sparkles className="w-5 h-5 text-blue-100" />
       </header>
       <main className="flex flex-col">
-        {loading ? (
+        {loading && chatSummaries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 opacity-20"><Loader2 className="w-8 h-8 animate-spin text-[#00A2FF]" /></div>
         ) : chatSummaries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 px-12 text-center opacity-40">
