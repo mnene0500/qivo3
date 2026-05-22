@@ -1,7 +1,8 @@
+
 "use client"
 
-import { useMemo, use, useState, useEffect } from "react"
-import { supabase } from "@/lib/supabase"
+import { useMemo, use, useState, useEffect, useRef } from "react"
+import { supabase, uploadBase64Image } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { 
@@ -21,7 +22,9 @@ import {
   Loader2,
   Quote,
   Sparkles,
-  MapPin
+  MapPin,
+  Image as ImageIcon,
+  Send
 } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
@@ -31,9 +34,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { useUserPresence } from "@/hooks/use-presence"
 import { useUser } from "@/firebase/auth/use-user"
+import { submitReportAction } from "@/app/actions/matchflow-actions"
+import imageCompression from "browser-image-compression"
 
 interface UserProfile {
   uid: string
@@ -51,6 +65,15 @@ interface UserProfile {
   looking_for?: string
 }
 
+const REPORT_REASONS = [
+  "Inappropriate Behavior",
+  "Fake Profile / Scammer",
+  "Harassment",
+  "Explicit Content",
+  "Underage User",
+  "Other"
+]
+
 export default function UserDetailPage({ params }: { params: Promise<{ userId: string }> }) {
   const { userId } = use(params)
   const router = useRouter()
@@ -64,6 +87,14 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
   const [isPhotoOpen, setIsPhotoOpen] = useState(false)
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+
+  // REPORT STATE
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportReason, setReportReason] = useState("")
+  const [reportText, setReportDescription] = useState("")
+  const [proofImage, setProofImage] = useState<string | null>(null)
+  const [submittingReport, setSubmittingReport] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!currentUser?.id) return
@@ -102,15 +133,53 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
     const { data: myData } = await supabase.from('users').select('blocking').eq('uid', currentUser.id).single()
     const myBlocking = Array.from(new Set([...(myData?.blocking || []), profile.uid]))
     await supabase.from('users').update({ blocking: myBlocking }).eq('uid', currentUser.id)
+    
     const { data: targetData } = await supabase.from('users').select('blocked_by').eq('uid', profile.uid).single()
     const targetBlockedBy = Array.from(new Set([...(targetData?.blocked_by || []), currentUser.id]))
     await supabase.from('users').update({ blocked_by: targetBlockedBy }).eq('uid', profile.uid)
+    
     toast({ title: "User Blocked" })
     router.push("/home")
   }
 
-  const handleReport = () => {
-    toast({ title: "Report Submitted", description: "We will review this profile for any violations." })
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      try {
+        const options = { maxSizeMB: 0.2, maxWidthOrHeight: 800, useWebWorker: true }
+        const compressed = await imageCompression(file, options)
+        const reader = new FileReader()
+        reader.onloadend = () => setProofImage(reader.result as string)
+        reader.readAsDataURL(compressed)
+      } catch (err) {
+        toast({ variant: "destructive", title: "Error selecting image" })
+      }
+    }
+  }
+
+  const handleSubmitReport = async () => {
+    if (!currentUser || !profile || !reportReason || !reportText) return
+    setSubmittingReport(true)
+    try {
+      let proofUrl = ""
+      if (proofImage) {
+        proofUrl = await uploadBase64Image(proofImage, 'photos', `reports/${currentUser.id}_${Date.now()}.jpg`)
+      }
+
+      const res = await submitReportAction(currentUser.id, profile.uid, reportReason, reportText, proofUrl)
+      if (res.success) {
+        toast({ title: "Report Submitted", description: "Our team will review your proof shortly." })
+        setReportOpen(false)
+        // Auto-block for safety after report
+        handleBlock()
+      } else {
+        throw new Error(res.error)
+      }
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Submission Failed", description: err.message })
+    } finally {
+      setSubmittingReport(false)
+    }
   }
 
   if (loading) return (
@@ -157,7 +226,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
               <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="rounded-full bg-white/10 backdrop-blur-xl text-white w-12 h-12 border border-white/20 shadow-2xl active:scale-90 transition-all hover:bg-white/20"><MoreHorizontal className="w-7 h-7" /></Button></DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="rounded-[2rem] min-w-[180px] p-2 border-none shadow-2xl">
                 <DropdownMenuItem onClick={handleBlock} className="rounded-2xl h-12 text-red-500 font-bold gap-3 px-4"><Ban className="w-5 h-5" /> Block User</DropdownMenuItem>
-                <DropdownMenuItem onClick={handleReport} className="rounded-2xl h-12 font-bold gap-3 px-4"><Flag className="w-5 h-5 text-gray-400" /> Report</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setReportOpen(true)} className="rounded-2xl h-12 font-bold gap-3 px-4"><Flag className="w-5 h-5 text-gray-400" /> Report Violation</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -263,6 +332,76 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
           </div>
         </div>
       )}
+
+      {/* REPORT DIALOG */}
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="rounded-[2.5rem] max-w-[90vw] p-8 space-y-6">
+          <DialogHeader className="items-center text-center">
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-2">
+              <Flag className="w-8 h-8 text-red-500" />
+            </div>
+            <DialogTitle className="text-xl font-bold">Report Profile</DialogTitle>
+            <DialogDescription className="text-xs font-bold uppercase tracking-widest text-gray-400">Help keep QIVO safe</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Reason for Report</label>
+              <Select onValueChange={setReportReason} value={reportReason}>
+                <SelectTrigger className="h-14 rounded-2xl bg-gray-50 border-gray-100">
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl">
+                  {REPORT_REASONS.map(r => <SelectItem key={r} value={r} className="font-bold">{r}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Proof Description</label>
+              <Textarea 
+                placeholder="Tell us what happened..." 
+                value={reportText} 
+                onChange={(e) => setReportDescription(e.target.value)}
+                className="rounded-2xl min-h-[100px] bg-gray-50 border-gray-100 font-medium"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Photo Evidence</label>
+              {proofImage ? (
+                <div className="relative aspect-video rounded-2xl overflow-hidden border-2 border-gray-100 group">
+                  <Image src={proofImage} alt="Proof" fill className="object-cover" />
+                  <button 
+                    onClick={() => setProofImage(null)} 
+                    className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full backdrop-blur-md"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full h-24 rounded-2xl border-dashed border-2 border-gray-200 flex flex-col gap-2 hover:bg-gray-50"
+                >
+                  <ImageIcon className="w-6 h-6 text-gray-300" />
+                  <span className="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Select from Gallery</span>
+                </Button>
+              )}
+              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+            </div>
+          </div>
+
+          <Button 
+            onClick={handleSubmitReport}
+            disabled={submittingReport || !reportReason || !reportText}
+            className="w-full h-16 rounded-full bg-red-500 hover:bg-red-600 text-white font-black uppercase tracking-widest shadow-xl shadow-red-100 transition-all active:scale-95"
+          >
+            {submittingReport ? <Loader2 className="animate-spin" /> : <div className="flex items-center gap-2"><Send className="w-5 h-5" /> Submit Report</div>}
+          </Button>
+        </DialogContent>
+      </Dialog>
 
       {/* FIXED BOTTOM ACTION */}
       <div className="fixed bottom-0 inset-x-0 p-8 bg-gradient-to-t from-white via-white/95 to-transparent z-50">

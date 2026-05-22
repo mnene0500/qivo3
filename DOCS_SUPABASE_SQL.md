@@ -1,13 +1,12 @@
 
 # QIVO Supabase SQL Setup
 
-To enable the economy, gifting, and realtime systems, copy and run the following script in your **Supabase SQL Editor**.
+To enable the economy, gifting, reporting, and realtime systems, copy and run the following script in your **Supabase SQL Editor**.
 
 ## 1. Core Tables & Realtime Schema
 
 ```sql
 -- 1. EXTEND USERS TABLE
--- This table stores profile data linked to Supabase Auth
 CREATE TABLE IF NOT EXISTS public.users (
   uid UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT UNIQUE,
@@ -111,8 +110,19 @@ CREATE TABLE IF NOT EXISTS public.withdrawals (
   timestamp BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)
 );
 
--- 8. ENABLE REALTIME REPLICATION
--- This allows the app to listen for live changes without refreshing
+-- 8. REPORTING SYSTEM
+CREATE TABLE IF NOT EXISTS public.reports (
+  id BIGSERIAL PRIMARY KEY,
+  reporter_id UUID REFERENCES public.users(uid) ON DELETE CASCADE,
+  reported_id UUID REFERENCES public.users(uid) ON DELETE CASCADE,
+  reason TEXT,
+  description TEXT,
+  proof_photo_url TEXT,
+  status TEXT DEFAULT 'pending',
+  timestamp BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)
+);
+
+-- 9. ENABLE REALTIME REPLICATION
 ALTER PUBLICATION supabase_realtime ADD TABLE public.balances;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.coin_history;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.diamond_history;
@@ -120,9 +130,9 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.chats;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.users;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.withdrawals;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.reports;
 
--- 9. PERMISSIONS (For Prototype Ease)
--- In a strict production environment, replace these with specific RLS Policies
+-- 10. PERMISSIONS (For Prototype Ease)
 ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.balances DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.coin_history DISABLE ROW LEVEL SECURITY;
@@ -132,6 +142,7 @@ ALTER TABLE public.chats DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.agencies DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.withdrawals DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reports DISABLE ROW LEVEL SECURITY;
 ```
 
 ## Next Steps

@@ -1,3 +1,4 @@
+
 'use server';
 
 import { supabase } from '@/lib/supabase';
@@ -63,13 +64,11 @@ export async function awardCoinsAction(callerUid: string, targetMatchFlowId: str
  */
 export async function sendGiftAction(senderUid: string, recipientUid: string, coinAmount: number, giftName: string) {
   try {
-    // 1. Verify Sender Balance
     const { data: senderBal } = await supabase.from('balances').select('coins').eq('user_id', senderUid).single();
     if (!senderBal || (Number(senderBal.coins) || 0) < coinAmount) {
       return { success: false, error: "Insufficient coins." };
     }
 
-    // 2. Fetch Recipient Gender for Reward Calculation
     const { data: recipientProfile } = await supabase.from('users').select('gender').eq('uid', recipientUid).single();
     if (!recipientProfile) return { success: false, error: "Recipient not found." };
 
@@ -77,15 +76,12 @@ export async function sendGiftAction(senderUid: string, recipientUid: string, co
     const diamondGain = Math.floor(coinAmount * rewardRate);
     const timestamp = Date.now();
 
-    // 3. Atomic Updates
-    // A. Deduct from Sender
     const { error: deductErr } = await supabase.from('balances').update({ 
       coins: (Number(senderBal.coins) || 0) - coinAmount 
     }).eq('user_id', senderUid);
     
     if (deductErr) throw deductErr;
 
-    // B. Award to Recipient
     const { data: recBal } = await supabase.from('balances').select('diamonds').eq('user_id', recipientUid).maybeSingle();
     await supabase.from('balances').upsert({ 
       user_id: recipientUid, 
@@ -93,7 +89,6 @@ export async function sendGiftAction(senderUid: string, recipientUid: string, co
       updated_at: new Date().toISOString()
     }, { onConflict: 'user_id' });
 
-    // 4. Log History
     await Promise.all([
       supabase.from('coin_history').insert({
         user_id: senderUid,
@@ -111,7 +106,6 @@ export async function sendGiftAction(senderUid: string, recipientUid: string, co
       })
     ]);
 
-    // 5. System message in chat
     const ids = [senderUid, recipientUid].sort();
     const chatId = `direct_${ids[0]}_${ids[1]}`;
     await Promise.all([
@@ -126,8 +120,24 @@ export async function sendGiftAction(senderUid: string, recipientUid: string, co
 
     return { success: true };
   } catch (error: any) {
-    console.error("Gifting Critical Error:", error.message);
     return { success: false, error: "Transaction failed. Please check connection." };
+  }
+}
+
+export async function submitReportAction(reporterUid: string, reportedUid: string, reason: string, description: string, proofUrl: string) {
+  try {
+    const { error } = await supabase.from('reports').insert({
+      reporter_id: reporterUid,
+      reported_id: reportedUid,
+      reason,
+      description,
+      proof_photo_url: proofUrl,
+      timestamp: Date.now()
+    });
+    if (error) throw error;
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
   }
 }
 
