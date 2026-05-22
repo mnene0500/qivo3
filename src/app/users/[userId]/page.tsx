@@ -19,7 +19,9 @@ import {
   Check,
   LayoutGrid,
   Loader2,
-  Quote
+  Quote,
+  Sparkles,
+  MapPin
 } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
@@ -97,17 +99,12 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
 
   const handleBlock = async () => {
     if (!currentUser || !profile) return
-    
-    // Add to my blocking list
     const { data: myData } = await supabase.from('users').select('blocking').eq('uid', currentUser.id).single()
     const myBlocking = Array.from(new Set([...(myData?.blocking || []), profile.uid]))
     await supabase.from('users').update({ blocking: myBlocking }).eq('uid', currentUser.id)
-
-    // Add to target's blocked_by list
     const { data: targetData } = await supabase.from('users').select('blocked_by').eq('uid', profile.uid).single()
     const targetBlockedBy = Array.from(new Set([...(targetData?.blocked_by || []), currentUser.id]))
     await supabase.from('users').update({ blocked_by: targetBlockedBy }).eq('uid', profile.uid)
-
     toast({ title: "User Blocked" })
     router.push("/home")
   }
@@ -139,84 +136,145 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
   const allPhotos = Array.from(new Set([profile.photo_url, ...(profile.additional_photos || [])].filter(Boolean)));
 
   return (
-    <div className="flex-1 bg-white flex flex-col min-h-screen pb-40 select-none overflow-x-hidden">
-      <div className="relative h-[60vh] w-full cursor-pointer overflow-hidden" onClick={() => { setSelectedPhoto(profile.photo_url); setIsPhotoOpen(true); }}>
+    <div className="flex-1 bg-[#F9FAFB] flex flex-col min-h-screen pb-40 select-none overflow-x-hidden">
+      {/* CINEMATIC HERO IMAGE */}
+      <div className="relative h-[60vh] w-full cursor-pointer overflow-hidden group" onClick={() => { setSelectedPhoto(profile.photo_url); setIsPhotoOpen(true); }}>
         <Image 
           src={profile.photo_url || ""} 
           alt={profile.name} 
           fill 
-          className="object-cover animate-in fade-in zoom-in-105 duration-1000" 
+          className="object-cover animate-in fade-in zoom-in-105 duration-1000 group-hover:scale-110 transition-transform duration-700" 
           priority 
           sizes="100vw"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-white via-black/10 to-black/40" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#F9FAFB] via-transparent to-black/30" />
+        
+        {/* TOP OVERLAY BUTTONS */}
         <div className="absolute top-12 inset-x-0 px-6 flex justify-between items-center z-20" onClick={(e) => e.stopPropagation()}>
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full bg-black/20 backdrop-blur-xl text-white w-12 h-12 border border-white/20 shadow-xl active:scale-90 transition-all"><ChevronLeft className="w-7 h-7" /></Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="rounded-full bg-black/20 backdrop-blur-xl text-white w-12 h-12 border border-white/20 shadow-xl active:scale-90 transition-all"><MoreHorizontal className="w-7 h-7" /></Button></DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="rounded-[2rem] min-w-[180px] p-2 border-none shadow-2xl">
-              <DropdownMenuItem onClick={handleBlock} className="rounded-2xl h-12 text-red-500 font-bold gap-3 px-4"><Ban className="w-5 h-5" /> Block User</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleReport} className="rounded-2xl h-12 font-bold gap-3 px-4"><Flag className="w-5 h-5 text-gray-400" /> Report</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full bg-white/10 backdrop-blur-xl text-white w-12 h-12 border border-white/20 shadow-2xl active:scale-90 transition-all hover:bg-white/20"><ChevronLeft className="w-7 h-7" /></Button>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="rounded-full bg-white/10 backdrop-blur-xl text-white w-12 h-12 border border-white/20 shadow-2xl active:scale-90 transition-all hover:bg-white/20"><MoreHorizontal className="w-7 h-7" /></Button></DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="rounded-[2rem] min-w-[180px] p-2 border-none shadow-2xl">
+                <DropdownMenuItem onClick={handleBlock} className="rounded-2xl h-12 text-red-500 font-bold gap-3 px-4"><Ban className="w-5 h-5" /> Block User</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleReport} className="rounded-2xl h-12 font-bold gap-3 px-4"><Flag className="w-5 h-5 text-gray-400" /> Report</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
+
+        {/* PRESENCE BADGE */}
         {presence?.state === 'online' && !isBlocked && (
-          <div className="absolute bottom-10 left-8 bg-green-500/90 backdrop-blur-md text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl flex items-center gap-2">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />Online
+          <div className="absolute bottom-16 left-8 bg-green-500/90 backdrop-blur-md text-white px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl flex items-center gap-2 animate-in slide-in-from-left-4 duration-500">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />Live Online
           </div>
         )}
       </div>
 
-      <div className="relative z-10 bg-white px-8 -mt-10 rounded-t-[3rem] pt-10 space-y-10 shadow-[0_-20px_40px_rgba(0,0,0,0.05)]">
-        <div className="space-y-5">
-          <div className="space-y-1">
-            <div className="flex items-center gap-3"><h1 className="text-4xl font-black text-black tracking-tighter leading-none">{profile.name}</h1>{profile.is_verified && <div className="bg-[#00A2FF]/10 p-1.5 rounded-full"><BadgeCheck className="w-6 h-6 text-[#00A2FF] fill-white" /></div>}</div>
-            <div className="flex items-center gap-1.5 text-gray-400"><Globe className="w-3 h-3" /><span className="text-[10px] font-bold uppercase tracking-[0.2em]">{profile.country || "GLOBAL CITIZEN"}</span></div>
+      {/* CONTENT SHEET */}
+      <div className="relative z-10 bg-white px-8 -mt-10 rounded-t-[3rem] pt-12 space-y-12 shadow-[0_-25px_60px_rgba(0,0,0,0.08)] pb-10">
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <h1 className="text-4xl font-black text-black tracking-tighter leading-none">{profile.name}</h1>
+              {profile.is_verified && <div className="bg-[#00A2FF]/10 p-1.5 rounded-full"><BadgeCheck className="w-6 h-6 text-[#00A2FF] fill-white" /></div>}
+            </div>
+            <div className="flex items-center gap-2 text-gray-400">
+              <div className="flex items-center gap-1 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
+                <MapPin className="w-3 h-3 text-[#00A2FF]" />
+                <span className="text-[10px] font-black uppercase tracking-widest">{profile.country || "GLOBAL"}</span>
+              </div>
+              <div className="flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+                <Sparkles className="w-3 h-3 text-[#00A2FF]" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#00A2FF]">Top Match</span>
+              </div>
+            </div>
           </div>
+
           <div className="flex flex-wrap items-center gap-3">
-            <div className="bg-black text-white px-5 py-2 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg flex items-center gap-2"><span>{profile.gender === 'female' ? '♀' : '♂'}</span><span>{age} Years</span></div>
-            <button onClick={handleCopyId} className="bg-blue-50 text-[#00A2FF] px-5 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-blue-100 flex items-center gap-2 active:scale-95 transition-all">ID: {profile.match_flow_id || "---"}{copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5 text-[#00A2FF] opacity-40" />}</button>
+            <div className="bg-black text-white px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl flex items-center gap-2">
+              <span className="text-sm">{profile.gender === 'female' ? '♀' : '♂'}</span>
+              <span>{age} Years</span>
+            </div>
+            <button 
+              onClick={handleCopyId} 
+              className="bg-gray-50 hover:bg-gray-100 text-gray-500 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-gray-100 flex items-center gap-2 active:scale-95 transition-all"
+            >
+              ID: {profile.match_flow_id || "---"}
+              {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5 opacity-40" />}
+            </button>
           </div>
         </div>
 
-        {allPhotos.length > 1 && (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between px-1"><div className="flex items-center gap-2 text-gray-900"><LayoutGrid className="w-4 h-4 text-[#00A2FF]" /><span className="text-[11px] font-black uppercase tracking-[0.2em]">Visual Gallery</span></div><span className="text-[9px] font-bold text-gray-300 uppercase">{allPhotos.length} Photos</span></div>
-            <div className="grid grid-cols-4 gap-2">{allPhotos.map((url, i) => (<div key={url} className="relative aspect-square rounded-[1.2rem] overflow-hidden cursor-pointer border-2 border-gray-50" onClick={() => { setSelectedPhoto(url); setIsPhotoOpen(true); }}><Image src={url} alt={`Photo ${i}`} fill className="object-cover" sizes="25vw" /></div>))}</div>
-          </section>
-        )}
-
+        {/* BIO SECTION */}
         {profile.interests && (
           <section className="space-y-4">
-             <div className="flex items-center gap-2 text-gray-400"><Quote className="w-4 h-4 text-blue-100 rotate-180" /><span className="text-[11px] font-black uppercase tracking-[0.2em]">Bio & Interests</span></div>
-             <div className="bg-gray-50/50 p-6 rounded-[2.5rem] border border-gray-100/50"><p className="text-sm font-medium text-gray-700 leading-relaxed italic">"{profile.interests}"</p></div>
+             <div className="flex items-center gap-2 text-gray-900">
+               <Quote className="w-4 h-4 text-[#00A2FF] rotate-180" />
+               <span className="text-[11px] font-black uppercase tracking-[0.2em]">Bio & Interests</span>
+             </div>
+             <div className="bg-gray-50/70 p-8 rounded-[2.5rem] border border-black/5 relative overflow-hidden">
+                <Quote className="absolute -right-4 -bottom-4 w-24 h-24 text-black/5 pointer-events-none" />
+                <p className="text-base font-medium text-gray-700 leading-relaxed italic relative z-10 select-text">
+                  "{profile.interests}"
+                </p>
+             </div>
           </section>
         )}
 
-        <div className="grid grid-cols-1 gap-4 pb-20">
-          <DetailItem icon={Globe} label="Location" value={profile.country || "Not specified"} color="bg-emerald-50 text-emerald-600" />
-          <DetailItem icon={GraduationCap} label="Education" value={profile.education_level || "Not specified"} color="bg-purple-50 text-purple-600" />
+        {/* GALLERY GRID */}
+        {allPhotos.length > 1 && (
+          <section className="space-y-4">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2 text-gray-900">
+                <LayoutGrid className="w-4 h-4 text-[#00A2FF]" />
+                <span className="text-[11px] font-black uppercase tracking-[0.2em]">Visual Gallery</span>
+              </div>
+              <span className="text-[9px] font-bold text-gray-300 uppercase tracking-widest">{allPhotos.length} Photos</span>
+            </div>
+            <div className="grid grid-cols-4 gap-3">
+              {allPhotos.map((url, i) => (
+                <div 
+                  key={url} 
+                  className="relative aspect-square rounded-[1.5rem] overflow-hidden cursor-pointer border-2 border-gray-100 shadow-sm active:scale-95 transition-all" 
+                  onClick={() => { setSelectedPhoto(url); setIsPhotoOpen(true); }}
+                >
+                  <Image src={url} alt={`Photo ${i}`} fill className="object-cover" sizes="25vw" />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* DETAILS GRID */}
+        <div className="grid grid-cols-1 gap-4 pb-12">
+          <DetailItem icon={Globe} label="Region" value={profile.country || "Not specified"} color="bg-emerald-50 text-emerald-600" />
+          <DetailItem icon={GraduationCap} label="Academic" value={profile.education_level || "Not specified"} color="bg-purple-50 text-purple-600" />
           <DetailItem icon={Heart} label="Intentions" value={profile.looking_for || "Exploring"} color="bg-rose-50 text-rose-600" />
         </div>
       </div>
 
+      {/* FULL SCREEN PHOTO MODAL */}
       {isPhotoOpen && selectedPhoto && (
-        <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center" onClick={() => setIsPhotoOpen(false)}>
-          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setIsPhotoOpen(false); }} className="absolute top-12 right-6 rounded-full bg-white/10 text-white w-14 h-14 z-[110]"><X className="w-8 h-8 stroke-[3]" /></Button>
-          <div className="relative w-full h-full p-4 flex items-center justify-center"><Image src={selectedPhoto} alt="Full screen" fill className="object-contain" priority sizes="100vw" /></div>
+        <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center animate-in fade-in duration-300" onClick={() => setIsPhotoOpen(false)}>
+          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setIsPhotoOpen(false); }} className="absolute top-12 right-6 rounded-full bg-white/10 text-white w-14 h-14 z-[110] hover:bg-white/20 transition-all"><X className="w-8 h-8 stroke-[3]" /></Button>
+          <div className="relative w-full h-full p-4 flex items-center justify-center">
+            <Image src={selectedPhoto} alt="Full screen" fill className="object-contain" priority sizes="100vw" />
+          </div>
         </div>
       )}
 
+      {/* FIXED BOTTOM ACTION */}
       <div className="fixed bottom-0 inset-x-0 p-8 bg-gradient-to-t from-white via-white/95 to-transparent z-50">
         <Button 
           disabled={isBlocked}
           className={cn(
-            "w-full h-20 rounded-[2.5rem] text-white text-base font-black flex items-center justify-center gap-4 shadow-xl uppercase tracking-[0.2em]",
-            isBlocked ? "bg-gray-200 shadow-none cursor-not-allowed" : "bg-[#00A2FF] hover:bg-[#0081CC] shadow-[0_20px_50px_rgba(0,162,255,0.4)]"
+            "w-full h-20 rounded-[2.5rem] text-white text-base font-black flex items-center justify-center gap-4 shadow-[0_20px_50px_rgba(0,162,255,0.3)] uppercase tracking-[0.2em] active:scale-95 transition-all",
+            isBlocked ? "bg-gray-200 shadow-none cursor-not-allowed text-gray-400" : "bg-[#00A2FF] hover:bg-[#0081CC] border-none"
           )} 
           onClick={() => router.push(`/chats?startWith=${profile.uid}`)}
         >
-          {isBlocked ? <><Ban className="w-6 h-6" /> User Blocked</> : <><MessageSquare className="w-6 h-6 fill-white" />Send Message</>}
+          {isBlocked ? <><Ban className="w-6 h-6" /> Blocked</> : <><MessageSquare className="w-6 h-6 fill-white" />Send Message</>}
         </Button>
       </div>
     </div>
@@ -225,9 +283,14 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
 
 function DetailItem({ icon: Icon, label, value, color }: { icon: any, label: string, value: string, color: string }) {
   return (
-    <div className="flex items-center gap-5 bg-white p-5 rounded-[2.2rem] border border-gray-100">
-      <div className={cn("w-12 h-12 rounded-[1.2rem] flex items-center justify-center shrink-0", color)}><Icon className="w-6 h-6" /></div>
-      <div className="min-w-0"><p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">{label}</p><p className="text-sm font-bold text-black truncate">{value}</p></div>
+    <div className="flex items-center gap-6 bg-white p-6 rounded-[2.5rem] border border-black/[0.03] shadow-sm hover:shadow-md transition-shadow">
+      <div className={cn("w-14 h-14 rounded-[1.5rem] flex items-center justify-center shrink-0 shadow-inner", color)}>
+        <Icon className="w-7 h-7" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">{label}</p>
+        <p className="text-[15px] font-black text-black truncate tracking-tight">{value}</p>
+      </div>
     </div>
   )
 }
