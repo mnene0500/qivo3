@@ -65,7 +65,7 @@ export default function HomePage() {
   useEffect(() => {
     // Restore scroll position when returning to this tab
     if (!initialLoading) {
-      setTimeout(() => window.scrollTo(0, globalScrollY), 50);
+      setTimeout(() => window.scrollTo({ top: globalScrollY, behavior: 'instant' }), 50);
     }
     const handleScroll = () => { globalScrollY = window.scrollY }
     window.addEventListener('scroll', handleScroll)
@@ -122,9 +122,9 @@ export default function HomePage() {
   return (
     <div className="flex-1 pb-24 bg-[#F9FAFB] min-h-screen relative select-none">
       {/* BRANDING HEADER - THE STAMP */}
-      <header className="sticky top-0 z-50 bg-white border-b shadow-sm h-20 flex items-center justify-between px-6 overflow-hidden">
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b shadow-sm h-24 flex items-center justify-between px-6 overflow-hidden">
         <div className="relative">
-          <h1 className="text-5xl font-logo font-black text-[#00A2FF]/40 tracking-tighter transform -rotate-12 origin-left -translate-y-1">
+          <h1 className="text-6xl font-logo font-black text-[#00A2FF]/30 tracking-tighter transform -rotate-12 origin-left -translate-y-2 pointer-events-none">
             QIVO
           </h1>
         </div>
@@ -134,7 +134,7 @@ export default function HomePage() {
             disabled={isRefreshing}
             className={cn("p-2 text-[#00A2FF] transition-transform active:scale-90", isRefreshing && "animate-spin")}
           >
-            <RotateCw className="w-5 h-5" />
+            <RotateCw className="w-6 h-6" />
           </button>
         </div>
       </header>

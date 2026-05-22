@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 /**
  * @fileOverview Secure Supabase Server Actions for QIVO.
  * Uses internal session verification (auth.getUser()) to prevent UID spoofing.
+ * Hardened for RLS compatibility and authenticated economy tasks.
  */
 
 async function getAuthenticatedUser() {
@@ -83,7 +84,7 @@ export async function sendGiftAction(recipientUid: string, coinAmount: number, g
       timestamp
     });
 
-    // 2. Award to Recipient (Atomic via Server Context)
+    // 2. Award to Recipient
     const { data: recBal } = await supabase.from('balances').select('diamonds').eq('user_id', recipientUid).maybeSingle();
     await supabase.from('balances').upsert({ 
       user_id: recipientUid, 
@@ -187,4 +188,26 @@ export async function joinAgencyAction(agencyCode: string) {
   } catch (error: any) { 
     return { success: false, error: error.message }; 
   }
+}
+
+export async function reviewRecruitmentAction(agentUid: string, applicantUid: string, status: 'approved' | 'rejected') {
+  try {
+    const user = await getAuthenticatedUser();
+    if (user.id !== agentUid) return { success: false, error: "Unauthorized agent." };
+
+    const { error } = await supabase.from('users').update({ agency_status: status }).eq('uid', applicantUid);
+    if (error) throw error;
+    return { success: true };
+  } catch (error: any) { return { success: false, error: error.message }; }
+}
+
+export async function updateWithdrawalStatusAction(agentUid: string, agencyId: string, requestId: string, status: 'paid' | 'rejected') {
+  try {
+    const user = await getAuthenticatedUser();
+    if (user.id !== agentUid) return { success: false, error: "Unauthorized agent." };
+
+    const { error } = await supabase.from('withdrawals').update({ status }).eq('id', requestId).eq('agency_id', agencyId);
+    if (error) throw error;
+    return { success: true };
+  } catch (error: any) { return { success: false, error: error.message }; }
 }
