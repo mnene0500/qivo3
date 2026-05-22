@@ -1,12 +1,12 @@
 
-# QIVO Supabase SQL Setup (Corrected)
+# QIVO Supabase SQL Setup (Finalized)
 
 To enable the economy, gifting, reporting, and realtime systems, copy and run the following script in your **Supabase SQL Editor**. 
 
 **IMPORTANT**: This script resets your tables to fix type mismatches (UUID vs TEXT) and explicitly grants permissions to resolve "Permission Denied" errors.
 
 ```sql
--- 1. RESET TABLES
+-- 1. RESET TABLES (Fixes type mismatches and clears stale permissions)
 DROP TABLE IF EXISTS public.users, public.balances, public.coin_history, public.diamond_history, public.processed_payments, public.chats, public.messages, public.agencies, public.withdrawals, public.reports CASCADE;
 
 -- 2. EXTEND USERS TABLE (Strict UUID)
