@@ -1,15 +1,16 @@
 
-# QIVO Supabase SQL Setup
+# QIVO Supabase SQL Setup (Corrected)
 
 To enable the economy, gifting, reporting, and realtime systems, copy and run the following script in your **Supabase SQL Editor**. 
 
-**IMPORTANT**: If you get a "type mismatch" error, it means your old tables have different column types. In that case, run `DROP TABLE IF EXISTS public.users, public.balances, public.reports CASCADE;` first (WARNING: this deletes existing data).
-
-## 1. Core Tables & Realtime Schema
+**IMPORTANT**: This script uses `UUID` for all primary and foreign keys to ensure compatibility with Supabase Auth. It will reset your tables to fix type mismatches.
 
 ```sql
--- 1. EXTEND USERS TABLE (Ensure UID is UUID)
-CREATE TABLE IF NOT EXISTS public.users (
+-- 1. RESET TABLES (Ensures clean slate for UUID types)
+DROP TABLE IF EXISTS public.users, public.balances, public.coin_history, public.diamond_history, public.processed_payments, public.chats, public.messages, public.agencies, public.withdrawals, public.reports CASCADE;
+
+-- 2. EXTEND USERS TABLE (Strict UUID)
+CREATE TABLE public.users (
   uid UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT UNIQUE,
   name TEXT,
@@ -37,16 +38,16 @@ CREATE TABLE IF NOT EXISTS public.users (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. WALLET BALANCES
-CREATE TABLE IF NOT EXISTS public.balances (
+-- 3. WALLET BALANCES
+CREATE TABLE public.balances (
   user_id UUID PRIMARY KEY REFERENCES public.users(uid) ON DELETE CASCADE,
   coins BIGINT DEFAULT 0,
   diamonds NUMERIC DEFAULT 0,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. COIN LEDGER
-CREATE TABLE IF NOT EXISTS public.coin_history (
+-- 4. COIN LEDGER
+CREATE TABLE public.coin_history (
   id BIGSERIAL PRIMARY KEY,
   user_id UUID REFERENCES public.users(uid) ON DELETE CASCADE,
   amount BIGINT,
@@ -55,8 +56,8 @@ CREATE TABLE IF NOT EXISTS public.coin_history (
   timestamp BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)
 );
 
--- 4. DIAMOND LEDGER
-CREATE TABLE IF NOT EXISTS public.diamond_history (
+-- 5. DIAMOND LEDGER
+CREATE TABLE public.diamond_history (
   id BIGSERIAL PRIMARY KEY,
   user_id UUID REFERENCES public.users(uid) ON DELETE CASCADE,
   amount NUMERIC,
@@ -65,8 +66,8 @@ CREATE TABLE IF NOT EXISTS public.diamond_history (
   timestamp BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)
 );
 
--- 5. PAYMENT TRACKING
-CREATE TABLE IF NOT EXISTS public.processed_payments (
+-- 6. PAYMENT TRACKING
+CREATE TABLE public.processed_payments (
   order_tracking_id TEXT PRIMARY KEY,
   user_id UUID REFERENCES public.users(uid) ON DELETE CASCADE,
   amount NUMERIC,
@@ -75,8 +76,8 @@ CREATE TABLE IF NOT EXISTS public.processed_payments (
   timestamp BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)
 );
 
--- 6. CHATS & MESSAGING
-CREATE TABLE IF NOT EXISTS public.chats (
+-- 7. CHATS & MESSAGING
+CREATE TABLE public.chats (
   id TEXT PRIMARY KEY,
   participant_ids UUID[] NOT NULL,
   last_message TEXT,
@@ -85,7 +86,7 @@ CREATE TABLE IF NOT EXISTS public.chats (
   last_seen_at JSONB DEFAULT '{}'::jsonb
 );
 
-CREATE TABLE IF NOT EXISTS public.messages (
+CREATE TABLE public.messages (
   id BIGSERIAL PRIMARY KEY,
   chat_id TEXT REFERENCES public.chats(id) ON DELETE CASCADE,
   sender_id UUID REFERENCES public.users(uid) ON DELETE CASCADE,
@@ -94,15 +95,15 @@ CREATE TABLE IF NOT EXISTS public.messages (
   is_gift BOOLEAN DEFAULT FALSE
 );
 
--- 7. AGENCY SYSTEM
-CREATE TABLE IF NOT EXISTS public.agencies (
+-- 8. AGENCY SYSTEM
+CREATE TABLE public.agencies (
   code TEXT PRIMARY KEY,
   agent_uid UUID REFERENCES public.users(uid) ON DELETE CASCADE,
   name TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS public.withdrawals (
+CREATE TABLE public.withdrawals (
   id BIGSERIAL PRIMARY KEY,
   user_id UUID REFERENCES public.users(uid) ON DELETE CASCADE,
   agency_id TEXT REFERENCES public.agencies(code) ON DELETE CASCADE,
@@ -112,8 +113,8 @@ CREATE TABLE IF NOT EXISTS public.withdrawals (
   timestamp BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)
 );
 
--- 8. REPORTING SYSTEM
-CREATE TABLE IF NOT EXISTS public.reports (
+-- 9. REPORTING SYSTEM
+CREATE TABLE public.reports (
   id BIGSERIAL PRIMARY KEY,
   reporter_id UUID REFERENCES public.users(uid) ON DELETE CASCADE,
   reported_id UUID REFERENCES public.users(uid) ON DELETE CASCADE,
@@ -124,7 +125,7 @@ CREATE TABLE IF NOT EXISTS public.reports (
   timestamp BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)
 );
 
--- 9. ENABLE REALTIME REPLICATION
+-- 10. ENABLE REALTIME REPLICATION
 ALTER PUBLICATION supabase_realtime ADD TABLE public.balances;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.coin_history;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.diamond_history;
@@ -134,7 +135,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.users;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.withdrawals;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.reports;
 
--- 10. PERMISSIONS (For Prototype Ease)
+-- 11. PERMISSIONS (Disabled for Prototype Speed)
 ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.balances DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.coin_history DISABLE ROW LEVEL SECURITY;
@@ -146,8 +147,3 @@ ALTER TABLE public.agencies DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.withdrawals DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reports DISABLE ROW LEVEL SECURITY;
 ```
-
-## Next Steps
-1. Execute the SQL above.
-2. Go to **Database -> Replication** and confirm `supabase_realtime` has these tables enabled.
-3. Your app is now ready for production-level live interactions.
