@@ -6,10 +6,18 @@ import { supabase } from "@/lib/supabase"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Send, ChevronLeft, Loader2, User, Lock, ShieldAlert, Gem } from "lucide-react"
+import { Send, ChevronLeft, Loader2, User, Lock, Gem, Gift } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/firebase/auth/use-user"
 import { format } from "date-fns"
+import { sendGiftAction } from "@/app/actions/matchflow-actions"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -34,6 +42,14 @@ interface ChatSummary {
   last_seen_at?: Record<string, number>
 }
 
+const GIFTS = [
+  { name: "Rose", icon: "🌹", price: 10 },
+  { name: "Coffee", icon: "☕", price: 50 },
+  { name: "Heart", icon: "❤️", price: 100 },
+  { name: "Diamond", icon: "💎", price: 500 },
+  { name: "Luxury Car", icon: "🏎️", price: 1000 },
+]
+
 function ChatsContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -49,6 +65,8 @@ function ChatsContent() {
   const [partnerProfile, setPartnerProfile] = useState<any>(null)
   const [userProfile, setUserProfile] = useState<any>(null)
   const [activeChatClearedAt, setActiveChatClearedAt] = useState<number>(0)
+  const [isGifting, setIsGifting] = useState(false)
+  const [giftDialogOpen, setGiftDialogOpen] = useState(false)
 
   useEffect(() => {
     if (isInitialized && !authLoading && !currentUser) {
@@ -151,6 +169,24 @@ function ChatsContent() {
     }
   }
 
+  const handleSendGift = async (gift: typeof GIFTS[0]) => {
+    if (!currentUser || !startWithId || !partnerProfile) return
+    setIsGifting(true)
+    try {
+      const res = await sendGiftAction(currentUser.id, startWithId, gift.price, gift.name)
+      if (res.success) {
+        toast({ title: "Gift Sent!", description: `You sent a ${gift.name}.` })
+        setGiftDialogOpen(false)
+      } else {
+        toast({ variant: "destructive", title: "Error", description: res.error })
+      }
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Failed to send gift" })
+    } finally {
+      setIsGifting(false)
+    }
+  }
+
   const isBlocked = userProfile && partnerProfile && (
     (userProfile.blocking || []).includes(partnerProfile.uid) || 
     (userProfile.blocked_by || []).includes(partnerProfile.uid)
@@ -172,7 +208,7 @@ function ChatsContent() {
         ) : chatSummaries.map(s => (
           <div key={s.id} onClick={() => router.push(`/chats?startWith=${s.partner_id}`)} className="p-5 border-b flex items-center gap-4 active:bg-gray-50 cursor-pointer">
             <div className="relative">
-              <Avatar className="w-14 h-14 border"><AvatarImage src={s.partner_photo} className="object-cover" /><AvatarFallback>{s.partner_name[0]}</AvatarFallback></Avatar>
+              <Avatar className="w-14 h-14 border"><AvatarImage src={`${s.partner_photo}?t=${Date.now()}`} className="object-cover" /><AvatarFallback>{s.partner_name[0]}</AvatarFallback></Avatar>
               {s.unread_count > 0 && <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">NEW</div>}
             </div>
             <div className="flex-1 min-w-0">
@@ -193,7 +229,7 @@ function ChatsContent() {
       <header className="h-16 border-b flex items-center px-4 gap-4 bg-white z-50">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full"><ChevronLeft className="w-6 h-6 text-black" /></Button>
         <div className="flex items-center gap-3 flex-1">
-          <Avatar className="w-10 h-10 border"><AvatarImage src={partnerProfile?.photo_url} className="object-cover" /><AvatarFallback>{partnerProfile?.name?.[0]}</AvatarFallback></Avatar>
+          <Avatar className="w-10 h-10 border"><AvatarImage src={`${partnerProfile?.photo_url}?t=${Date.now()}`} className="object-cover" /><AvatarFallback>{partnerProfile?.name?.[0]}</AvatarFallback></Avatar>
           <div><p className="font-black text-sm leading-none">{partnerProfile?.name || '...'}</p><p className="text-[9px] font-bold text-green-500 uppercase tracking-widest mt-1">{isBlocked ? "Unavailable" : "Available"}</p></div>
         </div>
       </header>
@@ -219,6 +255,37 @@ function ChatsContent() {
           </div>
         ) : (
           <div className="flex gap-2">
+            <Dialog open={giftDialogOpen} onOpenChange={setGiftDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="icon" variant="ghost" className="rounded-full h-12 w-12 text-pink-500 hover:bg-pink-50">
+                  <Gift className="w-6 h-6" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="rounded-[2.5rem] p-8 max-w-[90vw]">
+                <DialogHeader className="items-center text-center">
+                  <DialogTitle className="text-xl font-bold uppercase tracking-widest">Send a Gift</DialogTitle>
+                </DialogHeader>
+                <div className="grid grid-cols-2 gap-4 py-6">
+                  {GIFTS.map((gift) => (
+                    <button
+                      key={gift.name}
+                      onClick={() => handleSendGift(gift)}
+                      disabled={isGifting}
+                      className="flex flex-col items-center gap-2 p-4 bg-gray-50 rounded-[2rem] border border-gray-100 active:scale-95 transition-all hover:bg-pink-50 hover:border-pink-200"
+                    >
+                      <span className="text-4xl">{gift.icon}</span>
+                      <div className="text-center">
+                        <p className="text-[10px] font-black uppercase text-black">{gift.name}</p>
+                        <p className="text-[9px] font-bold text-[#00A2FF] flex items-center justify-center gap-1">
+                          <Gem className="w-2.5 h-2.5" /> {gift.price}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
+
             <input value={newMessage} onChange={e => setNewMessage(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendMessage()} className="flex-1 h-12 bg-gray-50 rounded-2xl px-5 text-sm font-bold outline-none border border-transparent focus:border-[#00A2FF]/20 transition-all" placeholder="Type something..." />
             <Button onClick={handleSendMessage} size="icon" className="rounded-full h-12 w-12 bg-[#00A2FF] shadow-lg shadow-blue-100"><Send className="w-5 h-5" /></Button>
           </div>
