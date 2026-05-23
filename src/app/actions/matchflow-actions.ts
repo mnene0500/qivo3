@@ -59,6 +59,69 @@ export async function dailyCheckInAction(uid: string) {
   }
 }
 
+export async function convertDiamondsToCoinsAction(user_id: string, diamonds: number, coins: number) {
+  try {
+    const ts = Date.now();
+
+    // 1. Deduct Diamonds
+    const { error: deductErr } = await supabase.rpc("increment_diamonds", { user_id, amount: -diamonds });
+    if (deductErr) throw new Error("Insufficient diamonds for conversion.");
+
+    // 2. Award Coins
+    const { error: awardErr } = await supabase.rpc("increment_coins", { user_id, amount: coins });
+    if (awardErr) throw new Error("Failed to credit coins.");
+
+    // 3. Log History
+    await Promise.all([
+      supabase.from('diamond_history').insert({
+        user_id,
+        amount: -diamonds,
+        type: 'conversion',
+        description: `Exchanged for ${coins} coins`,
+        timestamp: ts
+      }),
+      supabase.from('coin_history').insert({
+        user_id,
+        amount: coins,
+        type: 'conversion',
+        description: `Exchanged from ${diamonds} diamonds`,
+        timestamp: ts
+      })
+    ]);
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function sendMysteryNoteAction(user_id: string, message: string, recipientCount: number) {
+  try {
+    const cost = recipientCount * 10;
+    const ts = Date.now();
+
+    // 1. Deduct Coins
+    const { error: deductErr } = await supabase.rpc("increment_coins", { user_id, amount: -cost });
+    if (deductErr) throw new Error("Insufficient coins to blast note.");
+
+    // 2. Log History
+    await supabase.from('coin_history').insert({
+      user_id,
+      amount: -cost,
+      type: 'mystery_note',
+      description: `Mystery Note to ${recipientCount} people`,
+      timestamp: ts
+    });
+
+    // 3. Optional: Logic to send messages to random users could go here.
+    // For prototype, we simulate the blast.
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
 export async function sendGiftAction(senderUid: string, recipientUid: string, coinAmount: number, giftName: string) {
   try {
     const ts = Date.now();
