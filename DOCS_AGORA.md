@@ -1,5 +1,5 @@
 
-# Agora Production Secrets (Vercel Edition)
+# Agora Production Secrets (Vercel Native)
 
 Add these variables to your **Vercel Dashboard > Settings > Environment Variables** to enable secure calling.
 

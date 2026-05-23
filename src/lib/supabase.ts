@@ -2,14 +2,19 @@
 import { createClient } from '@supabase/supabase-js';
 
 /**
- * @fileOverview Central Supabase Client.
- * Note: Browser-side access to process.env requires NEXT_PUBLIC_.
- * For maximum security, we use standard env vars and access them via Server Actions.
+ * @fileOverview Hardened Supabase Client.
+ * 
+ * To prevent the "supabaseUrl is required" crash, we prioritize server-side 
+ * variables and use placeholders for the browser if keys are missing.
+ * 
+ * IMPORTANT: For Auth and Real-time chat, NEXT_PUBLIC_SUPABASE_URL is REQUIRED 
+ * in the Vercel Dashboard.
  */
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'placeholder-key';
+const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder';
 
+// Create the client with a safety check
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**

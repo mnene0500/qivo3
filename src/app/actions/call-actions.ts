@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 /**
  * @fileOverview Agora Token Generation and Calling Economy.
  * Replaces ZegoCloud logic with secure Agora S2S Tokenization.
+ * All secrets remain strictly on Vercel's server.
  */
 
 export async function generateAgoraTokenAction(channelName: string, uid: string) {
@@ -18,10 +19,10 @@ export async function generateAgoraTokenAction(channelName: string, uid: string)
 
   // In a real production environment, you would use 'agora-token' npm package here.
   // For the prototype, we return the App ID and a simulated token placeholder.
-  // Note: Ensure your Agora project is in 'Testing Mode' (No Token) or implement the generator.
+  // Switch your Agora project to 'Testing Mode' to bypass certificate check until package is added.
   return {
     appId,
-    token: "PROTOTYPE_TOKEN_EXPECTED", // Switch project to testing mode to bypass certificate check
+    token: "PROTOTYPE_TOKEN_EXPECTED", 
     channelName,
     uid
   };

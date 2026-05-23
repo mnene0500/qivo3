@@ -10,8 +10,8 @@ import { supabase } from '@/lib/supabase';
 
 export async function dailyCheckInAction(uid: string) {
   try {
-    const { data: user } = await supabase.from('users').select('*').eq('uid', uid).single();
-    if (!user) throw new Error("Profile not found.");
+    const { data: user, error: userErr } = await supabase.from('users').select('*').eq('uid', uid).maybeSingle();
+    if (userErr || !user) throw new Error("Profile not found.");
 
     const now = new Date();
     const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
@@ -27,7 +27,6 @@ export async function dailyCheckInAction(uid: string) {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       
-      // If last check in was yesterday, increment streak
       if (last.toISOString().split('T')[0] === yesterday.toISOString().split('T')[0]) {
         streak = (user.check_in_streak || 0) + 1;
       }
@@ -58,7 +57,8 @@ export async function dailyCheckInAction(uid: string) {
 
     return { success: true, amount, day: streak };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    console.error("[Daily Check-in Action Error]:", err.message);
+    return { success: false, error: "Network sync failed. Please try again." };
   }
 }
 
@@ -111,7 +111,6 @@ export async function sendMysteryNoteAction(senderUid: string, message: string, 
   try {
     const cost = Number(recipientCount) * 10;
     
-    // Strict Numeric Check
     const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', senderUid).single();
     if ((Number(bal?.coins) || 0) < cost) {
        throw new Error("Insufficient coins.");
