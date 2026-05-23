@@ -1,11 +1,11 @@
+
 'use server';
 /**
- * @fileOverview Biometric Verification via Supabase Edge Functions.
- * Since GenAI keys are now stored in Supabase, we delegate the analysis 
- * to an AI Edge Function to maintain security.
+ * @fileOverview Biometric Verification via Native Gemini AI.
+ * Now runs directly on Vercel using the GOOGLE_GENAI_API_KEY.
  */
 
-import { supabase } from '@/lib/supabase';
+import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
 const VerifyIdentityInputSchema = z.object({
@@ -27,26 +27,24 @@ export type VerifyIdentityOutput = z.infer<typeof VerifyIdentityOutputSchema>;
 
 export async function verifyIdentity(input: VerifyIdentityInput): Promise<VerifyIdentityOutput> {
   try {
-    const { data, error } = await supabase.functions.invoke('ai-ops', {
-      body: { 
-        action: 'verify-identity',
-        profilePhotoUrl: input.profilePhotoUrl,
-        selfieDataUri: input.selfieDataUri
-      }
-    });
-
-    if (error || !data) {
-      console.error("AI Edge Function Error:", error);
-      throw new Error("Identity verification service timed out.");
-    }
-
-    return {
-      isMatch: data.isMatch || false,
-      confidence: data.confidence || 0,
-      reasoning: data.reasoning || "Verification completed via edge function."
-    };
+    const { output } = await verificationPrompt(input);
+    return output!;
   } catch (err: any) {
-    console.error("VerifyIdentity Flow Proxy Error:", err.message);
-    throw err;
+    console.error("Native VerifyIdentity Flow Error:", err.message);
+    throw new Error("Identity verification failed. Ensure your keys are set in Vercel.");
   }
 }
+
+const verificationPrompt = ai.definePrompt({
+  name: 'verifyIdentityPrompt',
+  input: { schema: VerifyIdentityInputSchema },
+  output: { schema: VerifyIdentityOutputSchema },
+  prompt: `You are a professional biometric security analyst.
+Compare these two images:
+1. Profile Photo: {{media url=profilePhotoUrl}}
+2. Live Selfie: {{media url=selfieDataUri}}
+
+Determine if they are the same person.
+Set isMatch to true only if you are confident (score > 0.7).
+Provide a brief reasoning for your decision.`,
+});

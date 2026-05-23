@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 /**
  * @fileOverview Central Supabase Client for the browser and server.
- * Standardized to use the 'photos' bucket with timestamped paths for unique URLs.
+ * Uses NEXT_PUBLIC variables for the client-side SDK.
  */
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
