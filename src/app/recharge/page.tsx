@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { initiatePesaPalPayment } from "@/app/actions/payment-actions"
 
+// FORCE RE-FETCH
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
@@ -41,10 +42,11 @@ function RechargeContent() {
     }
     fetchBalance()
 
-    const channel = supabase.channel(`recharge-live-sync:${user.id}`)
+    // Global listener for background updates
+    const channel = supabase.channel(`recharge-sync:${user.id}`)
       .on('postgres_changes', { event: 'UPDATE', table: 'balances', filter: `user_id=eq.${user.id}` }, (payload) => {
         setCurrentCoins(Number(payload.new.coins) || 0)
-        toast({ title: "Wallet Updated!" })
+        toast({ title: "Balance Updated!" })
       })
       .subscribe()
 
@@ -68,7 +70,7 @@ function RechargeContent() {
         setLoading(false)
       }
     } catch (err) {
-      toast({ variant: "destructive", title: "Connection Failure" })
+      toast({ variant: "destructive", title: "Gateway Failure" })
       setLoading(false)
     }
   }
@@ -87,13 +89,13 @@ function RechargeContent() {
           <div className="bg-gradient-to-br from-[#00A2FF] to-[#0066CC] rounded-[2.5rem] p-8 shadow-2xl text-white relative overflow-hidden">
             <Zap className="absolute -right-4 -bottom-4 w-32 h-32 opacity-10 rotate-12" />
             <div className="relative z-10">
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-70">Balance</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-70">Wallet Balance</p>
               <div className="flex items-center gap-4 mt-1"><span className="text-6xl font-black tracking-tighter">{currentCoins ?? "..."}</span><span className="text-xs font-bold opacity-60 uppercase tracking-widest">Coins</span></div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             {PACKAGES.map((p) => (
-              <div key={p.amount} onClick={() => setSelectedPackage(p.amount)} className={cn("relative rounded-[2rem] h-32 flex flex-col items-center justify-center p-4 transition-all active:scale-95 cursor-pointer border-2", selectedPackage === p.amount ? "bg-white border-[#00A2FF] shadow-xl" : "bg-white border-transparent shadow-sm")}>
+              <div key={p.amount} onClick={() => setSelectedPackage(p.amount)} className={cn("relative rounded-[2rem] h-32 flex flex-col items-center justify-center p-4 transition-all active:scale-95 cursor-pointer border-2", selectedPackage === p.amount ? "bg-white border-[#00A2FF] shadow-xl scale-105" : "bg-white border-transparent shadow-sm")}>
                 <span className="text-2xl font-black text-black tracking-tighter">{p.amount}</span>
                 <div className="bg-gray-50 px-3 py-1 rounded-full border border-gray-100 mt-2"><span className="text-[10px] font-black text-[#00A2FF]">KES {p.price}</span></div>
                 {selectedPackage === p.amount && <div className="absolute -top-2 -right-2 bg-[#00A2FF] rounded-full p-1 shadow-lg"><CheckCircle2 className="w-4 h-4 text-white" /></div>}
@@ -103,8 +105,8 @@ function RechargeContent() {
         </div>
       </main>
       <footer className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-xl p-6 border-t z-50">
-        <Button disabled={loading || !selectedPackage} className="w-full h-16 rounded-full bg-[#00A2FF] text-white font-black uppercase tracking-[0.2em] text-sm shadow-2xl active:scale-95 transition-all" onClick={handlePayment}>
-          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : selectedPackage ? `Pay KES ${PACKAGES.find(p => p.amount === selectedPackage)?.price}` : "Select Package"}
+        <Button disabled={loading || !selectedPackage} className="w-full h-16 rounded-full bg-[#00A2FF] text-white font-black uppercase tracking-[0.2em] text-sm shadow-xl active:scale-95 transition-all" onClick={handlePayment}>
+          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : selectedPackage ? `Pay KES ${PACKAGES.find(p => p.amount === selectedPackage)?.price}` : "Choose Package"}
         </Button>
       </footer>
     </div>

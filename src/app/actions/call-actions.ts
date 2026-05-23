@@ -4,8 +4,8 @@
 import { supabase } from '@/lib/supabase';
 
 /**
- * @fileOverview Native Calling Logic on Vercel.
- * Handles server-side billing for video and voice calls.
+ * @fileOverview Native Calling Economy Logic on Vercel.
+ * Handles secure per-minute billing for voice and video calls.
  */
 
 export async function checkCallBalanceAction(uid: string, type: 'video' | 'voice') {
@@ -16,13 +16,13 @@ export async function checkCallBalanceAction(uid: string, type: 'video' | 'voice
     const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', uid).single();
     const cost = type === 'video' ? 150 : 70;
 
-    if ((bal?.coins || 0) < cost) {
-      return { success: false, error: "Insufficient coins for next minute." };
+    if ((Number(bal?.coins) || 0) < cost) {
+      return { success: false, error: "Insufficient coins for call." };
     }
 
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: "Balance service unavailable." };
+    return { success: false, error: "Balance check failed." };
   }
 }
 
@@ -34,7 +34,7 @@ export async function deductCallCoinsAction(uid: string, type: 'video' | 'voice'
     const cost = type === 'video' ? 150 : 70;
     const ts = Date.now();
 
-    // 1. Deduct Caller
+    // 1. Deduct Caller (Atomic)
     const { error: deductError } = await supabase.rpc("increment_coins", { user_id: uid, amount: -cost });
     if (deductError) throw deductError;
 
@@ -65,7 +65,7 @@ export async function deductCallCoinsAction(uid: string, type: 'video' | 'voice'
 
     return { success: true };
   } catch (error: any) {
-    console.error("[Call Billing Crash]:", error.message);
+    console.error("[Call Billing Error]:", error.message);
     return { success: false, error: error.message };
   }
 }

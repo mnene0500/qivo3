@@ -1,8 +1,10 @@
 
-# QIVO Production SQL (Run in SQL Editor)
+# QIVO Production SQL (Native Vercel Economy)
+
+Run these in your **Supabase SQL Editor** to initialize the mandatory tables and atomic helpers.
 
 ```sql
--- 1. SETUP ATOMIC HELPERS
+-- 1. SETUP ATOMIC HELPERS (Hardened)
 CREATE OR REPLACE FUNCTION public.increment_diamonds(user_id UUID, amount NUMERIC)
 RETURNS VOID AS $$
 BEGIN
@@ -23,7 +25,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 2. CREATE CORE TABLES
+-- 2. CREATE MANDATORY TABLES
 CREATE TABLE IF NOT EXISTS public.pending_payments (
   order_id UUID PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -40,5 +42,20 @@ CREATE TABLE IF NOT EXISTS public.processed_payments (
   timestamp BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)
 );
 
--- (Ensure coin_history and balances tables also exist as per standard QIVO docs)
+-- 3. ENABLE REALTIME SAFELY (Idempotent)
+DO $$ 
+BEGIN 
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'balances') THEN 
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.balances; 
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'coin_history') THEN 
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.coin_history; 
+  END IF;
+END $$;
+
+-- 4. HARDENED RLS POLICIES (Explicit UPSERT permission)
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage own profile" ON public.users;
+CREATE POLICY "Users can manage own profile" ON public.users 
+FOR ALL USING (auth.uid() = uid) WITH CHECK (auth.uid() = uid);
 ```

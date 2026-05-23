@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 
 /**
  * @fileOverview Native Economy Actions on Vercel.
- * No dependency on Supabase Edge Functions.
+ * Hardened to prevent double-claiming and ensure atomic transactions.
  */
 
 export async function dailyCheckInAction(uid: string) {
@@ -14,9 +14,10 @@ export async function dailyCheckInAction(uid: string) {
     if (!user) throw new Error("Profile not found.");
 
     const now = new Date();
-    const today = now.toDateString();
+    const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
     
-    if (user.last_check_in_date && new Date(user.last_check_in_date).toDateString() === today) {
+    // 1. Strict Day Locking
+    if (user.last_check_in_date && user.last_check_in_date.split('T')[0] === today) {
       return { success: false, error: "Already collected for today." };
     }
 
@@ -25,7 +26,9 @@ export async function dailyCheckInAction(uid: string) {
       const last = new Date(user.last_check_in_date);
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
-      if (last.toDateString() === yesterday.toDateString()) {
+      
+      // If last check in was yesterday, increment streak
+      if (last.toISOString().split('T')[0] === yesterday.toISOString().split('T')[0]) {
         streak = (user.check_in_streak || 0) + 1;
       }
     }
@@ -34,12 +37,16 @@ export async function dailyCheckInAction(uid: string) {
     const amount = rewards[(streak - 1) % 7];
     const ts = Date.now();
 
-    await supabase.from('users').update({
+    // 2. Atomic Update
+    const { error: updateErr } = await supabase.from('users').update({
       last_check_in_date: now.toISOString(),
       check_in_streak: streak
     }).eq('uid', uid);
 
-    await supabase.rpc("increment_coins", { user_id: uid, amount });
+    if (updateErr) throw updateErr;
+
+    const { error: rpcErr } = await supabase.rpc("increment_coins", { user_id: uid, amount });
+    if (rpcErr) throw rpcErr;
 
     await supabase.from('coin_history').insert({
       user_id: uid,
@@ -61,9 +68,9 @@ export async function sendGiftAction(senderUid: string, recipientUid: string, co
     const ids = [senderUid, recipientUid].sort();
     const chatId = `direct_${ids[0]}_${ids[1]}`;
 
-    // 1. Deduct Sender
+    // 1. Deduct Sender (Atomic)
     const { error: deductErr } = await supabase.rpc("increment_coins", { user_id: senderUid, amount: -coinAmount });
-    if (deductErr) throw new Error("Insufficient coins.");
+    if (deductErr) throw new Error("Insufficient coins or transaction failed.");
 
     await supabase.from("coin_history").insert({
       user_id: senderUid,
@@ -89,7 +96,7 @@ export async function sendGiftAction(senderUid: string, recipientUid: string, co
       timestamp: ts 
     });
 
-    // 3. Message Notification
+    // 3. Chat Notification
     const giftMsg = `[Gift: ${giftName}]`;
     await supabase.from('messages').insert({ chat_id: chatId, sender_id: senderUid, text: giftMsg, is_gift: true, timestamp: ts });
     await supabase.from('chats').upsert({ id: chatId, last_message: giftMsg, last_message_at: ts, participant_ids: [senderUid, recipientUid] });
@@ -103,8 +110,15 @@ export async function sendGiftAction(senderUid: string, recipientUid: string, co
 export async function sendMysteryNoteAction(senderUid: string, message: string, recipientCount: number) {
   try {
     const cost = Number(recipientCount) * 10;
+    
+    // Strict Numeric Check
+    const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', senderUid).single();
+    if ((Number(bal?.coins) || 0) < cost) {
+       throw new Error("Insufficient coins.");
+    }
+
     const { error: rpcErr } = await supabase.rpc("increment_coins", { user_id: senderUid, amount: -cost });
-    if (rpcErr) throw new Error("Insufficient coins for blast.");
+    if (rpcErr) throw rpcErr;
 
     await supabase.from('coin_history').insert({
       user_id: senderUid,

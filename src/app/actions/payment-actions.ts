@@ -7,7 +7,7 @@ const PESA_ENV = "https://pay.pesapal.com/v3";
 
 /**
  * @fileOverview Native PesaPal Integration for Vercel.
- * Uses secure environment variables (no NEXT_PUBLIC_).
+ * Hardened against spoofing by verifying every transaction server-side.
  */
 
 async function getPesapalToken() {
@@ -36,7 +36,7 @@ export async function initiatePesaPalPayment(amount: number, user: { uid: string
     const token = await getPesapalToken();
     const orderId = crypto.randomUUID();
 
-    // 1. Record pending payment for security
+    // 1. Record pending payment for security (Anti-Manipulation)
     const { error: pendingError } = await supabase.from("pending_payments").insert({
       order_id: orderId,
       user_id: user.uid,
@@ -79,7 +79,7 @@ export async function verifyPaymentAction(orderTrackingId: string, user_id: stri
   try {
     const token = await getPesapalToken();
     
-    // 1. Check status with PesaPal
+    // 1. S2S VERIFICATION: Verify status directly with PesaPal (Anti-Phishing)
     const verifyRes = await fetch(`${PESA_ENV}/api/Transactions/GetTransactionStatus?orderTrackingId=${orderTrackingId}`, {
       method: "GET",
       headers: { "Authorization": `Bearer ${token}` },
@@ -90,7 +90,7 @@ export async function verifyPaymentAction(orderTrackingId: string, user_id: stri
       const paidAmount = Math.round(Number(statusData.amount));
       
       // Package Mapping
-      let coins = Math.floor(paidAmount * 6.25);
+      let coins = 0;
       if (paidAmount <= 1) coins = 200;
       else if (paidAmount === 80) coins = 500;
       else if (paidAmount === 120) coins = 1000;
@@ -98,23 +98,29 @@ export async function verifyPaymentAction(orderTrackingId: string, user_id: stri
       else if (paidAmount === 550) coins = 5000;
       else if (paidAmount === 1000) coins = 10000;
       else if (paidAmount === 1800) coins = 20000;
+      else coins = Math.floor(paidAmount * 6.25);
 
-      // 2. Idempotency check: Don't award twice
-      const { data: existing } = await supabase.from('processed_payments').select('order_tracking_id').eq('order_tracking_id', orderTrackingId).maybeSingle();
+      // 2. IDEMPOTENCY CHECK: Don't award twice for the same ID
+      const { data: existing } = await supabase
+        .from('processed_payments')
+        .select('order_tracking_id')
+        .eq('order_tracking_id', orderTrackingId)
+        .maybeSingle();
+      
       if (existing) return { success: true, message: "Already fulfilled", coins_added: 0 };
 
-      // 3. Atomic Balance Update
+      // 3. ATOMIC FULFILLMENT
       const { error: rpcError } = await supabase.rpc("increment_coins", { user_id, amount: coins });
       if (rpcError) throw new Error(`Balance Update Failed: ${rpcError.message}`);
 
-      // 4. Log successful fulfillment
+      // 4. Log Log processed payment
       await supabase.from('processed_payments').insert({ order_tracking_id: orderTrackingId, user_id, amount: paidAmount, coins });
       
       await supabase.from("coin_history").insert({
         user_id,
         amount: coins,
         type: "recharge",
-        description: "PesaPal Verified Recharge",
+        description: "PesaPal Recharge",
         timestamp: Date.now()
       });
 
