@@ -74,29 +74,35 @@ export async function verifyPaymentAction(orderTrackingId: string, merchantRefer
     
     const data = await res.json();
     
+    // Status Code 1 means "Completed" in PesaPal V3
     if (data.status_code === 1 || data.payment_status_description === "Completed") {
       const supabase = getSupabaseAdmin();
       
+      // 1. Prevent double processing
       const { data: existing } = await supabase.from('processed_payments').select('*').eq('order_tracking_id', orderTrackingId).maybeSingle();
-      if (existing) return { success: true, message: "Already processed." };
+      if (existing) return { success: true, coins: existing.coins, message: "Already processed." };
 
+      // 2. Find the original pending record
       const { data: pending } = await supabase.from('pending_payments').select('*').eq('order_id', merchantReference).single();
       if (!pending) throw new Error("Payment record matching this reference not found.");
 
-      // Calculate coins based on KES amount using the new pricing model
+      // 3. Calculate coins based on KES amount using your defined pricing model
       let coins = 0;
-      const amt = pending.amount;
+      const amt = Number(pending.amount);
+      
       if (amt === 1) coins = 10;
       else if (amt === 60) coins = 500;
       else if (amt === 120) coins = 1000;
       else if (amt === 180) coins = 1500;
       else if (amt === 240) coins = 2000;
       else if (amt === 600) coins = 5000;
-      else coins = Math.floor(amt * 8.33); // Fallback ratio derived from 1000/120
+      else coins = Math.floor(amt * 8.33); // Fallback ratio
 
+      // 4. Atomic Balance Update
       const { error: rpcErr } = await supabase.rpc("increment_coins", { user_id: pending.user_id, amount: coins });
       if (rpcErr) throw rpcErr;
 
+      // 5. Record Transaction History
       await Promise.all([
         supabase.from('processed_payments').insert({
           order_tracking_id: orderTrackingId,
@@ -120,6 +126,7 @@ export async function verifyPaymentAction(orderTrackingId: string, merchantRefer
     
     return { success: false, error: "Payment is still processing at PesaPal." };
   } catch (err: any) {
+    console.error("[Verification Error]:", err.message);
     return { success: false, error: err.message };
   }
 }

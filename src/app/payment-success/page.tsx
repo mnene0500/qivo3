@@ -1,7 +1,6 @@
-
 "use client"
 
-import { useEffect, useState, Suspense } from "react"
+import { useEffect, useState, Suspense, useCallback } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, Loader2, Coins, Home, RefreshCw, AlertCircle } from "lucide-react"
@@ -19,7 +18,7 @@ function PaymentSuccessContent() {
   const trackingId = searchParams.get('OrderTrackingId')
   const merchantRef = searchParams.get('OrderMerchantReference')
 
-  const verify = async () => {
+  const verify = useCallback(async () => {
     if (!trackingId || !merchantRef) {
       setStatus('error')
       return
@@ -37,11 +36,11 @@ function PaymentSuccessContent() {
     } catch (err) {
       setStatus('error')
     }
-  }
+  }, [trackingId, merchantRef, toast])
 
   useEffect(() => {
     verify()
-  }, [trackingId, merchantRef])
+  }, [verify])
 
   return (
     <div className="flex-1 bg-white min-h-screen flex flex-col items-center justify-center p-8 text-center space-y-8 animate-in fade-in duration-500">
@@ -88,14 +87,16 @@ function PaymentSuccessContent() {
           </div>
           <div className="space-y-2">
             <h2 className="text-3xl font-black text-black uppercase tracking-tighter">Update Pending</h2>
-            <p className="text-sm font-medium text-gray-400 px-8">The gateway hasn't confirmed completion yet. If money was deducted, it will reflect in 5-10 minutes.</p>
+            <p className="text-sm font-medium text-gray-400 px-8 leading-relaxed">
+              We're waiting for the gateway to confirm completion. If money was deducted, your coins will reflect in 5-10 minutes.
+            </p>
           </div>
           <div className="flex flex-col gap-4 w-full max-w-xs mx-auto">
             <Button onClick={verify} className="w-full h-16 rounded-full bg-[#00A2FF] text-white font-black uppercase tracking-widest text-sm shadow-xl">
               <div className="flex items-center gap-2"><RefreshCw className="w-5 h-5" /> Retry Sync</div>
             </Button>
             <Button variant="ghost" onClick={() => router.replace('/home')} className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-              Check Later
+              Check Wallet Later
             </Button>
           </div>
         </div>
