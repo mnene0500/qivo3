@@ -1,7 +1,7 @@
 
 'use server';
 
-import { supabase } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 /**
  * @fileOverview Native Economy Actions on Vercel.
@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
  */
 
 export async function dailyCheckInAction(uid: string) {
+  const supabase = getSupabaseAdmin();
   try {
     const { data: user, error: userErr } = await supabase.from('users').select('*').eq('uid', uid).maybeSingle();
     if (userErr || !user) throw new Error("Profile not found.");
@@ -60,6 +61,7 @@ export async function dailyCheckInAction(uid: string) {
 }
 
 export async function convertDiamondsToCoinsAction(user_id: string, diamonds: number, coins: number) {
+  const supabase = getSupabaseAdmin();
   try {
     const ts = Date.now();
 
@@ -74,14 +76,14 @@ export async function convertDiamondsToCoinsAction(user_id: string, diamonds: nu
     // 3. Log History
     await Promise.all([
       supabase.from('diamond_history').insert({
-        user_id,
+        user_id: user_id,
         amount: -diamonds,
         type: 'conversion',
         description: `Exchanged for ${coins} coins`,
         timestamp: ts
       }),
       supabase.from('coin_history').insert({
-        user_id,
+        user_id: user_id,
         amount: coins,
         type: 'conversion',
         description: `Exchanged from ${diamonds} diamonds`,
@@ -96,6 +98,7 @@ export async function convertDiamondsToCoinsAction(user_id: string, diamonds: nu
 }
 
 export async function sendMysteryNoteAction(user_id: string, message: string, recipientCount: number) {
+  const supabase = getSupabaseAdmin();
   try {
     const cost = recipientCount * 10;
     const ts = Date.now();
@@ -106,15 +109,12 @@ export async function sendMysteryNoteAction(user_id: string, message: string, re
 
     // 2. Log History
     await supabase.from('coin_history').insert({
-      user_id,
+      user_id: user_id,
       amount: -cost,
       type: 'mystery_note',
       description: `Mystery Note to ${recipientCount} people`,
       timestamp: ts
     });
-
-    // 3. Optional: Logic to send messages to random users could go here.
-    // For prototype, we simulate the blast.
 
     return { success: true };
   } catch (err: any) {
@@ -123,12 +123,12 @@ export async function sendMysteryNoteAction(user_id: string, message: string, re
 }
 
 export async function sendGiftAction(senderUid: string, recipientUid: string, coinAmount: number, giftName: string) {
+  const supabase = getSupabaseAdmin();
   try {
     const ts = Date.now();
     const ids = [senderUid, recipientUid].sort();
     const chatId = `direct_${ids[0]}_${ids[1]}`;
 
-    // 1. Deduct Sender
     const { error: deductErr } = await supabase.rpc("increment_coins", { user_id: senderUid, amount: -coinAmount });
     if (deductErr) throw new Error("Insufficient coins.");
 
@@ -140,7 +140,6 @@ export async function sendGiftAction(senderUid: string, recipientUid: string, co
       timestamp: ts
     });
 
-    // 2. Award Recipient
     const { data: rec } = await supabase.from('users').select('gender, name').eq('uid', recipientUid).single();
     const { data: sender } = await supabase.from('users').select('name').eq('uid', senderUid).single();
     
@@ -156,7 +155,6 @@ export async function sendGiftAction(senderUid: string, recipientUid: string, co
       timestamp: ts 
     });
 
-    // 3. Chat Notification
     const giftMsg = `[Gift: ${giftName}]`;
     await supabase.from('messages').insert({ chat_id: chatId, sender_id: senderUid, text: giftMsg, is_gift: true, timestamp: ts });
     await supabase.from('chats').upsert({ id: chatId, last_message: giftMsg, last_message_at: ts, participant_ids: [senderUid, recipientUid] });
@@ -168,6 +166,7 @@ export async function sendGiftAction(senderUid: string, recipientUid: string, co
 }
 
 export async function awardCoinsAction(merchantUid: string, targetMatchFlowId: string, amount: number) {
+  const supabase = getSupabaseAdmin();
   try {
     const { data: target } = await supabase.from('users').select('uid').eq('match_flow_id', targetMatchFlowId).single();
     if (!target) throw new Error("User ID not found.");
@@ -190,6 +189,7 @@ export async function awardCoinsAction(merchantUid: string, targetMatchFlowId: s
 }
 
 export async function requestWithdrawalAction(userUid: string, diamonds: number, amount_kes: number, agencyId: string) {
+  const supabase = getSupabaseAdmin();
   try {
     const ts = Date.now();
     const { error: rpcError } = await supabase.rpc("increment_diamonds", { user_id: userUid, amount: -diamonds });
@@ -212,6 +212,7 @@ export async function requestWithdrawalAction(userUid: string, diamonds: number,
 }
 
 export async function createAgencyAction(creatorUid: string, agencyName: string) {
+  const supabase = getSupabaseAdmin();
   try {
     const code = Math.floor(10000 + Math.random() * 90000).toString();
     await supabase.from('agencies').insert({ code, agent_uid: creatorUid, name: agencyName });
@@ -223,6 +224,7 @@ export async function createAgencyAction(creatorUid: string, agencyName: string)
 }
 
 export async function joinAgencyAction(userUid: string, agencyCode: string) {
+  const supabase = getSupabaseAdmin();
   try {
     await supabase.from('users').update({ agency_id: agencyCode, agency_status: 'pending' }).eq('uid', userUid);
     return { success: true };
@@ -232,6 +234,7 @@ export async function joinAgencyAction(userUid: string, agencyCode: string) {
 }
 
 export async function reviewRecruitmentAction(agentUid: string, applicantUid: string, status: 'approved' | 'rejected') {
+  const supabase = getSupabaseAdmin();
   try {
     await supabase.from('users').update({ agency_status: status }).eq('uid', applicantUid);
     return { success: true };
@@ -241,6 +244,7 @@ export async function reviewRecruitmentAction(agentUid: string, applicantUid: st
 }
 
 export async function updateWithdrawalStatusAction(agentUid: string, agencyId: string, requestId: string, status: 'paid' | 'rejected') {
+  const supabase = getSupabaseAdmin();
   try {
     await supabase.from('withdrawals').update({ status }).eq('id', requestId);
     return { success: true };
@@ -250,6 +254,7 @@ export async function updateWithdrawalStatusAction(agentUid: string, agencyId: s
 }
 
 export async function toggleUserRoleAction(callerUid: string, targetMatchFlowId: string, role: string, value: boolean) {
+  const supabase = getSupabaseAdmin();
   try {
     const { data: admin } = await supabase.from('users').select('is_admin').eq('uid', callerUid).single();
     if (!admin?.is_admin) throw new Error("Unauthorized.");
@@ -261,6 +266,7 @@ export async function toggleUserRoleAction(callerUid: string, targetMatchFlowId:
 }
 
 export async function submitReportAction(reporterUid: string, reportedUid: string, reason: string, description: string, proofUrl: string) {
+  const supabase = getSupabaseAdmin();
   try {
     await supabase.from('reports').insert({ reporter_id: reporterUid, reported_id: reportedUid, reason, description, proof_photo_url: proofUrl, timestamp: Date.now() });
     return { success: true };
@@ -270,6 +276,7 @@ export async function submitReportAction(reporterUid: string, reportedUid: strin
 }
 
 export async function resolveReportAction(adminUid: string, reportId: string, reporterUid: string) {
+  const supabase = getSupabaseAdmin();
   try {
     await supabase.from('reports').update({ status: 'resolved' }).eq('id', reportId);
     return { success: true };

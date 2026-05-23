@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, Suspense, useEffect } from "react"
@@ -37,7 +38,6 @@ function RechargeContent() {
     }
     fetchBalance()
 
-    // Global listener for background updates
     const channel = supabase.channel(`recharge-sync:${user.id}`)
       .on('postgres_changes', { event: 'UPDATE', table: 'balances', filter: `user_id=eq.${user.id}` }, (payload) => {
         setCurrentCoins(Number(payload.new.coins) || 0)
@@ -46,7 +46,7 @@ function RechargeContent() {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [user?.id])
+  }, [user?.id, toast])
 
   const handlePayment = async () => {
     const pkg = PACKAGES.find(p => p.amount === selectedPackage)

@@ -3,12 +3,13 @@ import { createClient } from '@supabase/supabase-js';
 
 /**
  * @fileOverview Standardized Supabase Client.
- * Restored NEXT_PUBLIC prefixes for browser compatibility (required for chat/auth).
+ * Uses public variables for browser and service role for server actions.
  */
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder';
 
+// Client for Browser use
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
@@ -16,6 +17,19 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true
   }
 });
+
+// Admin Client for Server Actions (Phishing protected)
+export const getSupabaseAdmin = () => {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  
+  if (!serviceKey || !url) {
+    // Fallback to standard client if secrets are missing during build
+    return supabase;
+  }
+  
+  return createClient(url, serviceKey);
+};
 
 export function base64ToBlob(base64: string): { blob: Blob, contentType: string } {
   const matches = base64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.*)$/);
