@@ -83,11 +83,16 @@ export async function verifyPaymentAction(orderTrackingId: string, merchantRefer
       const { data: pending } = await supabase.from('pending_payments').select('*').eq('order_id', merchantReference).single();
       if (!pending) throw new Error("Payment record matching this reference not found.");
 
+      // Calculate coins based on KES amount using the new pricing model
       let coins = 0;
-      if (pending.amount === 1) coins = 10;
-      else if (pending.amount === 50) coins = 500;
-      else if (pending.amount === 200) coins = 2000;
-      else coins = Math.floor(pending.amount * 10);
+      const amt = pending.amount;
+      if (amt === 1) coins = 10;
+      else if (amt === 60) coins = 500;
+      else if (amt === 120) coins = 1000;
+      else if (amt === 180) coins = 1500;
+      else if (amt === 240) coins = 2000;
+      else if (amt === 600) coins = 5000;
+      else coins = Math.floor(amt * 8.33); // Fallback ratio derived from 1000/120
 
       const { error: rpcErr } = await supabase.rpc("increment_coins", { user_id: pending.user_id, amount: coins });
       if (rpcErr) throw rpcErr;

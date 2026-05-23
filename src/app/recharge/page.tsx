@@ -11,14 +11,11 @@ import { cn } from "@/lib/utils"
 
 const PACKAGES = [
   { id: "p1", label: "10", coins: 10, price: 1 },
-  { id: "p2", label: "100", coins: 100, price: 10 },
-  { id: "p3", label: "500", coins: 500, price: 50, popular: true },
-  { id: "p4", label: "1K", coins: 1000, price: 100 },
-  { id: "p5", label: "2K", coins: 2000, price: 200 },
-  { id: "p6", label: "5K", coins: 5000, price: 500 },
-  { id: "p7", label: "10K", coins: 10000, price: 1000 },
-  { id: "p8", label: "20K", coins: 20000, price: 2000 },
-  { id: "p9", label: "50K", coins: 50000, price: 5000 },
+  { id: "p2", label: "500", coins: 500, price: 60 },
+  { id: "p3", label: "1K", coins: 1000, price: 120, popular: true },
+  { id: "p4", label: "1.5K", coins: 1500, price: 180 },
+  { id: "p5", label: "2K", coins: 2000, price: 240 },
+  { id: "p6", label: "5K", coins: 5000, price: 600 },
 ]
 
 export default function RechargePage() {

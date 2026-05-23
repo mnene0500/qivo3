@@ -2,7 +2,7 @@
 # QIVO Production SQL (Run in SQL Editor)
 
 ```sql
--- 1. SETUP ATOMIC HELPERS (Hardened for Production)
+-- 1. SETUP ATOMIC HELPERS (Hardened for Realtime Economy)
 CREATE OR REPLACE FUNCTION public.increment_diamonds(user_id UUID, amount NUMERIC)
 RETURNS VOID AS $$
 BEGIN
@@ -23,7 +23,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 2. CREATE CORE TABLES (Idempotent)
+-- 2. CREATE CORE TABLES
 CREATE TABLE IF NOT EXISTS public.users (
   uid UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT UNIQUE,
@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS public.processed_payments (
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   amount NUMERIC,
   coins BIGINT,
+  payment_method TEXT,
   timestamp BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)
 );
 
@@ -139,7 +140,12 @@ CREATE TABLE IF NOT EXISTS public.reports (
   timestamp BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)
 );
 
--- 3. ENABLE REALTIME SAFELY
+-- 3. ENABLE REALTIME SAFELY (FULL PAYLOAD)
+ALTER TABLE public.balances REPLICA IDENTITY FULL;
+ALTER TABLE public.users REPLICA IDENTITY FULL;
+ALTER TABLE public.coin_history REPLICA IDENTITY FULL;
+ALTER TABLE public.diamond_history REPLICA IDENTITY FULL;
+
 DO $$ 
 BEGIN 
   IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
@@ -147,7 +153,6 @@ BEGIN
   END IF;
 END $$;
 
--- 'SET TABLE' replaces the list, avoiding Error 42710
 ALTER PUBLICATION supabase_realtime SET TABLE 
   public.balances, 
   public.coin_history, 
