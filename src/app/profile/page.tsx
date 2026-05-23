@@ -223,7 +223,7 @@ export default function MePage() {
     return <div className="flex-1 bg-[#F8F9FA] min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-[#00A2FF]" /></div>
   }
 
-  // FORCE REFRESH LOGIC
+  // Use unique key and cache buster to force sudden visual update
   const freshPhotoUrl = profile?.photo_url ? `${profile.photo_url}?t=${Date.now()}` : null;
   
   return (

@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 /**
  * @fileOverview Central Supabase Client for the browser and server.
- * Standardized to use the 'photos' bucket with timestamped paths.
+ * Standardized to use the 'photos' bucket with timestamped paths for unique URLs.
  */
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
@@ -42,21 +42,22 @@ export function base64ToBlob(base64: string): { blob: Blob, contentType: string 
 }
 
 /**
- * Uploads a profile photo to the 'photos' bucket.
+ * Uploads a profile photo to the 'photos' bucket using a timestamped path.
  * Exact path: [userId]/[timestamp].jpg
  */
 export async function uploadProfilePhoto(file: File | Blob, userId: string) {
-  const filePath = `${userId}/${Date.now()}.jpg`;
+  const timestamp = Date.now();
+  const filePath = `${userId}/${timestamp}.jpg`;
 
   const { error } = await supabase.storage
     .from('photos')
     .upload(filePath, file, {
-      cacheControl: '3600',
+      cacheControl: '0',
       upsert: true,
     });
 
   if (error) {
-    console.error("[Avatar Upload Error]", error);
+    console.error("[Avatar Storage Error]", error);
     throw error;
   }
 
@@ -68,21 +69,22 @@ export async function uploadProfilePhoto(file: File | Blob, userId: string) {
 }
 
 /**
- * Uploads gallery or proof photos to the 'photos' bucket.
- * Exact path: [userId]/[uuid].jpg
+ * Uploads gallery or proof photos to the 'photos' bucket with unique names.
  */
 export async function uploadPostPhoto(file: File | Blob, userId: string) {
-  const filePath = `${userId}/${crypto.randomUUID()}.jpg`;
+  const timestamp = Date.now();
+  const uuid = crypto.randomUUID();
+  const filePath = `${userId}/gallery-${timestamp}-${uuid}.jpg`;
 
   const { error } = await supabase.storage
     .from('photos')
     .upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: false
+      cacheControl: '0',
+      upsert: true
     });
 
   if (error) {
-    console.error("[Gallery Upload Error]", error);
+    console.error("[Gallery Storage Error]", error);
     throw error;
   }
 

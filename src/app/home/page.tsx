@@ -101,7 +101,7 @@ export default function HomePage() {
 
   if (!statusChecked) return <div className="fixed inset-0 bg-white" />
 
-  // CACHE BUSTER
+  // CACHE BUSTER with timestamp to force re-render upon navigation/sync
   const avatarKey = profile?.photo_url ? `${profile.photo_url}?t=${Date.now()}` : "";
 
   return (
