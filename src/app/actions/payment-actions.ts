@@ -1,10 +1,11 @@
+
 'use server';
 
 import { supabase } from '@/lib/supabase';
 
 /**
  * @fileOverview Production Payment Actions.
- * Matches the Edge Function logic provided by the user (initiate / fulfill).
+ * Matches the Edge Function logic (initiate / fulfill).
  */
 
 export async function initiatePesaPalPayment(amount: number, user: { uid: string, email: string, name: string }) {
@@ -35,7 +36,7 @@ export async function initiatePesaPalPayment(amount: number, user: { uid: string
 
 export async function verifyPaymentAction(orderTrackingId: string, user_uid: string) {
   try {
-    // Calling 'fulfill' as per the user's provided Edge Function code
+    // Calling 'fulfill' as per the latest production implementation
     const { data, error } = await supabase.functions.invoke('payment-ops', {
       body: { 
         action: 'fulfill',

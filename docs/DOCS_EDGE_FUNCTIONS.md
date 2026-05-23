@@ -1,7 +1,9 @@
 
-# QIVO Edge Function Production Code
+# QIVO Production Edge Functions (Consolidated)
 
-Update your Supabase Edge Functions with these standardized code blocks.
+Update your Supabase Edge Functions with these hardened versions. 
+
+**IMPORTANT**: Ensure you have added your secrets to Supabase Dashboard > Edge Functions > Secrets.
 
 ## 1. Function Name: `payment-ops`
 ```typescript
@@ -73,21 +75,21 @@ serve(async (req) => {
         const paidAmount = Number(statusData.amount)
         let coins = 0
 
-        // PACKAGE MAPPING (Matches your Recharge Page)
+        // PACKAGE MAPPING (KES 1 = 200 Coins for Testing)
         if (paidAmount >= 1800) coins = 20000
         else if (paidAmount >= 1000) coins = 10000
         else if (paidAmount >= 550) coins = 5000
         else if (paidAmount >= 230) coins = 2000
         else if (paidAmount >= 120) coins = 1000
         else if (paidAmount >= 80) coins = 500
-        else if (paidAmount >= 1) coins = 200 // 1 KES = 200 Coins for Testing
+        else if (paidAmount >= 1) coins = 200 
         else coins = Math.floor(paidAmount * 200) 
         
         // 1. Atomic update
         const { error: rpcError } = await supabase.rpc("increment_coins", { user_uid, amount: coins })
         if (rpcError) throw rpcError
 
-        // 2. Log history (CRITICAL: timestamp must be Number/Date.now())
+        // 2. Log history (BIGINT timestamp)
         await supabase.from("coin_history").insert({
           user_id: user_uid,
           amount: coins,

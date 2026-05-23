@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { supabase, uploadBase64Image } from "@/lib/supabase"
+import { supabase, base64ToBlob, uploadProfilePhoto, uploadPostPhoto } from "@/lib/supabase"
 import { useUser } from "@/firebase/auth/use-user"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -139,13 +139,8 @@ export default function EditProfilePage() {
       
       // 1. Handle Profile Photo (BUCKET: profile-photos, OVERWRITE: true)
       if (formData.photo_url.startsWith('data:image')) {
-        toast({ title: "Updating profile photo..." });
-        finalFormData.photo_url = await uploadBase64Image(
-          formData.photo_url, 
-          'profile-photos', 
-          `${user.id}/avatar.jpg`,
-          true // Upsert: Overwrite old one
-        );
+        const { blob } = base64ToBlob(formData.photo_url);
+        finalFormData.photo_url = await uploadProfilePhoto(blob, user.id);
       }
 
       // 2. Handle Gallery Photos (BUCKET: post-photos, UNIQUE FILENAMES)
@@ -153,13 +148,8 @@ export default function EditProfilePage() {
       for (let i = 0; i < formData.additional_photos.length; i++) {
         const p = formData.additional_photos[i];
         if (p.startsWith('data:image')) {
-          toast({ title: `Uploading gallery photo ${i+1}...` });
-          const url = await uploadBase64Image(
-            p, 
-            'post-photos', 
-            `${user.id}/gallery_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`,
-            false // Unique: Don't overwrite
-          );
+          const { blob } = base64ToBlob(p);
+          const url = await uploadPostPhoto(blob, user.id);
           uploadedPhotos.push(url);
         } else {
           uploadedPhotos.push(p);
