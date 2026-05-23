@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -73,10 +72,10 @@ export default function TaskCenterPage() {
           description: `You earned ${res.amount} coins. Day ${res.day} collected!` 
         })
       } else {
-        toast({ variant: "destructive", title: "Wait", description: res.error })
+        toast({ variant: "destructive", title: "Wait", description: res.error || "System busy" })
       }
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Task Failed", description: "Network error. Please check your connection." })
+      toast({ variant: "destructive", title: "Task Failed", description: "Network error. Please try again." })
     } finally {
       setIsProcessing(false)
     }
@@ -86,7 +85,7 @@ export default function TaskCenterPage() {
     <div className="flex-1 bg-[#F8F9FA] min-h-screen pb-10 select-none">
       <header className="bg-[#00A2FF] h-32 relative px-4 pt-12">
         <div className="flex items-center justify-between">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-white rounded-full hover:bg-white/20">
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-white rounded-full hover:bg-white/10">
             <ChevronLeft className="w-6 h-6" />
           </Button>
           <h1 className="text-xl font-bold text-white tracking-tight uppercase">Task Center</h1>
@@ -111,8 +110,9 @@ export default function TaskCenterPage() {
             
             <div className="grid grid-cols-4 gap-3">
               {days.map((d, i) => {
-                const lastIndexCollected = hasCheckedInToday ? (currentStreak - 1) % 7 : -1
-                const isCollected = i <= lastIndexCollected && hasCheckedInToday
+                const dayNumber = i + 1
+                const streakCycle = (currentStreak % 7) === 0 && currentStreak > 0 ? 7 : currentStreak % 7
+                const isCollected = dayNumber <= streakCycle && hasCheckedInToday
                 
                 return (
                   <div 
@@ -144,7 +144,7 @@ export default function TaskCenterPage() {
                 hasCheckedInToday ? "bg-gray-200 text-gray-400 shadow-none cursor-default" : "bg-[#00A2FF] shadow-blue-100"
               )}
             >
-              {isProcessing ? <Loader2 className="animate-spin" /> : hasCheckedInToday ? "Day " + (currentStreak % 7 === 0 ? 7 : currentStreak % 7) + " Collected" : "Claim Day " + (currentStreak % 7 + 1) + " Reward"}
+              {isProcessing ? <Loader2 className="animate-spin" /> : hasCheckedInToday ? "Claimed Today" : "Claim Day " + ((currentStreak % 7) + 1) + " Reward"}
             </Button>
           </section>
         )}

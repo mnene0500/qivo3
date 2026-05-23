@@ -1,10 +1,10 @@
-
 'use server';
 
 import { supabase } from '@/lib/supabase';
 
 /**
  * @fileOverview Secure Economy Actions via Supabase Edge Functions.
+ * Now handles percentage calculations server-side for security.
  */
 
 export async function dailyCheckInAction(uid: string) {
@@ -13,19 +13,10 @@ export async function dailyCheckInAction(uid: string) {
       body: { action: 'daily-check-in', uid }
     });
     
-    if (error) {
-      console.error("Function Invocation Error:", error);
-      return { success: false, error: "Task service currently unavailable." };
-    }
-
-    if (!data.success) {
-      return { success: false, error: data.error || "Could not complete check-in." };
-    }
-
+    if (error) throw error;
     return data;
   } catch (error: any) { 
-    console.error("Check-in Crash:", error.message);
-    return { success: false, error: "Network error. Please try again." }; 
+    return { success: false, error: "Task service unavailable." }; 
   }
 }
 

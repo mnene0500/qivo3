@@ -53,7 +53,7 @@ serve(async (req) => {
           user_id: partnerId,
           amount: 50,
           type: "call_earning",
-          description: `Call from ${uid.slice(0,4)}`,
+          description: `Call from ${caller?.name || 'User'}`,
           timestamp: Date.now()
         })
       }
@@ -91,6 +91,36 @@ serve(async (req) => {
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!)
     const { action, ...params } = await req.json()
 
+    if (action === "daily-check-in") {
+      const { uid } = params
+      const { data: user } = await supabase.from("users").select("*").eq("uid", uid).maybeSingle()
+      if (!user) throw new Error("Profile not found")
+      
+      const streak = (user.check_in_streak || 0) + 1
+      const rewards = [2, 2, 5, 2, 2, 2, 10]
+      const rewardAmount = rewards[(streak - 1) % 7]
+
+      // Update User Streak and Last Checkin
+      await supabase.from("users").update({ 
+        last_check_in_date: new Date().toISOString(), 
+        check_in_streak: streak 
+      }).eq("uid", uid)
+
+      // Award Coins
+      await supabase.rpc("increment_coins", { user_uid: uid, amount: rewardAmount })
+      
+      // Log History
+      await supabase.from("coin_history").insert({
+        user_id: uid,
+        amount: rewardAmount,
+        type: "checkin",
+        description: `Daily Reward - Day ${streak}`,
+        timestamp: Date.now()
+      })
+      
+      return new Response(JSON.stringify({ success: true, amount: rewardAmount, day: streak }), { headers: { ...corsHeaders, "Content-Type": "application/json" } })
+    }
+
     if (action === "send-gift") {
       const { senderUid, recipientUid, coinAmount, giftName } = params
       
@@ -110,19 +140,12 @@ serve(async (req) => {
       await supabase.from("coin_history").insert({ user_id: senderUid, amount: -coinAmount, type: "gift", description: `Sent ${giftName}`, timestamp: Date.now() })
       await supabase.from("diamond_history").insert({ user_id: recipientUid, amount: diamondReward, type: "gift", description: `Received ${giftName}`, timestamp: Date.now() })
 
-      return new Response(JSON.stringify({ success: true }), { headers: corsHeaders })
+      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } })
     }
 
-    // (Add daily-check-in and other actions here as per previous code)
     return new Response(JSON.stringify({ error: "Invalid action" }), { status: 400, headers: corsHeaders })
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 400, headers: corsHeaders })
+    return new Response(JSON.stringify({ error: e.message }), { status: 200, headers: corsHeaders })
   }
 })
-```
-
-## 3. Function Name: `payment-ops`
-(Use the code from step 1 for production payments with KES 1 = 200 coins)
-```typescript
-// See previous documentation for payment-ops fulfillment mapping
 ```
