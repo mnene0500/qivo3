@@ -32,6 +32,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
   const [cameraEnabled, setCameraEnabled] = useState(isVideo)
   const [isConnected, setIsConnected] = useState(false)
   const [configError, setConfigError] = useState<string | null>(null)
+  const [isInitializing, setIsInitializing] = useState(true)
 
   const stopRingtone = () => {
     if (ringtoneRef.current) {
@@ -50,7 +51,8 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
     })
     await supabase.from('chats').update({ 
       last_message: status, 
-      last_message_at: Date.now() 
+      last_message_at: Date.now(),
+      participant_ids: [user.id, partnerId] // Ensure I am the last sender
     }).eq('id', chatId)
   }
 
@@ -72,27 +74,40 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
     router.replace("/chats")
   }
 
-  // 1. Signaling & Ringtone Setup
+  // 1. Pre-init: Check Balance and Signaling
   useEffect(() => {
     if (!user || !partnerId) return
     
-    ringtoneRef.current = new Audio('/notification.mp3')
-    ringtoneRef.current.loop = true
-    
-    if (isCaller) {
-      ringtoneRef.current.play().catch(() => {})
-      supabase.channel(`calls:${partnerId}`).send({
-        type: 'broadcast',
-        event: 'incoming-call',
-        payload: { 
-          chatId, 
-          type: isVideo ? 'video' : 'voice', 
-          callerId: user.id, 
-          callerName: user.user_metadata?.full_name || user.email?.split('@')[0] || "User", 
-          callerPhoto: user.user_metadata?.avatar_url 
+    const preCheck = async () => {
+      // MANDATORY: Must have coins for first minute to even see the calling screen
+      if (isCaller) {
+        const check = await checkCallBalanceAction(user.id, isVideo ? 'video' : 'voice')
+        if (!check.success) {
+          toast({ variant: "destructive", title: "Insufficient Balance", description: "Recharge to make this call." })
+          router.replace("/recharge")
+          return
         }
-      })
+
+        ringtoneRef.current = new Audio('/notification.mp3')
+        ringtoneRef.current.loop = true
+        ringtoneRef.current.play().catch(() => {})
+        
+        supabase.channel(`calls:${partnerId}`).send({
+          type: 'broadcast',
+          event: 'incoming-call',
+          payload: { 
+            chatId, 
+            type: isVideo ? 'video' : 'voice', 
+            callerId: user.id, 
+            callerName: user.user_metadata?.full_name || user.email?.split('@')[0] || "User", 
+            callerPhoto: user.user_metadata?.avatar_url 
+          }
+        })
+      }
+      setIsInitializing(false)
     }
+
+    preCheck()
 
     const channel = supabase.channel(`calls:${user.id}`)
       .on('broadcast', { event: 'call-rejected' }, () => { 
@@ -113,7 +128,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
 
   // 2. ZegoCloud Engine Initialization
   useEffect(() => {
-    if (!user || !containerRef.current) return
+    if (!user || !containerRef.current || isInitializing) return
     
     const init = async () => {
       try {
@@ -142,7 +157,6 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
             setIsConnected(true)
             stopRingtone()
             callStartTimeRef.current = Date.now()
-            // BILLING ONLY FOR CALLER
             if (isCaller) startBilling()
           },
           onLeaveRoom: () => hangUp(),
@@ -152,30 +166,39 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
       }
     }
     init()
-  }, [user, chatId])
+  }, [user, chatId, isInitializing])
 
   const startBilling = () => {
     if (!isCaller) return
     
-    // First 10 seconds of 1st minute are free
+    // First 10 seconds of 1st minute are free, but we already confirmed balance exists
     setTimeout(async () => {
       if (zpRef.current) {
-        const check = await checkCallBalanceAction(user!.id, isVideo ? 'video' : 'voice')
-        if (!check.success) {
-          toast({ variant: "destructive", title: "Balance Exhausted" })
-          return hangUp()
-        }
+        // Deduction for Minute 1
         deductCallCoinsAction(user!.id, isVideo ? 'video' : 'voice', partnerId, partnerName)
       }
     }, 11000)
 
     // Billed at start of every subsequent minute
+    // CHECK BALANCE 1 SECOND BEFORE THE MINUTE MARK
     billingIntervalRef.current = setInterval(async () => {
+      // PRE-CHECK for next minute
       const check = await checkCallBalanceAction(user!.id, isVideo ? 'video' : 'voice')
-      if (!check.success) return hangUp()
+      if (!check.success) {
+        toast({ variant: "destructive", title: "Balance Exhausted", description: "Ending call automatically." })
+        return hangUp()
+      }
+      // DEDUCT for next minute
       deductCallCoinsAction(user!.id, isVideo ? 'video' : 'voice', partnerId, partnerName)
     }, 60000)
   }
+
+  if (isInitializing) return (
+    <div className="h-screen bg-black flex flex-col items-center justify-center text-white">
+      <Loader2 className="w-10 h-10 animate-spin text-[#00A2FF]" />
+      <p className="text-[10px] font-bold uppercase tracking-widest mt-4">Verifying Balance...</p>
+    </div>
+  )
 
   if (configError) return (
     <div className="h-screen bg-black flex flex-col items-center justify-center text-white p-8 text-center space-y-6">

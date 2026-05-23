@@ -10,6 +10,7 @@ import { Send, ChevronLeft, Loader2, User, Phone, Video, Ban, Lock, ShieldAlert 
 import { cn } from "@/lib/utils"
 import { useUser } from "@/firebase/auth/use-user"
 import { format } from "date-fns"
+import { checkCallBalanceAction } from "@/app/actions/call-actions"
 
 interface Message {
   id: string | number
@@ -44,7 +45,6 @@ function ChatsContent() {
   const [loading, setLoading] = useState(true)
   const [partnerProfile, setPartnerProfile] = useState<any>(null)
   const [userProfile, setUserProfile] = useState<any>(null)
-  const [userBalance, setUserBalance] = useState<number>(0)
   const [activeChatClearedAt, setActiveChatClearedAt] = useState<number>(0)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -65,7 +65,6 @@ function ChatsContent() {
   useEffect(() => {
     if (!currentUser?.id) return
     supabase.from('users').select('*').eq('uid', currentUser.id).maybeSingle().then(({ data }) => setUserProfile(data))
-    supabase.from('balances').select('coins').eq('user_id', currentUser.id).maybeSingle().then(({ data }) => setUserBalance(Number(data?.coins) || 0))
   }, [currentUser?.id])
 
   const fetchSummaries = useCallback(async () => {
@@ -143,6 +142,7 @@ function ChatsContent() {
 
     const { error } = await supabase.from('messages').insert({ chat_id: chatId, text, sender_id: currentUser.id, timestamp })
     if (!error) {
+      // Ensure current user ID is at index 0 of participant_ids to mark them as the last sender for unread logic
       await supabase.from('chats').upsert({ id: chatId, last_message: text, last_message_at: timestamp, participant_ids: [currentUser.id, startWithId] })
       await markAsSeen(chatId, timestamp)
     } else {
@@ -153,12 +153,15 @@ function ChatsContent() {
 
   const handleCall = async (type: 'voice' | 'video') => {
     if (!currentUser || !startWithId || !partnerProfile || !chatId) return
-    const cost = type === 'video' ? 150 : 70
-    if (userProfile?.gender === 'male' && userBalance < cost && !userProfile.is_admin) {
-      toast({ variant: "destructive", title: "Insufficient Coins" })
+    
+    // STRICT PRE-CHECK: User must have coins for first minute to start
+    const check = await checkCallBalanceAction(currentUser.id, type)
+    if (!check.success) {
+      toast({ variant: "destructive", title: "Insufficient Coins", description: "You need more coins to start this call." })
       router.push("/recharge")
       return
     }
+    
     router.push(`/call/${chatId}?type=${type}&partner=${encodeURIComponent(partnerProfile.name)}&partnerId=${startWithId}&caller=true`)
   }
 
