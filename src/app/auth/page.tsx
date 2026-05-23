@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from "react"
@@ -52,7 +51,6 @@ export default function UnifiedAuthPage() {
   const handleGoogleLogin = async () => {
     setSocialLoading(true)
     try {
-      // PKCE Flow is handled automatically by the proxy redirect
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
