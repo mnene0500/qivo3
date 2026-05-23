@@ -46,7 +46,7 @@ function RechargeContent() {
 
   const orderTrackingId = searchParams.get("OrderTrackingId") || searchParams.get("orderTrackingId")
 
-  // HARD STOP: Kill everything and exit
+  // HARD STOP: Kill everything and exit to profile
   const handleRedirectHome = () => {
     successTriggeredRef.current = true;
     if (pollTimerRef.current) {
@@ -85,7 +85,7 @@ function RechargeContent() {
     }
   }, [user?.id, currentCoins])
 
-  // 2. Verification Flow (Explicit action: fulfill)
+  // 2. Verification Flow (Action: fulfill)
   useEffect(() => {
     if (orderTrackingId && user?.id && !fulfillmentSuccess && !successTriggeredRef.current) {
       setIsVerifying(true);
@@ -100,7 +100,7 @@ function RechargeContent() {
           if (res.success) {
             // Edge Function confirmed it. Real-time listener will catch the balance update.
           } else if (res.message && !res.message.toLowerCase().includes("not completed")) {
-            // Actual error occurred
+            // Actual terminal error occurred
             setErrorMessage(res.message || res.error || "Verification failed");
             if (pollTimerRef.current) {
               clearInterval(pollTimerRef.current);

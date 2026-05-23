@@ -137,18 +137,18 @@ export default function EditProfilePage() {
     try {
       const finalFormData = { ...formData };
       
-      // 1. Handle Profile Photo (OVERWRITE / UPSERT)
+      // 1. Handle Profile Photo (BUCKET: profile-photos, OVERWRITE: true)
       if (formData.photo_url.startsWith('data:image')) {
         toast({ title: "Updating profile photo..." });
         finalFormData.photo_url = await uploadBase64Image(
           formData.photo_url, 
-          'photos', 
+          'profile-photos', 
           `${user.id}/avatar.jpg`,
           true // Upsert: Overwrite old one
         );
       }
 
-      // 2. Handle Gallery Photos (UNIQUE FILENAMES)
+      // 2. Handle Gallery Photos (BUCKET: post-photos, UNIQUE FILENAMES)
       const uploadedPhotos = [];
       for (let i = 0; i < formData.additional_photos.length; i++) {
         const p = formData.additional_photos[i];
@@ -156,7 +156,7 @@ export default function EditProfilePage() {
           toast({ title: `Uploading gallery photo ${i+1}...` });
           const url = await uploadBase64Image(
             p, 
-            'photos', 
+            'post-photos', 
             `${user.id}/gallery_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`,
             false // Unique: Don't overwrite
           );
