@@ -5,6 +5,7 @@ Run these in your **Supabase SQL Editor** to initialize the mandatory tables and
 
 ```sql
 -- 1. SETUP ATOMIC HELPERS (Hardened)
+-- Standardized on 'user_id' parameter to match Vercel Server Actions
 CREATE OR REPLACE FUNCTION public.increment_diamonds(user_id UUID, amount NUMERIC)
 RETURNS VOID AS $$
 BEGIN
@@ -141,7 +142,7 @@ CREATE TABLE IF NOT EXISTS public.reports (
   timestamp BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)
 );
 
--- 3. ENABLE REALTIME SAFELY (Idempotent)
+-- 3. ENABLE REALTIME SAFELY (Defensive block for Error 42710)
 DO $$ 
 BEGIN 
   IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
