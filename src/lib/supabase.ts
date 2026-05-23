@@ -2,12 +2,13 @@
 import { createClient } from '@supabase/supabase-js';
 
 /**
- * @fileOverview Central Supabase Client for the browser and server.
- * Uses NEXT_PUBLIC variables for the client-side SDK.
+ * @fileOverview Central Supabase Client.
+ * Note: Browser-side access to process.env requires NEXT_PUBLIC_.
+ * For maximum security, we use standard env vars and access them via Server Actions.
  */
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'placeholder-key';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -41,56 +42,21 @@ export function base64ToBlob(base64: string): { blob: Blob, contentType: string 
   };
 }
 
-/**
- * Uploads a profile photo to the 'photos' bucket using a timestamped path.
- * Exact path: [userId]/[timestamp].jpg
- */
 export async function uploadProfilePhoto(file: File | Blob, userId: string) {
   const timestamp = Date.now();
   const filePath = `${userId}/${timestamp}.jpg`;
-
-  const { error } = await supabase.storage
-    .from('photos')
-    .upload(filePath, file, {
-      cacheControl: '0',
-      upsert: true,
-    });
-
-  if (error) {
-    console.error("[Avatar Storage Error]", error);
-    throw error;
-  }
-
-  const { data } = supabase.storage
-    .from('photos')
-    .getPublicUrl(filePath);
-
+  const { error } = await supabase.storage.from('photos').upload(filePath, file, { cacheControl: '0', upsert: true });
+  if (error) throw error;
+  const { data } = supabase.storage.from('photos').getPublicUrl(filePath);
   return data.publicUrl;
 }
 
-/**
- * Uploads gallery or proof photos to the 'photos' bucket with unique names.
- */
-export async function uploadPostPhoto(file: File | Blob, userId: string) {
+export async function uploadPostPhoto(file: File | Blob, userId: string, bucket = 'photos') {
   const timestamp = Date.now();
   const uuid = crypto.randomUUID();
   const filePath = `${userId}/gallery-${timestamp}-${uuid}.jpg`;
-
-  const { error } = await supabase.storage
-    .from('photos')
-    .upload(filePath, file, {
-      cacheControl: '0',
-      upsert: true
-    });
-
-  if (error) {
-    console.error("[Gallery Storage Error]", error);
-    throw error;
-  }
-
-  const { data } = supabase.storage
-    .from('photos')
-    .getPublicUrl(filePath);
-
+  const { error } = await supabase.storage.from(bucket).upload(filePath, file, { cacheControl: '0', upsert: true });
+  if (error) throw error;
+  const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
   return data.publicUrl;
 }

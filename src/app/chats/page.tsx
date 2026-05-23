@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState, Suspense, useCallback } from "react"
@@ -6,11 +7,12 @@ import { supabase } from "@/lib/supabase"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Send, ChevronLeft, Loader2, User, Lock, Gem, Gift } from "lucide-react"
+import { Send, ChevronLeft, Loader2, User, Lock, Gem, Gift, Video, Phone } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/firebase/auth/use-user"
 import { format } from "date-fns"
 import { sendGiftAction } from "@/app/actions/matchflow-actions"
+import { checkCallBalanceAction } from "@/app/actions/call-actions"
 import {
   Dialog,
   DialogContent,
@@ -169,6 +171,17 @@ function ChatsContent() {
     }
   }
 
+  const handleStartCall = async (type: 'video' | 'voice') => {
+    if (!currentUser || !startWithId) return
+    const res = await checkCallBalanceAction(currentUser.id, type)
+    if (!res.success) {
+      toast({ variant: "destructive", title: "Insufficient Coins", description: res.error })
+      router.push("/recharge")
+      return
+    }
+    toast({ title: "Connecting Agora...", description: "Feature is in tokenization mode." })
+  }
+
   const handleSendGift = async (gift: typeof GIFTS[0]) => {
     if (!currentUser || !startWithId || !partnerProfile) return
     setIsGifting(true)
@@ -231,6 +244,10 @@ function ChatsContent() {
         <div className="flex items-center gap-3 flex-1">
           <Avatar className="w-10 h-10 border"><AvatarImage src={`${partnerProfile?.photo_url}?t=${Date.now()}`} className="object-cover" /><AvatarFallback>{partnerProfile?.name?.[0]}</AvatarFallback></Avatar>
           <div><p className="font-black text-sm leading-none">{partnerProfile?.name || '...'}</p><p className="text-[9px] font-bold text-green-500 uppercase tracking-widest mt-1">{isBlocked ? "Unavailable" : "Available"}</p></div>
+        </div>
+        <div className="flex gap-1">
+          <Button size="icon" variant="ghost" className="rounded-full text-[#00A2FF]" onClick={() => handleStartCall('voice')}><Phone className="w-5 h-5" /></Button>
+          <Button size="icon" variant="ghost" className="rounded-full text-[#00A2FF]" onClick={() => handleStartCall('video')}><Video className="w-5 h-5" /></Button>
         </div>
       </header>
 
