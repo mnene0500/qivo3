@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo, useState, useEffect, useCallback } from "react"
@@ -103,9 +104,10 @@ export default function HomePage() {
 
   return (
     <div className="flex-1 pb-24 bg-white min-h-screen relative select-none animate-in fade-in duration-300">
-      <header className="bg-[#00A2FF] h-4 relative overflow-hidden flex items-center px-6 justify-between" />
+      {/* HEADER SPACE: Increased slightly from h-4 to h-8 and added pt-6 to keep buttons from touching top */}
+      <header className="bg-white h-8 pt-6 relative" />
 
-      <div className="relative px-4 grid grid-cols-2 gap-3 -mt-4 z-20 mb-4">
+      <div className="relative px-4 grid grid-cols-2 gap-3 z-20 mb-4">
         <button 
           onClick={() => router.push('/mystery-note')} 
           className="h-28 bg-gradient-to-br from-[#00A2FF] to-[#0081CC] rounded-[1.5rem] p-4 flex flex-col items-start justify-end gap-1 shadow-xl active:scale-95 transition-all text-white text-left"
@@ -116,7 +118,16 @@ export default function HomePage() {
           <p className="text-base font-black leading-none">Mystery Note</p>
           <p className="text-[8px] font-bold opacity-80 tracking-widest uppercase">SEND A NOTE</p>
         </button>
-        <button onClick={() => router.push('/tasks')} className="h-28 bg-gradient-to-br from-[#7C69FF] to-[#A28EFF] rounded-[1.5rem] p-4 flex flex-col items-start justify-end gap-1 shadow-xl active:scale-95 transition-all text-white text-left"><div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center mb-1"><Target className="w-4 h-4 text-white" /></div><p className="text-base font-black leading-none">Task Center</p><p className="text-[8px] font-bold opacity-80 tracking-widest uppercase">EARN REWARDS</p></button>
+        <button 
+          onClick={() => router.push('/tasks')} 
+          className="h-28 bg-gradient-to-br from-[#7C69FF] to-[#A28EFF] rounded-[1.5rem] p-4 flex flex-col items-start justify-end gap-1 shadow-xl active:scale-95 transition-all text-white text-left"
+        >
+          <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center mb-1">
+            <Target className="w-4 h-4 text-white" />
+          </div>
+          <p className="text-base font-black leading-none">Task Center</p>
+          <p className="text-[8px] font-bold opacity-80 tracking-widest uppercase">EARN REWARDS</p>
+        </button>
       </div>
 
       <div className="sticky top-0 z-30 bg-white">

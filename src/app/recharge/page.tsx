@@ -4,7 +4,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, Coins, ShieldCheck, Loader2, MessageSquare, ExternalLink, Zap } from "lucide-react"
+import { ChevronLeft, Coins, ShieldCheck, Loader2, MessageSquare, ExternalLink, Zap, Check } from "lucide-react"
 import { useUser } from "@/firebase/auth/use-user"
 import { useToast } from "@/hooks/use-toast"
 import { initiatePesaPalPayment } from "@/app/actions/payment-actions"
@@ -24,17 +24,20 @@ export default function RechargePage() {
   const { user } = useUser()
   const { toast } = useToast()
   
-  const [loadingId, setLoadingId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string>("p3")
+  const [isProcessing, setIsProcessing] = useState(false)
 
-  const handleBuy = async (pkg: typeof PACKAGES[0]) => {
+  const selectedPackage = PACKAGES.find(p => p.id === selectedId) || PACKAGES[2]
+
+  const handleRecharge = async () => {
     if (!user) {
       router.push("/auth")
       return
     }
     
-    setLoadingId(pkg.id)
+    setIsProcessing(true)
     try {
-      const res = await initiatePesaPalPayment(user.id, pkg.price, pkg.coins)
+      const res = await initiatePesaPalPayment(user.id, selectedPackage.price, selectedPackage.coins)
       if (res.success && res.redirect_url) {
         window.location.href = res.redirect_url
       } else {
@@ -43,7 +46,7 @@ export default function RechargePage() {
     } catch (err) {
       toast({ variant: "destructive", title: "Network Error", description: "Could not connect to payment server." })
     } finally {
-      setLoadingId(null)
+      setIsProcessing(false)
     }
   }
 
@@ -57,7 +60,7 @@ export default function RechargePage() {
         <div className="w-10" />
       </header>
 
-      <main className="flex-1 p-5 space-y-8 pb-24">
+      <main className="flex-1 p-5 space-y-8 pb-32">
         <div className="text-center space-y-1">
           <h2 className="text-2xl font-black tracking-tighter text-black uppercase">Coin Shop</h2>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Select a pack to top up</p>
@@ -67,38 +70,36 @@ export default function RechargePage() {
           {PACKAGES.map((pkg) => (
             <button 
               key={pkg.id} 
-              onClick={() => handleBuy(pkg)}
-              disabled={!!loadingId}
+              onClick={() => setSelectedId(pkg.id)}
               className={cn(
                 "relative group flex flex-col items-center justify-center p-4 rounded-3xl border-2 transition-all active:scale-95 h-32",
-                pkg.popular 
-                  ? "border-[#00A2FF] bg-blue-50/30 shadow-lg shadow-blue-100" 
-                  : "border-gray-50 bg-gray-50/50 hover:border-gray-200"
+                selectedId === pkg.id 
+                  ? "border-[#00A2FF] bg-blue-50/50 shadow-lg shadow-blue-100" 
+                  : "border-gray-50 bg-gray-50/30 hover:border-gray-100"
               )}
             >
-              {pkg.popular && (
-                <div className="absolute -top-2 px-2 py-0.5 bg-[#00A2FF] text-white text-[7px] font-black rounded-full uppercase tracking-tighter">
-                  Popular
+              {selectedId === pkg.id && (
+                <div className="absolute -top-2 -right-1 bg-[#00A2FF] text-white p-1 rounded-full shadow-lg">
+                  <Check className="w-3 h-3" />
                 </div>
               )}
               
               <div className="flex flex-col items-center gap-1 mb-2">
                 <div className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center mb-1",
-                  pkg.popular ? "bg-blue-100" : "bg-white shadow-sm"
+                  "w-8 h-8 rounded-full flex items-center justify-center mb-1 transition-colors",
+                  selectedId === pkg.id ? "bg-[#00A2FF] text-white" : "bg-white shadow-sm text-yellow-500"
                 )}>
-                  {loadingId === pkg.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-[#00A2FF]" />
-                  ) : (
-                    <Coins className={cn("w-4 h-4", pkg.popular ? "text-[#00A2FF]" : "text-yellow-500")} />
-                  )}
+                  <Coins className="w-4 h-4" />
                 </div>
                 <span className="text-sm font-black text-black leading-none">{pkg.label}</span>
                 <span className="text-[8px] font-bold text-gray-400 uppercase">Coins</span>
               </div>
               
               <div className="mt-auto">
-                <span className="text-[10px] font-black text-[#00A2FF]">KES {pkg.price}</span>
+                <span className={cn(
+                  "text-[10px] font-black",
+                  selectedId === pkg.id ? "text-[#00A2FF]" : "text-gray-400"
+                )}>KES {pkg.price}</span>
               </div>
             </button>
           ))}
@@ -126,7 +127,19 @@ export default function RechargePage() {
         </div>
       </main>
 
-      <footer className="fixed bottom-0 inset-x-0 p-6 bg-white/80 backdrop-blur-md border-t border-gray-50 z-40">
+      <footer className="fixed bottom-0 inset-x-0 p-6 bg-white/90 backdrop-blur-md border-t border-gray-50 z-40 flex flex-col gap-4">
+        <Button 
+          onClick={handleRecharge}
+          disabled={isProcessing}
+          className="w-full h-16 rounded-full bg-[#00A2FF] hover:bg-[#0081CC] text-white font-black uppercase tracking-widest text-sm shadow-xl active:scale-95 transition-all"
+        >
+          {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : (
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 fill-current text-yellow-300" />
+              Recharge Now (KES {selectedPackage.price})
+            </div>
+          )}
+        </Button>
         <p className="text-[8px] font-bold text-gray-400 leading-relaxed uppercase tracking-widest text-center px-8">
           By purchasing, you agree to our Terms. Coins are non-refundable and added instantly.
         </p>

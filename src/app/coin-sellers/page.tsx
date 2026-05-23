@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState } from "react"
@@ -12,6 +13,7 @@ interface UserProfile {
   name: string
   photo_url: string
   is_coin_seller?: boolean
+  onboarding_complete?: boolean
 }
 
 export default function CoinSellersPage() {
@@ -20,10 +22,12 @@ export default function CoinSellersPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Explicitly fetch users where is_coin_seller is true AND they have finished onboarding
     supabase.from('users')
       .select('*')
       .eq('is_coin_seller', true)
-      .limit(20)
+      .eq('onboarding_complete', true)
+      .limit(50)
       .then(({ data }) => {
         setSellers(data || [])
         setLoading(false)
@@ -53,10 +57,29 @@ export default function CoinSellersPage() {
             {sellers.map((seller) => (
               <div key={seller.uid} className="flex items-center justify-between p-5 bg-gray-50 rounded-3xl border border-gray-100/50">
                 <div className="flex items-center gap-4">
-                  <div className="relative"><Avatar className="w-14 h-14 border-2 border-white shadow-sm"><AvatarImage src={seller.photo_url} className="object-cover" /><AvatarFallback>{seller.name?.[0]}</AvatarFallback></Avatar><div className="absolute -bottom-1 -right-1 bg-white p-0.5 rounded-full"><CheckCircle2 className="w-4 h-4 text-blue-500 fill-current" /></div></div>
-                  <div><p className="font-bold text-sm text-black">{seller.name}</p><div className="flex items-center gap-1.5 mt-0.5"><div className="w-1.5 h-1.5 bg-green-500 rounded-full" /><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Available</p></div></div>
+                  <div className="relative">
+                    <Avatar className="w-14 h-14 border-2 border-white shadow-sm">
+                      <AvatarImage src={`${seller.photo_url}?t=${Date.now()}`} className="object-cover" />
+                      <AvatarFallback>{seller.name?.[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="absolute -bottom-1 -right-1 bg-white p-0.5 rounded-full shadow-sm">
+                      <CheckCircle2 className="w-4 h-4 text-blue-500 fill-current" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm text-black">{seller.name}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Certified</p>
+                    </div>
+                  </div>
                 </div>
-                <Button onClick={() => router.push(`/chats?startWith=${seller.uid}`)} className="rounded-full bg-[#00A2FF] h-12 w-12 shadow-lg flex items-center justify-center"><MessageSquare className="w-5 h-5 text-white fill-current" /></Button>
+                <Button 
+                  onClick={() => router.push(`/chats?startWith=${seller.uid}`)} 
+                  className="rounded-full bg-[#00A2FF] h-12 w-12 shadow-lg flex items-center justify-center hover:bg-[#0081CC] active:scale-95 transition-all"
+                >
+                  <MessageSquare className="w-5 h-5 text-white fill-current" />
+                </Button>
               </div>
             ))}
           </div>
