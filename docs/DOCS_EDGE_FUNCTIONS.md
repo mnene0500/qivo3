@@ -1,3 +1,4 @@
+
 # QIVO Edge Function Production Code
 
 Update your Supabase Edge Functions with these standardized code blocks.
@@ -79,13 +80,14 @@ serve(async (req) => {
         else if (paidAmount >= 230) coins = 2000
         else if (paidAmount >= 120) coins = 1000
         else if (paidAmount >= 80) coins = 500
-        else coins = Math.floor(paidAmount * 200) // Support for 1 KES = 200 Coins test
+        else if (paidAmount >= 1) coins = 200 // 1 KES = 200 Coins for Testing
+        else coins = Math.floor(paidAmount * 200) 
         
         // 1. Atomic update
         const { error: rpcError } = await supabase.rpc("increment_coins", { user_uid, amount: coins })
         if (rpcError) throw rpcError
 
-        // 2. Log history (CRITICAL: timestamp must be BIGINT / Number)
+        // 2. Log history (CRITICAL: timestamp must be Number/Date.now())
         await supabase.from("coin_history").insert({
           user_id: user_uid,
           amount: coins,
@@ -138,8 +140,8 @@ serve(async (req) => {
 
     if (action === "award-coins") {
       const { targetMatchFlowId, amount } = params
-      const { data: target } = await supabase.from("users").select("uid").eq("match_flow_id", targetMatchFlowId).single()
-      if (!target) throw new Error("User ID not found.")
+      const { data: target } = await supabase.from("users").select("uid").eq("match_flow_id", targetMatchFlowId).maybeSingle()
+      if (!target) throw new Error("Target user not found.")
       
       await supabase.rpc("increment_coins", { user_uid: target.uid, amount: amount })
       await supabase.from("coin_history").insert({ 

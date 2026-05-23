@@ -137,27 +137,35 @@ export default function EditProfilePage() {
     try {
       const finalFormData = { ...formData };
       
-      // 1. Handle Profile Photo
+      // 1. Handle Profile Photo (OVERWRITE / UPSERT)
       if (formData.photo_url.startsWith('data:image')) {
-        toast({ title: "Uploading profile photo..." });
-        finalFormData.photo_url = await uploadBase64Image(formData.photo_url, 'photos', `${user.id}/profile_${Date.now()}.jpg`);
+        toast({ title: "Updating profile photo..." });
+        finalFormData.photo_url = await uploadBase64Image(
+          formData.photo_url, 
+          'photos', 
+          `${user.id}/avatar.jpg`,
+          true // Upsert: Overwrite old one
+        );
       }
 
-      // 2. Handle Gallery Photos
-      if (formData.additional_photos.some(p => p.startsWith('data:image'))) {
-        toast({ title: "Uploading gallery..." });
-        const uploadedPhotos = [];
-        for (let i = 0; i < formData.additional_photos.length; i++) {
-          const p = formData.additional_photos[i];
-          if (p.startsWith('data:image')) {
-            const url = await uploadBase64Image(p, 'photos', `${user.id}/gallery_${i}_${Date.now()}.jpg`);
-            uploadedPhotos.push(url);
-          } else {
-            uploadedPhotos.push(p);
-          }
+      // 2. Handle Gallery Photos (UNIQUE FILENAMES)
+      const uploadedPhotos = [];
+      for (let i = 0; i < formData.additional_photos.length; i++) {
+        const p = formData.additional_photos[i];
+        if (p.startsWith('data:image')) {
+          toast({ title: `Uploading gallery photo ${i+1}...` });
+          const url = await uploadBase64Image(
+            p, 
+            'photos', 
+            `${user.id}/gallery_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`,
+            false // Unique: Don't overwrite
+          );
+          uploadedPhotos.push(url);
+        } else {
+          uploadedPhotos.push(p);
         }
-        finalFormData.additional_photos = uploadedPhotos;
       }
+      finalFormData.additional_photos = uploadedPhotos;
 
       // 3. Update Database
       const { error } = await supabase.from('users').update(finalFormData).eq('uid', user.id)

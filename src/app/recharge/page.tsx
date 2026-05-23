@@ -46,6 +46,7 @@ function RechargeContent() {
 
   const orderTrackingId = searchParams.get("OrderTrackingId") || searchParams.get("orderTrackingId")
 
+  // HARD STOP: Kill everything and exit
   const handleRedirectHome = () => {
     successTriggeredRef.current = true;
     if (pollTimerRef.current) {
@@ -68,11 +69,12 @@ function RechargeContent() {
     const channel = supabase.channel(`recharge-sync:${user.id}`)
       .on('postgres_changes', { event: 'UPDATE', table: 'balances', filter: `user_id=eq.${user.id}` }, (payload) => {
         const newBal = Number(payload.new.coins) || 0
+        // If balance increased, we are done!
         if (currentCoins !== null && newBal > currentCoins && !successTriggeredRef.current) {
           setFulfillmentSuccess(true)
           setIsVerifying(false)
           toast({ title: "Coins Received!", description: "Balance updated successfully." })
-          setTimeout(handleRedirectHome, 2500);
+          setTimeout(handleRedirectHome, 2000);
         }
       })
       .subscribe()
@@ -83,7 +85,7 @@ function RechargeContent() {
     }
   }, [user?.id, currentCoins])
 
-  // 2. Verification Flow
+  // 2. Verification Flow (Explicit action: fulfill)
   useEffect(() => {
     if (orderTrackingId && user?.id && !fulfillmentSuccess && !successTriggeredRef.current) {
       setIsVerifying(true);
@@ -96,14 +98,9 @@ function RechargeContent() {
           const res = await verifyPaymentAction(orderTrackingId, user.id);
           
           if (res.success) {
-            setFulfillmentSuccess(true);
-            setIsVerifying(false);
-            if (pollTimerRef.current) {
-              clearInterval(pollTimerRef.current);
-              pollTimerRef.current = null;
-            }
-            setTimeout(handleRedirectHome, 2500);
+            // Edge Function confirmed it. Real-time listener will catch the balance update.
           } else if (res.message && !res.message.toLowerCase().includes("not completed")) {
+            // Actual error occurred
             setErrorMessage(res.message || res.error || "Verification failed");
             if (pollTimerRef.current) {
               clearInterval(pollTimerRef.current);
@@ -111,7 +108,7 @@ function RechargeContent() {
             }
           }
         } catch (err) {
-          // Silent retry on network errors
+          // Network hiccup, keep polling
         }
       };
 
@@ -119,7 +116,7 @@ function RechargeContent() {
       pollTimerRef.current = setInterval(runVerification, 8000); 
     }
     return () => { if (pollTimerRef.current) clearInterval(pollTimerRef.current); };
-  }, [orderTrackingId, user?.id]);
+  }, [orderTrackingId, user?.id, fulfillmentSuccess]);
 
   const handlePayment = async () => {
     const pkg = PACKAGES.find(p => p.amount === selectedPackage)

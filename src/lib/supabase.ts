@@ -11,9 +11,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
  * Robust base64 to binary conversion for storage.
- * Final version ensures proper MIME type extraction and clean binary upload.
+ * Follows User logic: upsert for profile, unique for extra.
  */
-export async function uploadBase64Image(base64: string, bucket: string, path: string): Promise<string> {
+export async function uploadBase64Image(base64: string, bucket: string, path: string, upsert = true): Promise<string> {
   try {
     // If it's already a URL, return it
     if (base64.startsWith('http')) return base64;
@@ -21,7 +21,6 @@ export async function uploadBase64Image(base64: string, bucket: string, path: st
     // 1. Extract clean base64 data and MIME type
     const matches = base64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.*)$/);
     if (!matches || matches.length !== 3) {
-      console.error("[Storage] Invalid format for", path);
       throw new Error("Invalid image string format.");
     }
 
@@ -47,7 +46,7 @@ export async function uploadBase64Image(base64: string, bucket: string, path: st
     // 3. Upload to Supabase Storage
     const { error } = await supabase.storage.from(bucket).upload(path, blob, {
       contentType,
-      upsert: true,
+      upsert: upsert,
       cacheControl: '3600'
     });
 
