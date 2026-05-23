@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useRef, use, useState } from "react"
@@ -10,10 +11,6 @@ import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-/**
- * @fileOverview Production-Secure Video & Voice Calling Page.
- * Uses Server Actions to fetch credentials and handle per-minute billing.
- */
 export default function CallPage({ params }: { params: Promise<{ chatId: string }> }) {
   const { chatId } = use(params)
   const router = useRouter()
@@ -23,6 +20,8 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
   
   const containerRef = useRef<HTMLDivElement>(null)
   const zpRef = useRef<any>(null)
+  const ringtoneRef = useRef<HTMLAudioElement | null>(null)
+  const callStartTimeRef = useRef<number>(0)
   const billingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   
   const isVideo = searchParams.get('type') !== 'voice'
@@ -33,174 +32,144 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
   const [micEnabled, setMicEnabled] = useState(true)
   const [cameraEnabled, setCameraEnabled] = useState(isVideo)
   const [isReady, setIsReady] = useState(false)
+  const [isConnected, setIsConnected] = useState(false)
   const [configError, setConfigError] = useState<string | null>(null)
 
-  // 1. SIGNALING
+  const stopRingtone = () => {
+    if (ringtoneRef.current) {
+      ringtoneRef.current.pause()
+      ringtoneRef.current.currentTime = 0
+    }
+  }
+
+  const logCallInChat = async (status: string) => {
+    if (!chatId || !user) return
+    const text = status // e.g. [Cancelled], [Rejected], [04:22]
+    await supabase.from('messages').insert({ chat_id: chatId, text, sender_id: user.id, timestamp: Date.now() })
+    await supabase.from('chats').update({ last_message: text, last_message_at: Date.now() }).eq('id', chatId)
+  }
+
+  const hangUp = (logStatus?: string) => {
+    stopRingtone()
+    if (billingIntervalRef.current) clearInterval(billingIntervalRef.current)
+    if (zpRef.current) try { zpRef.current.leaveRoom() } catch (e) {}
+    
+    if (isCaller && !isConnected) {
+      supabase.channel(`calls:${partnerId}`).send({ type: 'broadcast', event: 'cancel-call' })
+      logCallInChat("[Cancelled]")
+    } else if (isConnected) {
+      const durationSec = Math.floor((Date.now() - callStartTimeRef.current) / 1000)
+      const mins = Math.floor(durationSec / 60)
+      const secs = durationSec % 60
+      logCallInChat(`[${mins}:${secs.toString().padStart(2, '0')}]`)
+    }
+
+    router.replace("/chats")
+  }
+
   useEffect(() => {
     if (!user || !partnerId) return
+    
+    // START RINGTONE
+    ringtoneRef.current = new Audio('/notification.mp3')
+    ringtoneRef.current.loop = true
+    if (isCaller) ringtoneRef.current.play().catch(() => {})
 
     if (isCaller) {
       supabase.channel(`calls:${partnerId}`).send({
         type: 'broadcast',
         event: 'incoming-call',
-        payload: { 
-          chatId, 
-          type: isVideo ? 'video' : 'voice', 
-          callerId: user.id, 
-          callerName: user.user_metadata?.full_name || user.email?.split('@')[0] || "User", 
-          callerPhoto: user.user_metadata?.avatar_url 
-        }
+        payload: { chatId, type: isVideo ? 'video' : 'voice', callerId: user.id, callerName: user.user_metadata?.full_name || user.email?.split('@')[0] || "User", callerPhoto: user.user_metadata?.avatar_url }
       })
     }
 
     const channel = supabase.channel(`calls:${user.id}`)
-      .on('broadcast', { event: 'call-rejected' }, () => { 
-        toast({ title: "Call Declined" }); 
-        hangUp(); 
-      })
-      .on('broadcast', { event: 'cancel-call' }, () => {
-        toast({ title: "Call Cancelled" });
-        hangUp();
-      })
+      .on('broadcast', { event: 'call-rejected' }, () => { toast({ title: "Rejected" }); hangUp(); })
+      .on('broadcast', { event: 'cancel-call' }, () => { toast({ title: "Caller Cancelled" }); hangUp(); })
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
-  }, [user, partnerId, isCaller])
+    return () => { supabase.removeChannel(channel); stopRingtone(); }
+  }, [user, partnerId])
 
-  // 2. SECURE BILLING LOOP
-  const startBillingLoop = () => {
-    if (!isCaller || !user || !partnerId) return
-    
-    // Initial charge immediately upon connection
-    deductCallCoinsAction(user.id, isVideo ? 'video' : 'voice', partnerId, partnerName)
-
-    billingIntervalRef.current = setInterval(async () => {
-      const balanceCheck = await checkCallBalanceAction(user.id, isVideo ? 'video' : 'voice')
-      if (!balanceCheck.success) {
-        toast({ variant: "destructive", title: "Balance Depleted", description: "Call ended." })
-        hangUp()
-        return
-      }
-      deductCallCoinsAction(user.id, isVideo ? 'video' : 'voice', partnerId, partnerName)
-    }, 60000) 
-  }
-
-  // 3. INITIALIZE ZEGO
   useEffect(() => {
     if (!user || !containerRef.current) return
-
-    const initCall = async () => {
+    const init = async () => {
       try {
-        const config = await getZegoConfigAction();
-        if (!config.success || !config.appId || !config.serverSecret) {
-          setConfigError(config.error || "Calling service is currently unavailable.");
-          return;
-        }
-
-        const { ZegoUIKitPrebuilt } = await import('@zegocloud/zego-uikit-prebuilt')
+        const config = await getZegoConfigAction()
+        if (!config.success) throw new Error("Service Unavailable")
         
-        // TOKEN GENERATION: Uses server secret obtained via secure action
-        const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
-          config.appId,
-          config.serverSecret,
-          chatId,
-          user.id,
-          user.user_metadata?.full_name || user.email?.split('@')[0] || "User"
-        )
-
+        const { ZegoUIKitPrebuilt } = await import('@zegocloud/zego-uikit-prebuilt')
+        const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(config.appId, config.serverSecret, chatId, user.id, user.user_metadata?.full_name || "User")
         const zp = ZegoUIKitPrebuilt.create(kitToken)
         zpRef.current = zp
+        
         zp.joinRoom({
           container: containerRef.current,
           mode: ZegoUIKitPrebuilt.OneONoneCall,
           showPreJoinView: false,
           turnOnCameraWhenJoining: isVideo,
           turnOnMicrophoneWhenJoining: true,
-          showMyCameraToggleButton: isVideo,
-          showAudioVideoSettingsButton: false,
-          showMyDeviceStatusIcon: false,
-          onUserJoin: (joinedUser) => {
-            if (joinedUser.userID !== user.id) {
-              startBillingLoop()
-            }
+          onUserJoin: () => {
+            setIsConnected(true)
+            stopRingtone()
+            callStartTimeRef.current = Date.now()
+            if (isCaller) startBilling()
           },
           onLeaveRoom: () => hangUp(),
         })
         setIsReady(true)
-      } catch (err) {
-        console.error("Zego Init Error:", err);
-        setConfigError("Failed to connect to the call server.");
-      }
+      } catch (err) { setConfigError("Failed to connect.") }
     }
-    initCall()
-
-    return () => { if (billingIntervalRef.current) clearInterval(billingIntervalRef.current) }
+    init()
   }, [user, chatId])
 
-  const hangUp = () => {
-    if (billingIntervalRef.current) clearInterval(billingIntervalRef.current)
-    if (zpRef.current) {
-      try { zpRef.current.leaveRoom() } catch (e) {}
-    }
-    if (isCaller && partnerId) {
-      supabase.channel(`calls:${partnerId}`).send({ type: 'broadcast', event: 'cancel-call' })
-    }
-    router.replace("/chats")
+  const startBilling = () => {
+    if (!isCaller) return
+    // Billing Logic: First 10s free in Min 1. 
+    setTimeout(async () => {
+      if (zpRef.current) {
+        const check = await checkCallBalanceAction(user!.id, isVideo ? 'video' : 'voice')
+        if (!check.success) return hangUp()
+        deductCallCoinsAction(user!.id, isVideo ? 'video' : 'voice', partnerId, partnerName)
+      }
+    }, 11000)
+
+    billingIntervalRef.current = setInterval(async () => {
+      const check = await checkCallBalanceAction(user!.id, isVideo ? 'video' : 'voice')
+      if (!check.success) return hangUp()
+      deductCallCoinsAction(user!.id, isVideo ? 'video' : 'voice', partnerId, partnerName)
+    }, 60000)
   }
 
-  if (configError) {
-    return (
-      <div className="w-full h-screen bg-black flex flex-col items-center justify-center p-8 space-y-6">
-        <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center">
-           <AlertCircle className="w-10 h-10 text-red-500" />
-        </div>
-        <div className="text-center space-y-2">
-           <h2 className="text-xl font-bold text-white">Call Error</h2>
-           <p className="text-sm text-gray-400 max-w-xs">{configError}</p>
-        </div>
-        <Button onClick={() => router.back()} className="rounded-full bg-white text-black font-bold uppercase tracking-widest px-8">Go Back</Button>
-      </div>
-    )
-  }
+  if (configError) return <div className="h-screen bg-black flex flex-col items-center justify-center text-white"><AlertCircle className="w-12 h-12 text-red-500 mb-4" />{configError}<Button onClick={() => router.back()} className="mt-4">Back</Button></div>
 
   return (
     <div className="w-full h-screen bg-black relative flex flex-col items-center justify-center overflow-hidden">
-      {!isReady && (
-        <div className="flex flex-col items-center gap-6 text-white animate-pulse">
-           <div className="relative">
-             <div className="w-24 h-24 border-4 border-blue-500/20 rounded-full" />
-             <div className="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-           </div>
-           <div className="text-center space-y-1">
-             <p className="text-sm font-black uppercase tracking-[0.3em]">Connecting</p>
-             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Securing Line...</p>
-           </div>
+      {!isConnected && (
+        <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-xl flex flex-col items-center justify-center animate-in fade-in">
+          <div className="relative mb-8">
+             <div className="w-32 h-32 border-4 border-[#00A2FF]/20 rounded-full animate-pulse" />
+             <div className="absolute inset-0 border-4 border-[#00A2FF] border-t-transparent rounded-full animate-spin" />
+          </div>
+          <h2 className="text-2xl font-black uppercase tracking-widest text-white">{isCaller ? 'Calling...' : 'Connecting...'}</h2>
+          <p className="text-xs font-bold text-gray-400 mt-2 uppercase tracking-[0.3em]">{partnerName}</p>
         </div>
       )}
       
       <div ref={containerRef} className="w-full h-full" />
       
       {isReady && (
-        <div className="absolute bottom-12 inset-x-0 flex justify-center items-center gap-8 z-50">
-          <button 
-            onClick={() => { setMicEnabled(!micEnabled); zpRef.current?.enableMicrophone(!micEnabled); }} 
-            className={cn("w-16 h-16 rounded-full backdrop-blur-xl border border-white/20 flex items-center justify-center transition-all active:scale-90", micEnabled ? "bg-white/10 text-white" : "bg-red-500 text-white")}
-          >
+        <div className="absolute bottom-12 inset-x-0 flex justify-center items-center gap-8 z-50 px-10">
+          <button onClick={() => { setMicEnabled(!micEnabled); zpRef.current?.enableMicrophone(!micEnabled); }} className={cn("w-16 h-16 rounded-full backdrop-blur-xl border border-white/20 flex items-center justify-center", micEnabled ? "bg-white/10 text-white" : "bg-red-500 text-white")}>
             {micEnabled ? <Mic /> : <MicOff />}
           </button>
           
-          <button 
-            onClick={hangUp} 
-            className="w-20 h-20 rounded-full bg-red-600 flex items-center justify-center shadow-[0_0_50px_rgba(220,38,38,0.4)] active:scale-90 transition-transform"
-          >
+          <button onClick={() => hangUp()} className="w-20 h-20 rounded-full bg-red-600 flex items-center justify-center shadow-2xl active:scale-90 transition-transform">
             <PhoneOff className="text-white w-8 h-8" />
           </button>
           
           {isVideo && (
-            <button 
-              onClick={() => { setCameraEnabled(!cameraEnabled); zpRef.current?.enableCamera(!cameraEnabled); }} 
-              className={cn("w-16 h-16 rounded-full backdrop-blur-xl border border-white/20 flex items-center justify-center transition-all active:scale-90", cameraEnabled ? "bg-white/10 text-white" : "bg-red-500 text-white")}
-            >
+            <button onClick={() => { setCameraEnabled(!cameraEnabled); zpRef.current?.enableCamera(!cameraEnabled); }} className={cn("w-16 h-16 rounded-full backdrop-blur-xl border border-white/20 flex items-center justify-center", cameraEnabled ? "bg-white/10 text-white" : "bg-red-500 text-white")}>
               {cameraEnabled ? <Video /> : <VideoOff />}
             </button>
           )}
