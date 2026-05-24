@@ -145,9 +145,9 @@ export default function SettingsPage() {
                 <div className="py-4">
                   <Input placeholder="Type DELETE" value={deleteConfirmText} onChange={(e) => setDeleteConfirmText(e.target.value)} className="rounded-2xl h-14 text-center font-black" />
                 </div>
-                <AlertDialogFooter className="flex-row gap-3 mt-4">
-                  <AlertDialogCancel className="flex-1 h-14 rounded-full">Cancel</AlertDialogCancel>
-                  <AlertDialogAction disabled={deleteConfirmText.toUpperCase() !== "DELETE"} className="flex-1 h-14 rounded-full bg-red-500" onClick={handleDeleteAccount}>Delete</AlertDialogAction>
+                <AlertDialogFooter className="flex flex-row items-center justify-center gap-4 mt-6">
+                  <AlertDialogCancel className="flex-1 h-14 rounded-full border-gray-100 bg-gray-50 text-gray-400 font-black uppercase text-[10px] tracking-widest">Cancel</AlertDialogCancel>
+                  <AlertDialogAction disabled={deleteConfirmText.toUpperCase() !== "DELETE"} className="flex-1 h-14 rounded-full bg-red-500 text-white font-black uppercase text-[10px] tracking-widest shadow-lg shadow-red-100" onClick={handleDeleteAccount}>Delete</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -169,9 +169,9 @@ export default function SettingsPage() {
               <AlertDialogHeader className="items-center text-center">
                 <AlertDialogTitle className="text-xl font-bold">Sign Out?</AlertDialogTitle>
               </AlertDialogHeader>
-              <AlertDialogFooter className="flex-row gap-3 mt-6">
-                <AlertDialogCancel className="flex-1 h-14 rounded-full">No</AlertDialogCancel>
-                <AlertDialogAction onClick={handleSignOut} className="flex-1 h-14 rounded-full bg-black">Yes, Logout</AlertDialogAction>
+              <AlertDialogFooter className="flex flex-row items-center justify-center gap-4 mt-6">
+                <AlertDialogCancel className="flex-1 h-14 rounded-full border-gray-100 bg-gray-50 text-gray-400 font-black uppercase text-[10px] tracking-widest">No</AlertDialogCancel>
+                <AlertDialogAction onClick={handleSignOut} className="flex-1 h-14 rounded-full bg-black text-white font-black uppercase text-[10px] tracking-widest shadow-lg">Yes, Logout</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

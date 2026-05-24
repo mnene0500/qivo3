@@ -268,7 +268,7 @@ function ChatsContent() {
           <div key={s.id} onClick={() => router.push(`/chats?startWith=${s.partner_id}`)} className="p-5 border-b flex items-center gap-4 active:bg-gray-50 cursor-pointer">
             <div className="relative">
               <Avatar className="w-14 h-14 border"><AvatarImage src={`${s.partner_photo}?t=${Date.now()}`} className="object-cover" /><AvatarFallback>{s.partner_name[0]}</AvatarFallback></Avatar>
-              {s.unread_count > 0 && <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-md animate-in zoom-in">{s.unread_count}</div>}
+              {s.unread_count > 0 && <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-sm animate-in zoom-in">{s.unread_count}</div>}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex justify-between mb-1">
@@ -306,9 +306,9 @@ function ChatsContent() {
                     <AlertDialogTitle className="text-xl font-bold">Clear conversation?</AlertDialogTitle>
                     <AlertDialogDescription className="text-xs font-bold pt-2 uppercase tracking-widest leading-relaxed">This will hide this chat from your list until a new message is sent.</AlertDialogDescription>
                   </AlertDialogHeader>
-                  <AlertDialogFooter className="flex-row gap-3 mt-6">
-                    <AlertDialogCancel className="flex-1 h-14 rounded-full">Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleClearChat} className="flex-1 h-14 rounded-full bg-red-500">Clear</AlertDialogAction>
+                  <AlertDialogFooter className="flex flex-row items-center justify-center gap-4 mt-6">
+                    <AlertDialogCancel className="flex-1 h-14 rounded-full border-gray-100 bg-gray-50 text-gray-400 font-black uppercase text-[10px] tracking-widest hover:bg-gray-100">Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleClearChat} className="flex-1 h-14 rounded-full bg-red-500 text-white font-black uppercase text-[10px] tracking-widest shadow-lg shadow-red-100">Clear</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>

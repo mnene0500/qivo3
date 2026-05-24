@@ -66,9 +66,16 @@ export async function dailyCheckInAction(uid: string) {
 export async function awardCoinsAction(merchantUid: string, targetMatchFlowId: string, amount: number) {
   const supabase = getSupabaseAdmin();
   try {
-    // 1. Verify Caller Authority
-    const { data: merchant } = await supabase.from('users').select('uid, is_admin, is_coin_seller, name').eq('uid', merchantUid).single();
-    if (!merchant?.is_admin && !merchant?.is_coin_seller) throw new Error("Unauthorized to award coins.");
+    // 1. Verify Caller Authority via DIRECT TABLE QUERY (Requested Pattern)
+    const { data: merchant, error: authErr } = await supabase
+      .from('users')
+      .select('uid, is_admin, is_coin_seller, name')
+      .eq('uid', merchantUid)
+      .single();
+
+    if (authErr || (!merchant?.is_admin && !merchant?.is_coin_seller)) {
+      throw new Error("Unauthorized to award coins.");
+    }
 
     // 2. Find Target User strictly by match_flow_id
     const cleanedId = targetMatchFlowId.trim();
@@ -83,7 +90,6 @@ export async function awardCoinsAction(merchantUid: string, targetMatchFlowId: s
     const ts = Date.now();
 
     // 3. Logic for Merchant (Deduction Required) vs Admin (Unlimited)
-    // Only deduct if NOT an admin (Admins have unlimited awarding power)
     if (!merchant.is_admin && merchant.is_coin_seller) {
       const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', merchantUid).single();
       const currentBal = Number(bal?.coins) || 0;
@@ -136,9 +142,16 @@ export async function clearChatAction(uid: string, chatId: string) {
 export async function toggleUserRoleAction(callerUid: string, targetMatchFlowId: string, role: string, value: boolean) {
   const supabase = getSupabaseAdmin();
   try {
-    // 1. Verify Caller is a master admin
-    const { data: admin } = await supabase.from('users').select('is_admin').eq('uid', callerUid).single();
-    if (!admin?.is_admin) throw new Error("Unauthorized: Admin access required.");
+    // 1. Verify Caller is a master admin via DIRECT TABLE QUERY
+    const { data: admin, error: authErr } = await supabase
+      .from('users')
+      .select('is_admin')
+      .eq('uid', callerUid)
+      .single();
+
+    if (authErr || !admin?.is_admin) {
+      throw new Error("Unauthorized: Admin access required.");
+    }
     
     // 2. Validate role
     const validRoles = ['is_coin_seller', 'is_agent', 'is_verified', 'is_admin'];
@@ -167,8 +180,14 @@ export async function submitReportAction(reporterUid: string, reportedUid: strin
 export async function resolveReportAction(adminUid: string, reportId: string, reporterUid: string) {
   const supabase = getSupabaseAdmin();
   try {
-    const { data: admin } = await supabase.from('users').select('is_admin').eq('uid', adminUid).single();
-    if (!admin?.is_admin) throw new Error("Unauthorized.");
+    // Verify admin status directly from table
+    const { data: admin, error: authErr } = await supabase
+      .from('users')
+      .select('is_admin')
+      .eq('uid', adminUid)
+      .single();
+
+    if (authErr || !admin?.is_admin) throw new Error("Unauthorized.");
 
     await supabase.from('reports').update({ status: 'resolved' }).eq('id', reportId);
     return { success: true };
