@@ -7,11 +7,11 @@ import { supabase } from "@/lib/supabase"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Send, ChevronLeft, Loader2, User, Lock, Gem, Gift, Video, Phone } from "lucide-react"
+import { Send, ChevronLeft, Loader2, User, Lock, Gem, Gift, Video, Phone, Trash2, MoreVertical } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/firebase/auth/use-user"
 import { format } from "date-fns"
-import { sendGiftAction } from "@/app/actions/matchflow-actions"
+import { sendGiftAction, clearChatAction } from "@/app/actions/matchflow-actions"
 import { checkCallBalanceAction } from "@/app/actions/call-actions"
 import {
   Dialog,
@@ -20,6 +20,23 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface Message {
   id: string | number
@@ -39,6 +56,7 @@ interface ChatSummary {
   last_message_at: number
   unread_count: number
   last_seen_at?: Record<string, number>
+  cleared_at?: Record<string, number>
 }
 
 const GIFTS = [
@@ -96,10 +114,13 @@ function ChatsContent() {
       const enhanced = await Promise.all(chatsData.map(async (c) => {
         const pId = c.participant_ids.find((id: string) => id !== currentUser.id)
         if (!pId || blockedUids.has(pId)) return null;
+
+        // SOFT DELETE: If chat was cleared, don't show it if there are no new messages since clearing
+        const myClearedAt = c.cleared_at?.[currentUser.id] || 0;
+        if (c.last_message_at <= myClearedAt) return null;
+
         const { data: p } = await supabase.from('users').select('name, photo_url').eq('uid', pId).maybeSingle()
         
-        // Accurate Unread Logic: Compare last_message_at with current user's last_seen_at
-        // AND ensure current user is not the sender (participant_ids[0] stores last sender)
         const mySeenAt = c.last_seen_at?.[currentUser.id] || 0;
         const isUnread = c.last_message_at > mySeenAt && c.participant_ids[0] !== currentUser.id;
 
@@ -158,7 +179,6 @@ function ChatsContent() {
     return () => { supabase.removeChannel(channel) }
   }, [chatId, activeChatClearedAt])
 
-  // Handle Auto Message (e.g. from Coin Sellers page)
   useEffect(() => {
     if (chatId && autoMsg === 'buy_coins' && !hasSentAutoMsg.current && currentUser?.id && startWithId) {
       hasSentAutoMsg.current = true;
@@ -186,6 +206,15 @@ function ChatsContent() {
     } else {
       setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id))
       toast({ variant: "destructive", title: "Failed to send" })
+    }
+  }
+
+  const handleClearChat = async () => {
+    if (!currentUser || !chatId) return
+    const res = await clearChatAction(currentUser.id, chatId)
+    if (res.success) {
+      toast({ title: "Chat Cleared" })
+      router.push("/chats")
     }
   }
 
@@ -263,9 +292,29 @@ function ChatsContent() {
           <Avatar className="w-10 h-10 border"><AvatarImage src={`${partnerProfile?.photo_url}?t=${Date.now()}`} className="object-cover" /><AvatarFallback>{partnerProfile?.name?.[0]}</AvatarFallback></Avatar>
           <div><p className="font-black text-sm leading-none">{partnerProfile?.name || '...'}</p><p className="text-[9px] font-bold text-green-500 uppercase tracking-widest mt-1">{isBlocked ? "Unavailable" : "Available"}</p></div>
         </div>
-        <div className="flex gap-1">
+        <div className="flex items-center gap-1">
           <Button size="icon" variant="ghost" className="rounded-full text-[#00A2FF]" onClick={() => handleStartCall('voice')}><Phone className="w-5 h-5" /></Button>
           <Button size="icon" variant="ghost" className="rounded-full text-[#00A2FF]" onClick={() => handleStartCall('video')}><Video className="w-5 h-5" /></Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="rounded-full text-gray-400"><MoreVertical className="w-5 h-5" /></Button></DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-2xl min-w-[160px]">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500 font-bold gap-2"><Trash2 className="w-4 h-4" /> Clear Chat</DropdownMenuItem>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="rounded-[2.5rem] max-w-[85vw] p-8 border-none select-none">
+                  <AlertDialogHeader className="items-center text-center">
+                    <AlertDialogTitle className="text-xl font-bold">Clear conversation?</AlertDialogTitle>
+                    <AlertDialogDescription className="text-xs font-bold pt-2 uppercase tracking-widest leading-relaxed">This will hide this chat from your list until a new message is sent.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="flex-row gap-3 mt-6">
+                    <AlertDialogCancel className="flex-1 h-14 rounded-full">Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleClearChat} className="flex-1 h-14 rounded-full bg-red-500">Clear</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 

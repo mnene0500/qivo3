@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -75,7 +76,6 @@ export default function SettingsPage() {
 
   const handleClearCache = async () => {
     try {
-      // SAFE CLEAR: Remove everything except Supabase Auth tokens
       const keys = Object.keys(localStorage);
       for (const key of keys) {
         if (!key.includes('auth-token')) {

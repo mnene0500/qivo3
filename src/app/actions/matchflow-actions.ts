@@ -71,9 +71,14 @@ export async function awardCoinsAction(merchantUid: string, targetMatchFlowId: s
     const { data: merchant } = await supabase.from('users').select('uid, is_admin, is_coin_seller, name').eq('uid', merchantUid).single();
     if (!merchant?.is_admin && !merchant?.is_coin_seller) throw new Error("Unauthorized to award coins.");
 
-    // 2. Find Target User
-    const { data: target } = await supabase.from('users').select('uid, name').eq('match_flow_id', targetMatchFlowId).single();
-    if (!target) throw new Error("Recipient user not found.");
+    // 2. Find Target User strictly by match_flow_id
+    const { data: target, error: targetErr } = await supabase
+      .from('users')
+      .select('uid, name')
+      .eq('match_flow_id', targetMatchFlowId.trim())
+      .single();
+    
+    if (targetErr || !target) throw new Error("Recipient user not found in the database.");
 
     const ts = Date.now();
 
@@ -115,13 +120,24 @@ export async function awardCoinsAction(merchantUid: string, targetMatchFlowId: s
   }
 }
 
+export async function clearChatAction(uid: string, chatId: string) {
+  const supabase = getSupabaseAdmin();
+  try {
+    const { data: chat } = await supabase.from('chats').select('cleared_at').eq('id', chatId).single();
+    const newClearedAt = { ...(chat?.cleared_at || {}), [uid]: Date.now() };
+    await supabase.from('chats').update({ cleared_at: newClearedAt }).eq('id', chatId);
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
 export async function toggleUserRoleAction(callerUid: string, targetMatchFlowId: string, role: string, value: boolean) {
   const supabase = getSupabaseAdmin();
   try {
     const { data: admin } = await supabase.from('users').select('is_admin').eq('uid', callerUid).single();
     if (!admin?.is_admin) throw new Error("Unauthorized.");
     
-    // Explicitly cast role name to ensure we only update allowed fields
     const validRoles = ['is_coin_seller', 'is_agent', 'is_verified'];
     if (!validRoles.includes(role)) throw new Error("Invalid role.");
 
@@ -245,7 +261,10 @@ export async function requestWithdrawalAction(userUid: string, diamonds: number,
     const ts = Date.now();
     const { error: rpcError } = await supabase.rpc("increment_diamonds", { user_id: userUid, amount: -diamonds });
     if (rpcError) throw rpcError;
-    await supabase.from('withdrawals').insert({ user_id: userUid, agency_id: agencyId, diamonds, amount_kes, status: 'pending', timestamp: ts });
+    await Promise.all([
+      supabase.from('withdrawals').insert({ user_id: userUid, agency_id: agencyId, diamonds, amount_kes, status: 'pending', timestamp: ts }),
+      supabase.from('diamond_history').insert({ user_id: userUid, amount: -diamonds, type: 'withdrawal', description: `Payout Request KES ${amount_kes}`, timestamp: ts })
+    ]);
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message };

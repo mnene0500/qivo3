@@ -329,18 +329,23 @@ export default function MePage() {
               </>
             )}
 
-            {profile?.is_agent && profile && <AgencyDashboardDialog user={profile} />}
-            {profile?.gender === 'female' && profile?.agency_status !== 'approved' && !profile?.is_agent && !profile?.is_admin && <JoinAgencyDialog userUid={user?.id || ""} />}
-            
-            {profile?.agency_status === 'approved' && (
-              <Button onClick={() => router.push("/agency-wallet")} className="h-24 bg-gradient-to-br from-indigo-700 via-blue-600 to-blue-500 rounded-[2.2rem] shadow-2xl flex flex-col items-center justify-center text-white col-span-2 mt-4">
-                <div className="flex items-center gap-4">
-                  <div className="bg-white/15 p-3 rounded-2xl">
-                    <Wallet className="w-7 h-7 text-white" />
-                  </div>
-                  <span className="text-base font-black uppercase tracking-widest">Agency Wallet</span>
-                </div>
-              </Button>
+            {/* AGENCY CONTROLS: Strictly Female Only or Admins */}
+            {(profile?.gender === 'female' || profile?.is_admin) && (
+              <>
+                {profile?.is_agent && profile && <AgencyDashboardDialog user={profile} />}
+                {profile?.gender === 'female' && profile?.agency_status !== 'approved' && !profile?.is_agent && !profile?.is_admin && <JoinAgencyDialog userUid={user?.id || ""} />}
+                
+                {profile?.agency_status === 'approved' && (
+                  <Button onClick={() => router.push("/agency-wallet")} className="h-24 bg-gradient-to-br from-indigo-700 via-blue-600 to-blue-500 rounded-[2.2rem] shadow-2xl flex flex-col items-center justify-center text-white col-span-2 mt-4">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-white/15 p-3 rounded-2xl">
+                        <Wallet className="w-7 h-7 text-white" />
+                      </div>
+                      <span className="text-base font-black uppercase tracking-widest">Agency Wallet</span>
+                    </div>
+                  </Button>
+                )}
+              </>
             )}
           </div>
 
