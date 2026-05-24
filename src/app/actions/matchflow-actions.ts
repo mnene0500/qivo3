@@ -78,7 +78,7 @@ export async function awardCoinsAction(merchantUid: string, targetMatchFlowId: s
       .eq('match_flow_id', targetMatchFlowId.trim())
       .single();
     
-    if (targetErr || !target) throw new Error("Recipient user not found in the database.");
+    if (targetErr || !target) throw new Error("Recipient user not found.");
 
     const ts = Date.now();
 
@@ -135,12 +135,15 @@ export async function clearChatAction(uid: string, chatId: string) {
 export async function toggleUserRoleAction(callerUid: string, targetMatchFlowId: string, role: string, value: boolean) {
   const supabase = getSupabaseAdmin();
   try {
+    // 1. Verify Caller is a master admin
     const { data: admin } = await supabase.from('users').select('is_admin').eq('uid', callerUid).single();
-    if (!admin?.is_admin) throw new Error("Unauthorized.");
+    if (!admin?.is_admin) throw new Error("Unauthorized: Admin access required.");
     
-    const validRoles = ['is_coin_seller', 'is_agent', 'is_verified'];
-    if (!validRoles.includes(role)) throw new Error("Invalid role.");
+    // 2. Validate role
+    const validRoles = ['is_coin_seller', 'is_agent', 'is_verified', 'is_admin'];
+    if (!validRoles.includes(role)) throw new Error("Invalid authority role.");
 
+    // 3. Update the target user
     const { error } = await supabase.from('users').update({ [role]: value }).eq('match_flow_id', targetMatchFlowId);
     if (error) throw error;
     

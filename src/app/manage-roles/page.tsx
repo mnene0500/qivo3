@@ -1,10 +1,11 @@
+
 "use client"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ChevronLeft, Users, Loader2, UserPlus, UserMinus, Search } from "lucide-react"
+import { ChevronLeft, Users, Loader2, UserPlus, UserMinus, Search, ShieldAlert, ShieldCheck } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { toggleUserRoleAction } from "@/app/actions/matchflow-actions"
 import { supabase } from "@/lib/supabase"
@@ -16,6 +17,7 @@ interface TargetUser {
   match_flow_id: string
   is_coin_seller: boolean
   is_agent: boolean
+  is_admin: boolean
 }
 
 export default function ManageRolesPage() {
@@ -33,7 +35,7 @@ export default function ManageRolesPage() {
     try {
       const { data, error } = await supabase
         .from("users")
-        .select('uid, name, match_flow_id, is_coin_seller, is_agent')
+        .select('uid, name, match_flow_id, is_coin_seller, is_agent, is_admin')
         .eq("match_flow_id", targetId.trim())
         .maybeSingle()
       
@@ -50,7 +52,7 @@ export default function ManageRolesPage() {
     }
   }
 
-  const handleRoleUpdate = async (role: 'is_coin_seller' | 'is_agent', value: boolean) => {
+  const handleRoleUpdate = async (role: 'is_coin_seller' | 'is_agent' | 'is_admin', value: boolean) => {
     if (!user || !targetUser) return
     setLoading(true)
     try {
@@ -69,10 +71,10 @@ export default function ManageRolesPage() {
   }
 
   return (
-    <div className="flex-1 bg-white min-h-screen flex flex-col">
+    <div className="flex-1 bg-white min-h-screen flex flex-col select-none">
       <header className="px-4 h-16 flex items-center justify-between border-b bg-white sticky top-0 z-50">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full"><ChevronLeft className="w-6 h-6 text-black" /></Button>
-        <h1 className="text-base font-black text-black">Control Center</h1>
+        <h1 className="text-sm font-black text-black uppercase tracking-widest">Control Center</h1>
         <div className="w-10" />
       </header>
 
@@ -81,7 +83,7 @@ export default function ManageRolesPage() {
           <div className="w-20 h-20 bg-indigo-50 rounded-[2.5rem] flex items-center justify-center mx-auto">
             <Users className="w-10 h-10 text-indigo-600" />
           </div>
-          <h2 className="text-2xl font-black text-black tracking-tight">Authority Management</h2>
+          <h2 className="text-2xl font-black text-black tracking-tight uppercase">Authority Manager</h2>
         </div>
 
         <div className="w-full max-w-sm space-y-6">
@@ -104,31 +106,49 @@ export default function ManageRolesPage() {
                 <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">ID: {targetUser.match_flow_id}</p>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <p className="text-[9px] font-black text-center text-gray-400 uppercase tracking-widest">Coin Merchant</p>
-                  {targetUser.is_coin_seller ? (
-                    <Button onClick={() => handleRoleUpdate('is_coin_seller', false)} disabled={loading} className="w-full h-14 rounded-2xl bg-red-50 text-red-600 border border-red-100 font-black text-[10px] uppercase gap-2">
-                      <UserMinus className="w-4 h-4" /> Revoke
-                    </Button>
-                  ) : (
-                    <Button onClick={() => handleRoleUpdate('is_coin_seller', true)} disabled={loading} className="w-full h-14 rounded-2xl bg-blue-600 text-white font-black text-[10px] uppercase gap-2">
-                      <UserPlus className="w-4 h-4" /> Appoint
-                    </Button>
-                  )}
+              <div className="space-y-6">
+                {/* ADMIN ROLE */}
+                <div className="p-4 bg-gray-50 rounded-2xl border flex items-center justify-between">
+                   <div className="flex items-center gap-3">
+                     <ShieldCheck className="w-5 h-5 text-indigo-600" />
+                     <span className="text-[10px] font-black uppercase text-gray-500">System Admin</span>
+                   </div>
+                   <Button 
+                    onClick={() => handleRoleUpdate('is_admin', !targetUser.is_admin)} 
+                    disabled={loading}
+                    variant={targetUser.is_admin ? "destructive" : "default"}
+                    className="h-10 px-6 rounded-full text-[10px] font-black uppercase tracking-widest"
+                   >
+                     {targetUser.is_admin ? "Demote" : "Promote"}
+                   </Button>
                 </div>
-                
-                <div className="space-y-3">
-                  <p className="text-[9px] font-black text-center text-gray-400 uppercase tracking-widest">Agency Leader</p>
-                  {targetUser.is_agent ? (
-                    <Button onClick={() => handleRoleUpdate('is_agent', false)} disabled={loading} className="w-full h-14 rounded-2xl bg-red-50 text-red-600 border border-red-100 font-black text-[10px] uppercase gap-2">
-                      <UserMinus className="w-4 h-4" /> Revoke
-                    </Button>
-                  ) : (
-                    <Button onClick={() => handleRoleUpdate('is_agent', true)} disabled={loading} className="w-full h-14 rounded-2xl bg-purple-600 text-white font-black text-[10px] uppercase gap-2">
-                      <UserPlus className="w-4 h-4" /> Appoint
-                    </Button>
-                  )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <p className="text-[9px] font-black text-center text-gray-400 uppercase tracking-widest">Merchant</p>
+                    {targetUser.is_coin_seller ? (
+                      <Button onClick={() => handleRoleUpdate('is_coin_seller', false)} disabled={loading} className="w-full h-14 rounded-2xl bg-red-50 text-red-600 border border-red-100 font-black text-[10px] uppercase gap-2">
+                        <UserMinus className="w-4 h-4" /> Revoke
+                      </Button>
+                    ) : (
+                      <Button onClick={() => handleRoleUpdate('is_coin_seller', true)} disabled={loading} className="w-full h-14 rounded-2xl bg-blue-600 text-white font-black text-[10px] uppercase gap-2 shadow-lg shadow-blue-100">
+                        <UserPlus className="w-4 h-4" /> Appoint
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <p className="text-[9px] font-black text-center text-gray-400 uppercase tracking-widest">Agency Leader</p>
+                    {targetUser.is_agent ? (
+                      <Button onClick={() => handleRoleUpdate('is_agent', false)} disabled={loading} className="w-full h-14 rounded-2xl bg-red-50 text-red-600 border border-red-100 font-black text-[10px] uppercase gap-2">
+                        <UserMinus className="w-4 h-4" /> Revoke
+                      </Button>
+                    ) : (
+                      <Button onClick={() => handleRoleUpdate('is_agent', true)} disabled={loading} className="w-full h-14 rounded-2xl bg-purple-600 text-white font-black text-[10px] uppercase gap-2 shadow-lg shadow-purple-100">
+                        <UserPlus className="w-4 h-4" /> Appoint
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
