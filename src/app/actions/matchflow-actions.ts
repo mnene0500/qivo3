@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getSupabaseAdmin } from '@/lib/supabase';
@@ -10,8 +11,16 @@ import { getSupabaseAdmin } from '@/lib/supabase';
 export async function deleteUserCompletelyAction(uid: string) {
   const supabase = getSupabaseAdmin();
   try {
+    // 1. Get user to log IP before deletion if available
+    const { data: user } = await supabase.from('users').select('last_ip').eq('uid', uid).single();
+    
+    // 2. Perform nuclear auth deletion
     const { error } = await supabase.auth.admin.deleteUser(uid);
     if (error) throw error;
+    
+    // 3. Optional: Add IP to watchlist if account was flagged
+    // Logic here can be expanded for automated IP banning
+    
     return { success: true };
   } catch (err: any) {
     console.error("[Delete Account Error]:", err.message);
@@ -304,8 +313,8 @@ export async function joinAgencyAction(userUid: string, code: string) {
   try {
     const { data: agency } = await supabase.from('agencies').select('code').eq('code', code).maybeSingle();
     if (!agency) throw new Error("Invalid Agency Code.");
-    const { error } = await supabase.from('users').update({ agency_id: code, agency_status: 'pending' }).eq('uid', userUid);
-    if (error) throw error;
+    const { error: updateErr } = await supabase.from('users').update({ agency_id: code, agency_status: 'pending' }).eq('uid', userUid);
+    if (updateErr) throw updateErr;
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message };

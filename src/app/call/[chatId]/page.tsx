@@ -13,7 +13,8 @@ import { cn } from "@/lib/utils"
 
 /**
  * @fileOverview Hardened Agora Call Page.
- * Improved billing stability and signaling reliability.
+ * Implemented 10-second free grace period.
+ * Deduction happens at the 11th second for the first minute.
  */
 
 export default function CallPage({ params }: { params: Promise<{ chatId: string }> }) {
@@ -61,18 +62,27 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
     return () => { supabase.removeChannel(channel) }
   }, [callId])
 
-  // BILLING TIMER (Runs every minute)
+  // BILLING TIMER (Runs every second)
   useEffect(() => {
     if (joined && user?.id && partnerId) {
       billingTimer.current = setInterval(async () => {
         setDuration(prev => {
           const next = prev + 1
-          // Deduct coins every 60 seconds (starting from the end of the first minute)
-          if (next > 0 && next % 60 === 0) {
+          
+          // BILLING LOGIC: 
+          // 1. First 10 seconds are free.
+          // 2. At 11 seconds, deduct for the first minute.
+          // 3. Every 60 seconds thereafter (71s, 131s, etc.), deduct again.
+          
+          const isFirstMinuteDeduction = next === 11;
+          const isSubsequentMinuteDeduction = next > 11 && (next - 11) % 60 === 0;
+
+          if (isFirstMinuteDeduction || isSubsequentMinuteDeduction) {
             deductCallCoinsAction(user.id, type, partnerId).then(res => {
               if (!res.success) handleEndCall(true)
             })
           }
+          
           return next
         })
       }, 1000)
@@ -197,6 +207,11 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
              <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-2">
                {joined ? formatDuration(duration) : 'Initializing Agora...'}
              </p>
+             {duration < 11 && joined && (
+               <div className="mt-4 px-4 py-1.5 bg-green-500/20 text-green-400 rounded-full border border-green-500/30 animate-pulse">
+                 <p className="text-[10px] font-black uppercase tracking-widest">Free Preview: {10 - duration}s</p>
+               </div>
+             )}
           </div>
         )}
       </div>
