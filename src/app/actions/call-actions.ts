@@ -121,8 +121,9 @@ export async function deductCallCoinsAction(uid: string, type: 'video' | 'voice'
     });
 
     const { data: recipient } = await supabase.from('users').select('gender').eq('uid', partnerId).single();
+    // Logic: Female user gets exactly 50 diamonds per minute when called by a male user
     if (user?.gender === 'male' && recipient?.gender === 'female') {
-      const reward = Math.floor(cost * 0.4); 
+      const reward = 50; 
       await supabase.rpc("increment_diamonds", { p_user_id: partnerId, p_amount: reward });
       await supabase.from("diamond_history").insert({
         user_id: partnerId,

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useState, Suspense, useCallback, useRef } from "react"
@@ -202,6 +201,12 @@ function ChatsContent() {
     if (res.success) { router.push(`/call/${chatId}?type=${type}&partnerId=${startWithId}&callId=${res.callId}`); }
   }
 
+  // Bidirectional Block Check: Hide call buttons if either side has blocked the other
+  const isBidirectionalBlocked = partnerProfile && (
+    (partnerProfile.blocking || []).includes(currentUser?.id) || 
+    (partnerProfile.blocked_by || []).includes(currentUser?.id)
+  );
+
   if (authLoading || !isInitialized) return <div className="h-screen flex items-center justify-center bg-white"><Loader2 className="animate-spin text-[#00A2FF]" /></div>
 
   if (!startWithId) return (
@@ -257,8 +262,12 @@ function ChatsContent() {
           <div><p className="font-black text-sm leading-none">{partnerProfile?.name || '...'}</p></div>
         </div>
         <div className="flex items-center gap-1">
-          <Button size="icon" variant="ghost" className="rounded-full text-[#00A2FF]" onClick={() => handleStartCall('voice')}><Phone className="w-5 h-5" /></Button>
-          <Button size="icon" variant="ghost" className="rounded-full text-[#00A2FF]" onClick={() => handleStartCall('video')}><Video className="w-5 h-5" /></Button>
+          {!isBidirectionalBlocked && (
+            <>
+              <Button size="icon" variant="ghost" className="rounded-full text-[#00A2FF]" onClick={() => handleStartCall('voice')}><Phone className="w-5 h-5" /></Button>
+              <Button size="icon" variant="ghost" className="rounded-full text-[#00A2FF]" onClick={() => handleStartCall('video')}><Video className="w-5 h-5" /></Button>
+            </>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="rounded-full text-gray-400"><MoreVertical className="w-5 h-5" /></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="rounded-2xl min-w-[160px]">
