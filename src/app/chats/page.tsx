@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState, Suspense, useCallback, useRef } from "react"
@@ -165,8 +166,12 @@ function ChatsContent() {
       const cId = `direct_${ids[0]}_${ids[1]}`
       setChatId(cId)
       markAsSeen(cId)
+      setMessages([]) // CLEAR messages immediately to avoid blink
       supabase.from('users').select('*').eq('uid', startWithId).maybeSingle().then(({ data }) => setPartnerProfile(data))
-      supabase.from('chats').select('cleared_at').eq('id', cId).maybeSingle().then(({ data }) => setActiveChatClearedAt(data?.cleared_at?.[currentUser.id] || 0))
+      supabase.from('chats').select('cleared_at').eq('id', cId).maybeSingle().then(({ data }) => {
+        const cleared = data?.cleared_at?.[currentUser.id] || 0
+        setActiveChatClearedAt(cleared)
+      })
     }
   }, [currentUser?.id, startWithId])
 
@@ -239,7 +244,10 @@ function ChatsContent() {
     const res = await clearChatAction(currentUser.id, targetId)
     if (res.success) {
       toast({ title: "Chat Deleted" })
-      if (!id) router.push("/chats")
+      if (!id) {
+          setMessages([]) // Wipe state immediately
+          router.push("/chats")
+      }
       else fetchSummaries()
       setDeletingChatId(null)
     }
@@ -275,6 +283,11 @@ function ChatsContent() {
       if (res.success) {
         toast({ title: "Gift Sent!", description: `You sent a ${gift.name}.` })
         setGiftDialogOpen(false)
+        // FORCE a refresh check for messages
+        const { data } = await supabase.from('messages').select('*').eq('chat_id', chatId!).gt('timestamp', activeChatClearedAt).order('timestamp', { ascending: false }).limit(1)
+        if (data && data[0]) {
+           setMessages(prev => [data[0], ...prev])
+        }
       } else {
         toast({ variant: "destructive", title: "Error", description: res.error })
       }
@@ -408,10 +421,10 @@ function ChatsContent() {
              </div>
           </div>
         ) : (
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Dialog open={giftDialogOpen} onOpenChange={setGiftDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="icon" variant="ghost" className="rounded-full h-12 w-12 text-pink-500 hover:bg-pink-50">
+                <Button size="icon" variant="ghost" className="rounded-full h-12 w-12 text-pink-500 hover:bg-pink-50 shrink-0">
                   <Gift className="w-6 h-6" />
                 </Button>
               </DialogTrigger>
@@ -454,8 +467,8 @@ function ChatsContent() {
               </DialogContent>
             </Dialog>
 
-            <input value={newMessage} onChange={e => setNewMessage(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendMessage()} className="flex-1 h-12 bg-gray-50 rounded-2xl px-5 text-sm font-bold outline-none border border-transparent focus:border-[#00A2FF]/20 transition-all" placeholder="Type something..." />
-            <Button onClick={handleSendMessage} size="icon" className="rounded-full h-12 w-12 bg-[#00A2FF] shadow-lg shadow-blue-100"><Send className="w-5 h-5" /></Button>
+            <input value={newMessage} onChange={e => setNewMessage(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendMessage()} className="flex-1 h-12 bg-gray-50 rounded-2xl px-5 text-sm font-bold outline-none border border-transparent focus:border-[#00A2FF]/20 transition-all min-w-0" placeholder="Type something..." />
+            <Button onClick={handleSendMessage} size="icon" className="rounded-full h-12 w-12 bg-[#00A2FF] shadow-lg shadow-blue-100 shrink-0"><Send className="w-5 h-5" /></Button>
           </div>
         )}
       </footer>

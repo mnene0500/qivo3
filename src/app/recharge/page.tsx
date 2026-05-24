@@ -1,9 +1,10 @@
+
 "use client"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, Coins, ShieldCheck, Loader2, MessageSquare, ExternalLink, Zap, Check } from "lucide-react"
+import { ChevronLeft, Coins, ShieldCheck, Loader2, MessageSquare, ExternalLink, Zap, Check, History } from "lucide-react"
 import { useUser } from "@/firebase/auth/use-user"
 import { useToast } from "@/hooks/use-toast"
 import { initiatePesaPalPayment } from "@/app/actions/payment-actions"
@@ -63,16 +64,18 @@ export default function RechargePage() {
           <ChevronLeft className="w-6 h-6" />
         </Button>
         <h1 className="text-base font-black text-black uppercase tracking-widest">Recharge</h1>
-        <div className="flex items-center gap-1 font-bold text-lg">
-            <Coins className='w-5 h-5 text-yellow-500'/>
-            {coins}
-        </div>
+        <Button variant="ghost" size="icon" onClick={() => router.push('/coin-history')} className="rounded-full text-black">
+          <History className="w-5 h-5" />
+        </Button>
       </header>
 
       <main className="flex-1 p-5 space-y-8 pb-32">
-        <div className="text-center space-y-1">
-          <h2 className="text-2xl font-black tracking-tighter text-black uppercase">Coin Shop</h2>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Select a pack to top up</p>
+        <div className="flex flex-col items-center gap-2 pt-4">
+            <div className="bg-yellow-50 px-6 py-3 rounded-full flex items-center gap-3 border border-yellow-100 shadow-sm">
+                <Coins className='w-6 h-6 text-yellow-500 fill-yellow-500'/>
+                <span className="text-2xl font-black text-black">{coins}</span>
+            </div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Available Coins</p>
         </div>
 
         <div className="grid grid-cols-3 gap-3">
@@ -149,9 +152,6 @@ export default function RechargePage() {
             </div>
           )}
         </Button>
-        <p className="text-[8px] font-bold text-gray-400 leading-relaxed uppercase tracking-widest text-center px-8">
-          By purchasing, you agree to our Terms. Coins are non-refundable and added instantly.
-        </p>
       </footer>
     </div>
   )

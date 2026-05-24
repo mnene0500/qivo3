@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo, use, useState, useEffect, useRef } from "react"
@@ -59,6 +60,7 @@ interface UserProfile {
   interests?: string
   match_flow_id?: string
   is_verified?: boolean
+  is_admin?: boolean
   blocking?: string[]
   blocked_by?: string[]
   education_level?: string
@@ -204,6 +206,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
 
   const age = calculateAge(profile.dob)
   const allPhotos = Array.from(new Set([profile.photo_url, ...(profile.additional_photos || [])].filter(Boolean)));
+  const isTargetAdmin = profile.is_admin;
 
   return (
     <div className="flex-1 bg-[#F9FAFB] flex flex-col min-h-screen pb-40 select-none overflow-x-hidden">
@@ -212,15 +215,18 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
         <div className="absolute inset-0 bg-gradient-to-t from-[#F9FAFB] via-transparent to-black/30" />
         <div className="absolute top-12 inset-x-0 px-6 flex justify-between items-center z-20" onClick={(e) => e.stopPropagation()}>
           <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full bg-white/10 backdrop-blur-xl text-white w-12 h-12 border border-white/20 shadow-2xl active:scale-90 transition-all hover:bg-white/20"><ChevronLeft className="w-7 h-7" /></Button>
-          <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="rounded-full bg-white/10 backdrop-blur-xl text-white w-12 h-12 border border-white/20 shadow-2xl active:scale-90 transition-all hover:bg-white/20"><MoreHorizontal className="w-7 h-7" /></Button></DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="rounded-[2rem] min-w-[180px] p-2 border-none shadow-2xl">
-                <DropdownMenuItem onClick={handleBlock} className="rounded-2xl h-12 text-red-500 font-bold gap-3 px-4"><Ban className="w-5 h-5" /> Block User</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setReportOpen(true)} className="rounded-2xl h-12 font-bold gap-3 px-4"><Flag className="w-5 h-5 text-gray-400" /> Report Violation</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          
+          {!isTargetAdmin && (
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="rounded-full bg-white/10 backdrop-blur-xl text-white w-12 h-12 border border-white/20 shadow-2xl active:scale-90 transition-all hover:bg-white/20"><MoreHorizontal className="w-7 h-7" /></Button></DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="rounded-[2rem] min-w-[180px] p-2 border-none shadow-2xl">
+                  <DropdownMenuItem onClick={handleBlock} className="rounded-2xl h-12 text-red-500 font-bold gap-3 px-4"><Ban className="w-5 h-5" /> Block User</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setReportOpen(true)} className="rounded-2xl h-12 font-bold gap-3 px-4"><Flag className="w-5 h-5 text-gray-400" /> Report Violation</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
         </div>
         {presence?.state === 'online' && (
           <div className="absolute bottom-16 left-8 bg-green-500/90 backdrop-blur-md text-white px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl flex items-center gap-2 animate-in slide-in-from-left-4 duration-500"><div className="w-2 h-2 bg-white rounded-full animate-pulse" />Live Online</div>

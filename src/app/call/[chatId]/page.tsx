@@ -12,8 +12,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 
 /**
- * @fileOverview Agora Audio/Video Call Page.
- * Implements real-time signaling via Supabase and per-minute coin deductions.
+ * @fileOverview Hardened Agora Call Page.
+ * Improved billing stability and signaling reliability.
  */
 
 export default function CallPage({ params }: { params: Promise<{ chatId: string }> }) {
@@ -65,69 +65,83 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
   useEffect(() => {
     if (joined && user?.id && partnerId) {
       billingTimer.current = setInterval(async () => {
-        setDuration(prev => prev + 1)
-        // Deduct coins every 60 seconds
-        if (duration > 0 && duration % 60 === 0) {
-          const res = await deductCallCoinsAction(user.id, type, partnerId)
-          if (!res.success) {
-            handleEndCall(true)
+        setDuration(prev => {
+          const next = prev + 1
+          // Deduct coins every 60 seconds (starting from the end of the first minute)
+          if (next > 0 && next % 60 === 0) {
+            deductCallCoinsAction(user.id, type, partnerId).then(res => {
+              if (!res.success) handleEndCall(true)
+            })
           }
-        }
+          return next
+        })
       }, 1000)
     }
     return () => { if (billingTimer.current) clearInterval(billingTimer.current) }
-  }, [joined, duration, user?.id, partnerId, type])
+  }, [joined, user?.id, partnerId, type])
 
   useEffect(() => {
     const init = async () => {
       if (typeof window === 'undefined') return
-      const AgoraRTC = (await import('agora-rtc-sdk-ng')).default
-      
-      const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" })
-      const tokenData = await generateAgoraTokenAction(chatId, user!.id)
-      
-      await client.join(tokenData.appId, tokenData.channelName, tokenData.token, tokenData.uid)
-      
-      const audioTrack = await AgoraRTC.createMicrophoneAudioTrack()
-      let videoTrack = null
-      
-      if (type === 'video') {
-        videoTrack = await AgoraRTC.createCameraVideoTrack()
-        if (localVideoRef.current) {
-          videoTrack.play(localVideoRef.current)
+      try {
+        const AgoraRTC = (await import('agora-rtc-sdk-ng')).default
+        const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" })
+        const tokenData = await generateAgoraTokenAction(chatId, user!.id)
+        
+        await client.join(tokenData.appId, tokenData.channelName, tokenData.token, tokenData.uid)
+        
+        const audioTrack = await AgoraRTC.createMicrophoneAudioTrack()
+        let videoTrack = null
+        
+        if (type === 'video') {
+          videoTrack = await AgoraRTC.createCameraVideoTrack()
+          if (localVideoRef.current) {
+            videoTrack.play(localVideoRef.current)
+          }
         }
+
+        await client.publish(videoTrack ? [audioTrack, videoTrack] : [audioTrack])
+        
+        setRtc({ client, localAudioTrack: audioTrack, localVideoTrack: videoTrack })
+        setJoined(true)
+
+        client.on("user-published", async (remoteUser, mediaType) => {
+          await client.subscribe(remoteUser, mediaType)
+          if (mediaType === "video") {
+            setRemoteUser(remoteUser)
+            setTimeout(() => {
+              if (remoteVideoRef.current) remoteUser.videoTrack?.play(remoteVideoRef.current)
+            }, 100)
+          }
+          if (mediaType === "audio") {
+            remoteUser.audioTrack?.play()
+          }
+        })
+
+        client.on("user-unpublished", (user) => {
+          if (user.uid === remoteUser?.uid) setRemoteUser(null)
+        })
+
+        client.on("user-left", () => {
+          handleEndCall(false)
+        })
+      } catch (err) {
+        console.error("Agora Init Failed", err)
+        router.replace('/home')
       }
-
-      await client.publish(videoTrack ? [audioTrack, videoTrack] : [audioTrack])
-      
-      setRtc({ client, localAudioTrack: audioTrack, localVideoTrack: videoTrack })
-      setJoined(true)
-
-      client.on("user-published", async (remoteUser, mediaType) => {
-        await client.subscribe(remoteUser, mediaType)
-        if (mediaType === "video") {
-          setRemoteUser(remoteUser)
-          setTimeout(() => {
-            if (remoteVideoRef.current) remoteUser.videoTrack?.play(remoteVideoRef.current)
-          }, 100)
-        }
-        if (mediaType === "audio") {
-          remoteUser.audioTrack?.play()
-        }
-      })
-
-      client.on("user-unpublished", (user) => {
-        if (user.uid === remoteUser?.uid) setRemoteUser(null)
-      })
-
-      client.on("user-left", () => {
-        handleEndCall(false)
-      })
     }
 
     if (user?.id && chatId) init()
     
-    return () => { handleEndCall(false) }
+    return () => { 
+      if (rtc.client) {
+        rtc.localAudioTrack?.stop()
+        rtc.localAudioTrack?.close()
+        rtc.localVideoTrack?.stop()
+        rtc.localVideoTrack?.close()
+        rtc.client.leave()
+      }
+    }
   }, [chatId, user?.id])
 
   const handleEndCall = async (manual = true) => {
@@ -170,7 +184,6 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
 
   return (
     <div className="fixed inset-0 bg-black z-[100] flex flex-col items-center justify-center select-none overflow-hidden">
-      {/* REMOTE VIDEO / FULLSCREEN */}
       <div className="absolute inset-0 z-0">
         {type === 'video' && remoteUser ? (
           <div ref={remoteVideoRef} className="w-full h-full" />
@@ -188,42 +201,34 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
         )}
       </div>
 
-      {/* LOCAL VIDEO (Small Overlay) */}
       {type === 'video' && joined && !cameraOff && (
         <div className="absolute top-12 right-6 w-32 aspect-[3/4] bg-zinc-800 rounded-3xl overflow-hidden border-2 border-white/20 shadow-2xl z-20">
           <div ref={localVideoRef} className="w-full h-full" />
         </div>
       )}
 
-      {/* CONTROLS */}
       <div className="absolute bottom-16 inset-x-0 px-8 flex items-center justify-center gap-6 z-50">
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <button 
           onClick={toggleMute}
-          className={cn("w-16 h-16 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl transition-all active:scale-90", muted ? "bg-red-500 text-white" : "bg-white/10 text-white")}
+          className={cn("w-16 h-16 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl transition-all active:scale-90 flex items-center justify-center", muted ? "bg-red-500 text-white" : "bg-white/10 text-white")}
         >
           {muted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-        </Button>
+        </button>
 
-        <Button 
-          variant="destructive" 
-          size="icon" 
+        <button 
           onClick={() => handleEndCall(true)}
-          className="w-20 h-20 rounded-full shadow-2xl shadow-red-500/40 border-4 border-white/10 active:scale-95 transition-all"
+          className="w-20 h-20 rounded-full bg-red-600 text-white shadow-2xl shadow-red-500/40 border-4 border-white/10 active:scale-95 transition-all flex items-center justify-center"
         >
           <PhoneOff className="w-8 h-8" />
-        </Button>
+        </button>
 
         {type === 'video' && (
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <button 
             onClick={toggleCamera}
-            className={cn("w-16 h-16 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl transition-all active:scale-90", cameraOff ? "bg-red-500 text-white" : "bg-white/10 text-white")}
+            className={cn("w-16 h-16 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl transition-all active:scale-90 flex items-center justify-center", cameraOff ? "bg-red-500 text-white" : "bg-white/10 text-white")}
           >
             {cameraOff ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
-          </Button>
+          </button>
         )}
       </div>
 
