@@ -164,18 +164,18 @@ export default function HomePage() {
   return (
     <div className="flex-1 pb-24 bg-white min-h-screen relative select-none animate-in fade-in duration-300">
       {/* HEADER SECTION */}
-      <div className="bg-[#00A2FF] pt-12 pb-4 relative shadow-lg">
+      <div className="bg-[#00A2FF] pt-6 pb-4 relative shadow-lg">
         <div className="px-4 grid grid-cols-2 gap-3 mb-6">
           <button 
             onClick={() => router.push('/mystery-note')} 
-            className="h-24 bg-white/10 backdrop-blur-xl border border-white/20 rounded-[1.5rem] p-4 flex flex-col items-start justify-center gap-1 active:scale-95 transition-all text-white text-left"
+            className="h-28 bg-purple-600 border border-white/20 rounded-[1.5rem] p-4 flex flex-col items-start justify-center gap-1 active:scale-95 transition-all text-white text-left shadow-lg"
           >
             <FileText className="w-5 h-5 mb-1" />
             <p className="text-sm font-black">Mystery Note</p>
           </button>
           <button 
             onClick={() => router.push('/tasks')} 
-            className="h-24 bg-white/10 backdrop-blur-xl border border-white/20 rounded-[1.5rem] p-4 flex flex-col items-start justify-center gap-1 active:scale-95 transition-all text-white text-left"
+            className="h-28 bg-blue-900 border border-white/20 rounded-[1.5rem] p-4 flex flex-col items-start justify-center gap-1 active:scale-95 transition-all text-white text-left shadow-lg"
           >
             <Target className="w-5 h-5 mb-1" />
             <p className="text-sm font-black">Task Center</p>

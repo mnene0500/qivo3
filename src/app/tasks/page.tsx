@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -80,7 +81,7 @@ export default function TaskCenterPage() {
 
   return (
     <div className="flex-1 bg-[#F8F9FA] min-h-screen pb-10 select-none animate-in fade-in duration-300">
-      <header className="bg-[#00A2FF] h-32 relative px-4 pt-12">
+      <header className="bg-blue-900 h-32 relative px-4 pt-12">
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-white rounded-full hover:bg-white/10">
             <ChevronLeft className="w-6 h-6" />
@@ -104,7 +105,7 @@ export default function TaskCenterPage() {
                 </div>
                 <h2 className="text-xs font-black text-black uppercase tracking-widest">Daily Rewards</h2>
               </div>
-              <span className="text-[10px] font-black text-[#00A2FF] uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+              <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
                 Streak: {currentStreak}
               </span>
             </div>
@@ -144,7 +145,7 @@ export default function TaskCenterPage() {
               disabled={hasCheckedInToday || isProcessing}
               className={cn(
                 "w-full mt-8 h-16 rounded-full text-white font-black uppercase tracking-widest text-sm shadow-xl active:scale-95 transition-all", 
-                hasCheckedInToday ? "bg-gray-100 text-gray-300 shadow-none cursor-default" : "bg-[#00A2FF] shadow-blue-100"
+                hasCheckedInToday ? "bg-gray-100 text-gray-300 shadow-none cursor-default" : "bg-blue-900 shadow-blue-100"
               )}
             >
               {isProcessing ? <Loader2 className="animate-spin" /> : hasCheckedInToday ? "Already Claimed" : "Collect Reward"}
@@ -159,7 +160,7 @@ export default function TaskCenterPage() {
                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-blue-500 shadow-sm"><Trophy className="w-5 h-5" /></div>
                <div><p className="text-xs font-black uppercase tracking-tight">Trust Badge</p><p className="text-[9px] text-gray-400 font-medium">Verify your face for extra trust</p></div>
              </div>
-             <Button size="sm" onClick={() => router.push('/verify-identity')} className="rounded-full bg-[#00A2FF] text-[9px] font-black h-8 shadow-lg shadow-blue-100 px-4">GO</Button>
+             <Button size="sm" onClick={() => router.push('/verify-identity')} className="rounded-full bg-blue-900 text-[9px] font-black h-8 shadow-lg shadow-blue-100 px-4">GO</Button>
           </div>
         </section>
       </main>

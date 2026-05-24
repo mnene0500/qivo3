@@ -1,7 +1,8 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from "navigation"
 import { supabase } from "@/lib/supabase"
 import { useUser } from "@/firebase/auth/use-user"
 import { Button } from "@/components/ui/button"
@@ -81,7 +82,7 @@ export default function MysteryNotePage() {
   }
 
   return (
-    <div className="flex-1 bg-[#00A2FF] min-h-screen flex flex-col select-none relative overflow-hidden animate-in fade-in duration-500">
+    <div className="flex-1 bg-purple-600 min-h-screen flex flex-col select-none relative overflow-hidden animate-in fade-in duration-500">
       <div className="absolute -top-10 -right-20 w-80 h-80 opacity-20 pointer-events-none rotate-12"><Sparkles className="w-full h-full text-white" /></div>
       
       <header className="px-4 h-16 flex items-center bg-transparent z-50">
@@ -139,7 +140,7 @@ export default function MysteryNotePage() {
             <Button 
               onClick={handleSend} 
               disabled={isSending || !message.trim() || userCoins === null} 
-              className="w-full h-18 rounded-full bg-white text-[#00A2FF] font-black uppercase tracking-[0.2em] text-sm shadow-2xl active:scale-95 transition-all py-8"
+              className="w-full h-18 rounded-full bg-white text-purple-600 font-black uppercase tracking-[0.2em] text-sm shadow-2xl active:scale-95 transition-all py-8"
             >
               {isSending ? <Loader2 className="w-6 h-6 animate-spin" /> : <div className="flex items-center gap-3"><Send className="w-5 h-5" />Blast Message</div>}
             </Button>
