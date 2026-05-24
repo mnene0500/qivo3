@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useState } from "react"
@@ -6,7 +5,7 @@ import { supabase } from "@/lib/supabase"
 import { useUser } from "@/firebase/auth/use-user"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ShieldCheck, Loader2, User } from "lucide-react"
+import { ChevronLeft, ShieldCheck, Loader2, User, UserX } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
 
@@ -27,10 +26,23 @@ function BlockedUserItem({ userId, onUnblock }: { userId: string, onUnblock: (id
   return (
     <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50 bg-white">
       <div className="flex items-center gap-4">
-        <Avatar className="w-12 h-12 border border-gray-100"><AvatarImage src={profile.photo_url} className="object-cover" /><AvatarFallback className="font-black text-xs">{profile.name?.[0]}</AvatarFallback></Avatar>
-        <div className="flex flex-col"><span className="font-black text-sm text-black">{profile.name}</span><span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Blocked</span></div>
+        <Avatar className="w-12 h-12 border border-gray-100">
+          <AvatarImage src={profile.photo_url} className="object-cover" />
+          <AvatarFallback className="font-black text-xs">{profile.name?.[0]}</AvatarFallback>
+        </Avatar>
+        <div className="flex flex-col">
+          <span className="font-black text-sm text-black">{profile.name}</span>
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Blocked</span>
+        </div>
       </div>
-      <Button variant="outline" size="sm" onClick={() => onUnblock(userId)} className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest border-[#00A2FF] text-[#00A2FF] hover:bg-blue-50">Unblock</Button>
+      <Button 
+        variant="outline" 
+        size="sm" 
+        onClick={() => onUnblock(userId)} 
+        className="rounded-full h-8 px-4 text-[10px] font-black uppercase tracking-widest border-[#00A2FF] text-[#00A2FF] hover:bg-blue-50"
+      >
+        Unblock
+      </Button>
     </div>
   )
 }
@@ -52,12 +64,19 @@ export default function BlockedListPage() {
 
   const handleUnblock = async (targetId: string) => {
     if (!user) return
+    
+    // Bidirectional Unblocking:
+    // 1. Update My 'blocking' list
     const newBlocking = blockedUids.filter(id => id !== targetId)
-    const { error } = await supabase.from('users').update({ blocking: newBlocking }).eq('uid', user.id)
-    if (!error) {
-      setBlockedUids(newBlocking)
-      toast({ title: "User Unblocked" })
-    }
+    await supabase.from('users').update({ blocking: newBlocking }).eq('uid', user.id)
+    
+    // 2. Update Target's 'blocked_by' list
+    const { data: targetData } = await supabase.from('users').select('blocked_by').eq('uid', targetId).single()
+    const newBlockedBy = (targetData?.blocked_by || []).filter((id: string) => id !== user.id)
+    await supabase.from('users').update({ blocked_by: newBlockedBy }).eq('uid', targetId)
+
+    setBlockedUids(newBlocking)
+    toast({ title: "User Unblocked" })
   }
 
   return (
@@ -68,10 +87,28 @@ export default function BlockedListPage() {
         <div className="w-10" />
       </header>
       <main className="flex-1">
-        {loading ? (<div className="flex flex-col items-center justify-center py-20 opacity-20"><Loader2 className="w-8 h-8 animate-spin text-[#00A2FF]" /></div>) : blockedUids.length === 0 ? (<div className="flex flex-col items-center justify-center py-32 px-12 text-center space-y-6"><div className="w-20 h-20 bg-blue-50 rounded-[2rem] flex items-center justify-center"><ShieldCheck className="w-10 h-10 text-[#00A2FF]" /></div><div className="space-y-2"><h2 className="text-xl font-black text-black tracking-tight">Your List is Empty</h2><p className="text-sm font-medium text-gray-400">Enjoy a safe community!</p></div></div>) : (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 opacity-20">
+            <Loader2 className="w-8 h-8 animate-spin text-[#00A2FF]" />
+          </div>
+        ) : blockedUids.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-32 px-12 text-center space-y-6">
+            <div className="w-20 h-20 bg-blue-50 rounded-[2rem] flex items-center justify-center">
+              <ShieldCheck className="w-10 h-10 text-[#00A2FF]" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-xl font-black text-black tracking-tight">Your List is Empty</h2>
+              <p className="text-sm font-medium text-gray-400">Enjoy a safe community!</p>
+            </div>
+          </div>
+        ) : (
           <div className="flex flex-col">
-            <div className="bg-gray-50 px-6 py-3"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{blockedUids.length} Blocked Users</p></div>
-            {blockedUids.map((uid) => (<BlockedUserItem key={uid} userId={uid} onUnblock={handleUnblock} />))}
+            <div className="bg-gray-50 px-6 py-3">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{blockedUids.length} Blocked Users</p>
+            </div>
+            {blockedUids.map((uid) => (
+              <BlockedUserItem key={uid} userId={uid} onUnblock={handleUnblock} />
+            ))}
           </div>
         )}
       </main>

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -71,6 +70,7 @@ export default function SettingsPage() {
   const handleSignOut = async () => {
     try {
       await supabase.auth.signOut()
+      // USE REPLACE TO CLEAR HISTORY STACK
       window.location.replace("/welcome")
     } catch (error) {
       console.error(error)

@@ -109,6 +109,7 @@ function AgencyDashboardDialog({ user }: { user: UserProfile }) {
   const [agencyName, setAgencyName] = useState("")
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
+  const router = useRouter()
 
   const handleCreate = async () => {
     if (!agencyName.trim() || !user.uid) return
@@ -121,6 +122,15 @@ function AgencyDashboardDialog({ user }: { user: UserProfile }) {
     }
     setLoading(false)
   }
+
+  const copyCode = () => {
+    if (user.agency_id) {
+      navigator.clipboard.writeText(user.agency_id);
+      toast({ title: "Agency Code Copied" })
+    }
+  }
+
+  const hasAgency = user.agency_id && user.agency_status === 'approved' && user.is_agent;
 
   return (
     <Dialog>
@@ -135,25 +145,31 @@ function AgencyDashboardDialog({ user }: { user: UserProfile }) {
           <DialogTitle className="text-xl font-bold">Agency Management</DialogTitle>
         </DialogHeader>
         <div className="py-6 space-y-4">
-          {user.agency_id && user.agency_status === 'approved' ? (
+          {hasAgency ? (
             <div className="text-center space-y-4">
-              <div className="bg-blue-50 p-6 rounded-3xl">
-                <p className="text-[10px] font-bold text-blue-400 uppercase mb-2">Your Agency Code</p>
-                <h3 className="text-4xl font-bold text-blue-600 tracking-[0.2em]">{user.agency_id}</h3>
+              <div 
+                onClick={copyCode}
+                className="bg-blue-50 p-6 rounded-3xl cursor-pointer active:scale-95 transition-all border border-blue-100"
+              >
+                <p className="text-[10px] font-black text-blue-400 uppercase mb-2 tracking-widest">Tap to Copy Agency Code</p>
+                <h3 className="text-4xl font-black text-blue-600 tracking-[0.2em]">{user.agency_id}</h3>
               </div>
-              <Button asChild className="w-full h-14 bg-blue-600 rounded-full font-bold shadow-lg">
-                <Link href="/agency-manage">Manage Members</Link>
+              <Button asChild className="w-full h-16 bg-blue-600 rounded-full font-black uppercase tracking-widest text-xs shadow-xl">
+                <Link href="/agency-manage">Manage Agency Team</Link>
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
-              <Input 
-                placeholder="Business Name" 
-                value={agencyName} 
-                onChange={(e) => setAgencyName(e.target.value)} 
-                className="rounded-2xl h-14 border-gray-100 bg-gray-50" 
-              />
-              <Button onClick={handleCreate} disabled={loading} className="w-full h-14 bg-blue-600 rounded-full font-bold">
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase text-gray-400 ml-1">Agency Brand Name</p>
+                <Input 
+                  placeholder="e.g. QIVO Elite" 
+                  value={agencyName} 
+                  onChange={(e) => setAgencyName(e.target.value)} 
+                  className="rounded-2xl h-14 border-gray-100 bg-gray-50 font-bold" 
+                />
+              </div>
+              <Button onClick={handleCreate} disabled={loading} className="w-full h-16 bg-blue-600 rounded-full font-black uppercase tracking-widest text-xs">
                 {loading ? <Loader2 className="animate-spin" /> : "Establish Agency"}
               </Button>
             </div>
@@ -313,12 +329,12 @@ export default function MePage() {
               </>
             )}
 
-            {(profile?.gender === 'female' || profile?.is_admin) && (
+            {(profile?.gender === 'female' || profile?.is_admin || profile?.is_agent) && (
               <>
                 {profile?.is_agent && profile && <AgencyDashboardDialog user={profile} />}
                 {profile?.gender === 'female' && profile?.agency_status !== 'approved' && !profile?.is_agent && !profile?.is_admin && <JoinAgencyDialog userUid={user?.id || ""} />}
                 
-                {profile?.agency_status === 'approved' && (
+                {profile?.agency_status === 'approved' && !profile?.is_agent && (
                   <Button onClick={() => router.push("/agency-wallet")} className="h-24 bg-gradient-to-br from-indigo-700 via-blue-600 to-blue-500 rounded-[2.2rem] shadow-2xl flex flex-col items-center justify-center text-white col-span-2 mt-4">
                     <div className="flex items-center gap-4">
                       <div className="bg-white/15 p-3 rounded-2xl">

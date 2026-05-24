@@ -6,12 +6,13 @@ import { supabase } from "@/lib/supabase"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Send, ChevronLeft, Loader2, User, Lock, Gem, Gift, Video, Phone, Trash2, MoreVertical, Heart } from "lucide-react"
+import { Send, ChevronLeft, Loader2, User, Lock, Gem, Gift, Video, Phone, Trash2, MoreVertical, Heart, PlusCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/firebase/auth/use-user"
 import { format } from "date-fns"
 import { sendGiftAction, clearChatAction } from "@/app/actions/matchflow-actions"
 import { checkCallBalanceAction, startCallAction } from "@/app/actions/call-actions"
+import { useBalance } from "@/lib/providers/BalanceProvider"
 import {
   Dialog,
   DialogContent,
@@ -62,8 +63,18 @@ const GIFTS = [
   { name: "Rose", icon: "🌹", price: 10 },
   { name: "Coffee", icon: "☕", price: 50 },
   { name: "Heart", icon: "❤️", price: 100 },
-  { name: "Diamond", icon: "💎", price: 500 },
+  { name: "Fire", icon: "🔥", price: 300 },
+  { name: "Bouquet", icon: "💐", price: 500 },
+  { name: "Unicorn", icon: "🦄", price: 800 },
   { name: "Luxury Car", icon: "🏎️", price: 1000 },
+  { name: "Crown", icon: "👑", price: 1500 },
+  { name: "Diamond", icon: "💎", price: 2000 },
+  { name: "Ring", icon: "💍", price: 3500 },
+  { name: "Castle", icon: "🏰", price: 5000 },
+  { name: "Yacht", icon: "🚢", price: 10000 },
+  { name: "Private Jet", icon: "🛩️", price: 25000 },
+  { name: "Island", icon: "🏝️", price: 40000 },
+  { name: "Galaxy", icon: "🌌", price: 50000 },
 ]
 
 function ChatsContent() {
@@ -71,6 +82,7 @@ function ChatsContent() {
   const router = useRouter()
   const { toast } = useToast()
   const { user: currentUser, loading: authLoading, isInitialized } = useUser()
+  const { coins } = useBalance()
   const startWithId = searchParams.get("startWith")
   const autoMsg = searchParams.get("autoMsg")
   
@@ -113,15 +125,13 @@ function ChatsContent() {
       const blockedUids = new Set([...(userProfile.blocking || []), ...(userProfile.blocked_by || [])]);
       const enhanced = await Promise.all(chatsData.map(async (c) => {
         const pId = c.participant_ids.find((id: string) => id !== currentUser.id)
-        
-        // FILTER: Remove from list if either party has blocked the other
         if (!pId || blockedUids.has(pId)) return null;
 
         const myClearedAt = c.cleared_at?.[currentUser.id] || 0;
         if (c.last_message_at <= myClearedAt) return null;
 
         const { data: p } = await supabase.from('users').select('name, photo_url').eq('uid', pId).maybeSingle()
-        if (!p) return null; // User might be deleted
+        if (!p) return null; 
         
         const mySeenAt = c.last_seen_at?.[currentUser.id] || 0;
         const isUnread = c.last_message_at > mySeenAt && c.participant_ids[0] !== currentUser.id;
@@ -255,6 +265,10 @@ function ChatsContent() {
 
   const handleSendGift = async (gift: typeof GIFTS[0]) => {
     if (!currentUser || !startWithId || !partnerProfile) return
+    if (coins < gift.price) {
+      toast({ variant: "destructive", title: "Insufficient Balance", description: "Recharge to send this gift." })
+      return
+    }
     setIsGifting(true)
     try {
       const res = await sendGiftAction(currentUser.id, startWithId, gift.price, gift.name)
@@ -401,27 +415,41 @@ function ChatsContent() {
                   <Gift className="w-6 h-6" />
                 </Button>
               </DialogTrigger>
-              <DialogContent className="rounded-[2.5rem] p-8 max-w-[90vw]">
-                <DialogHeader className="items-center text-center">
-                  <DialogTitle className="text-xl font-bold uppercase tracking-widest">Send a Gift</DialogTitle>
+              <DialogContent className="rounded-[2.5rem] p-0 max-w-[95vw] overflow-hidden">
+                <DialogHeader className="p-6 pb-0 flex flex-row items-center justify-between">
+                  <div className="space-y-1">
+                    <DialogTitle className="text-lg font-black uppercase tracking-tighter">Premium Gifts</DialogTitle>
+                    <div className="flex items-center gap-1.5 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-100">
+                      <PlusCircle className="w-3.5 h-3.5 text-yellow-600" />
+                      <span className="text-[10px] font-black text-yellow-800">{coins} Coins</span>
+                    </div>
+                  </div>
                 </DialogHeader>
-                <div className="grid grid-cols-2 gap-4 py-6">
+                <div className="grid grid-cols-3 gap-2 p-6 pt-4 max-h-[60vh] overflow-y-auto no-scrollbar">
                   {GIFTS.map((gift) => (
                     <button
                       key={gift.name}
                       onClick={() => handleSendGift(gift)}
                       disabled={isGifting}
-                      className="flex flex-col items-center gap-2 p-4 bg-gray-50 rounded-[2rem] border border-gray-100 active:scale-95 transition-all hover:bg-pink-50 hover:border-pink-200"
+                      className="flex flex-col items-center gap-1.5 p-3 bg-gray-50 rounded-2xl border border-transparent active:scale-95 transition-all hover:bg-pink-50 hover:border-pink-200"
                     >
-                      <span className="text-4xl">{gift.icon}</span>
+                      <span className="text-3xl">{gift.icon}</span>
                       <div className="text-center">
-                        <p className="text-[10px] font-black uppercase text-black">{gift.name}</p>
-                        <p className="text-[9px] font-bold text-[#00A2FF] flex items-center justify-center gap-1">
-                          <Gem className="w-2.5 h-2.5" /> {gift.price}
+                        <p className="text-[9px] font-black uppercase text-black truncate w-full">{gift.name}</p>
+                        <p className="text-[8px] font-bold text-[#00A2FF] flex items-center justify-center gap-0.5">
+                          <Gem className="w-2 h-2" /> {gift.price}
                         </p>
                       </div>
                     </button>
                   ))}
+                </div>
+                <div className="p-4 border-t bg-gray-50/50">
+                   <Button 
+                    onClick={() => router.push('/recharge')} 
+                    className="w-full h-12 rounded-xl bg-[#00A2FF] hover:bg-[#0081CC] text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-100"
+                   >
+                     Quick Recharge
+                   </Button>
                 </div>
               </DialogContent>
             </Dialog>
