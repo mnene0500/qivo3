@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getSupabaseAdmin } from '@/lib/supabase';
