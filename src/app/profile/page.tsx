@@ -17,7 +17,7 @@ import { useBalance } from "@/lib/providers/BalanceProvider"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
 /**
- * @fileOverview Me Page with Flat Design (No avatar border) and Owner Console.
+ * @fileOverview Me Page with Flat Design (No avatar border or shadow) and Owner Console.
  */
 export default function MePage() {
   const router = useRouter()
@@ -122,7 +122,7 @@ export default function MePage() {
       <div className="relative z-10">
         <header className="pt-12 pb-10 px-6 flex flex-col items-center text-center">
           <div className="relative mb-4">
-            <div className="relative w-28 h-28 rounded-full overflow-hidden bg-white shadow-xl border-none">
+            <div className="relative w-28 h-28 rounded-full overflow-hidden bg-gray-50 border-none">
               <Image src={`${displayPhoto}?t=${cacheBust}`} alt={profile?.name || "Me"} fill className="object-cover" sizes="112px" />
             </div>
             <button className="absolute bottom-1 right-1 bg-white p-2.5 rounded-full shadow-lg active:scale-90 transition-transform" onClick={() => router.push('/edit-profile')}>

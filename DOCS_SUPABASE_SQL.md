@@ -186,6 +186,10 @@ CREATE POLICY "Users view own balance" ON public.balances FOR SELECT USING (auth
 DROP POLICY IF EXISTS "Participants can view chats" ON public.chats;
 CREATE POLICY "Participants can view chats" ON public.chats FOR SELECT USING (auth.uid() = ANY(participant_ids));
 
+DROP POLICY IF EXISTS "Participants can manage their calls" ON public.calls;
+CREATE POLICY "Participants can manage their calls" ON public.calls 
+FOR ALL USING (auth.uid() = caller_id OR auth.uid() = receiver_id);
+
 -- 6. GRANT PERMISSIONS
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;

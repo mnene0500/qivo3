@@ -105,7 +105,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
       try {
         const AgoraRTC = (await import('agora-rtc-sdk-ng')).default
         
-        // PHASE 1: CAMERA PREVIEW
+        // PHASE 1: CAMERA PREVIEW (Access camera first during ringing)
         if (type === 'video') {
           try {
             const videoTrack = await AgoraRTC.createCameraVideoTrack({
