@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Settings, ChevronRight, Copy, Check, BadgeCheck, Headphones, Pencil, Gem, Award, Briefcase, UserPlus, Wallet, Shield, PlusCircle, UserCheck } from "lucide-react"
+import { Settings, ChevronRight, Copy, Check, BadgeCheck, Headphones, Pencil, Gem, Award, Briefcase, UserPlus, Wallet, Shield, PlusCircle, UserCheck, Loader2 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
@@ -17,6 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 /**
  * @fileOverview Me Page with flat design (No border/shadow on avatar).
+ * Fixed: Unknown errors on isOwner checks and renamed recruitment references.
  */
 export default function MePage() {
   const router = useRouter()
@@ -105,12 +106,13 @@ export default function MePage() {
     </div>
   );
 
-  const isOwner = profile?.is_owner === true
-  const isMerchant = profile?.is_coin_seller === true || isOwner
-  const isAgent = profile?.is_agent === true
+  // DEFENSIVE LOGIC: Prevents "Unknown Error" if profile is partially loaded
+  const isOwner = !!profile?.is_owner
+  const isMerchant = !!profile?.is_coin_seller || isOwner
+  const isAgent = !!profile?.is_agent
   const isFemale = profile?.gender === 'female'
   const isAgencyMember = profile?.agency_status === 'approved'
-  const isVerified = profile?.is_verified === true
+  const isVerified = !!profile?.is_verified
   
   const displayPhoto = profile?.photo_url || "https://picsum.photos/seed/qivo/400/400"
   const cacheBust = profile?.updated_at ? new Date(profile.updated_at).getTime() : Date.now()
@@ -121,7 +123,7 @@ export default function MePage() {
       <div className="relative z-10">
         <header className="pt-12 pb-10 px-6 flex flex-col items-center text-center">
           <div className="relative mb-4">
-            <div className="relative w-28 h-28 rounded-full overflow-hidden bg-gray-100 border-none shadow-none">
+            <div className="relative w-28 h-28 rounded-full overflow-hidden bg-gray-100 border-none shadow-none ring-0">
               <Image src={`${displayPhoto}?t=${cacheBust}`} alt={profile?.name || "Me"} fill className="object-cover" sizes="112px" />
             </div>
             <button className="absolute bottom-1 right-1 bg-white p-2.5 rounded-full shadow-lg active:scale-90 transition-transform" onClick={() => router.push('/edit-profile')}>
@@ -143,7 +145,7 @@ export default function MePage() {
               <span className="text-[8px] font-black uppercase opacity-60">Coins</span>
             </Button>
             <Button className="h-24 bg-white rounded-[2rem] shadow-xl flex flex-col items-center justify-center text-black active:scale-95 transition-transform" onClick={() => router.push("/income")}>
-              <div className="flex items-center gap-2"><Gem className="w-5 h-5 text-blue-500" /><span className="text-lg font-black">{diamonds.toFixed(0)}</span></div>
+              <div className="flex items-center gap-2"><Gem className="w-5 h-5 text-blue-500" /><span className="text-lg font-black">{Number(diamonds || 0).toFixed(0)}</span></div>
               <span className="text-[8px] font-black uppercase opacity-60">Diamonds</span>
             </Button>
           </div>
@@ -211,7 +213,7 @@ export default function MePage() {
                       <Button variant="ghost" className="h-16 justify-between px-5 rounded-none">
                         <div className="flex items-center gap-4">
                           <div className="bg-blue-50 p-2.5 rounded-xl"><UserPlus className="w-5 h-5 text-blue-600" /></div>
-                          <span className="font-semibold text-xs text-black">Join Recruitment Agency</span>
+                          <span className="font-semibold text-xs text-black">Join Agency</span>
                         </div>
                         <ChevronRight className="w-4 h-4 text-gray-300" />
                       </Button>
