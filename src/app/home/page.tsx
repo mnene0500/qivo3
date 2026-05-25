@@ -1,14 +1,14 @@
-
 "use client"
 
 import { useMemo, useState, useEffect, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import { Card } from "@/components/ui/card"
-import { RotateCw, BadgeCheck, Loader2, FileText, Target } from "lucide-react"
+import { RotateCw, BadgeCheck, Loader2, FileText, Target, MessageSquare } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/firebase/auth/use-user"
+import { Button } from "@/components/ui/button"
 
 interface UserProfile {
   uid: string
@@ -106,9 +106,6 @@ export default function HomePage() {
       const from = pageNum * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
-      // Online Priority logic: Sort by updated_at DESC (active recently)
-      // To add randomness on manual refresh, we could offset by a random page if we had thousands of users,
-      // but for standard efficiency we stick to updated_at + simple range.
       const query = supabase
         .from('users')
         .select('uid, name, photo_url, country, dob, is_verified, updated_at')
@@ -198,18 +195,33 @@ export default function HomePage() {
         ) : (
           <div className="grid grid-cols-2 gap-2.5 pb-10">
             {users.map((u) => (
-              <Card key={u.uid} className="relative overflow-hidden border-none aspect-[1/1.25] rounded-[1.2rem] shadow-sm bg-gray-50 active:scale-95 transition-all cursor-pointer" onClick={() => router.push(`/users/${u.uid}`)}>
+              <Card key={u.uid} className="relative overflow-hidden border-none aspect-[1/1.3] rounded-[1.2rem] shadow-sm bg-gray-50 active:scale-95 transition-all cursor-pointer group" onClick={() => router.push(`/users/${u.uid}`)}>
                 <Image src={`${u.photo_url}?t=${u.updated_at}`} alt={u.name} fill className="object-cover" sizes="50vw" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 p-3 text-white">
-                  <div className="flex items-center gap-1 mb-1.5">
-                    <h4 className="font-black text-sm truncate tracking-tight">{u.name}</h4>
-                    {u.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-[#00A2FF] fill-white" />}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-3 text-white flex flex-col gap-2">
+                  <div className="flex items-center justify-between min-w-0">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <h4 className="font-black text-sm truncate tracking-tight">{u.name}</h4>
+                        {u.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-[#00A2FF] fill-white shrink-0" />}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="bg-[#00B200] text-white font-black text-[7px] px-1.5 py-0.5 rounded-sm">{calculateAge(u.dob)}</span>
+                        <span className="text-[7px] font-bold uppercase truncate opacity-70">{u.country}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="bg-[#00B200] text-white font-black text-[8px] px-2 py-0.5 rounded-md">{calculateAge(u.dob)}</span>
-                    <span className="bg-black/30 backdrop-blur-md text-white text-[8px] font-bold px-2 py-0.5 rounded-md truncate border border-white/5">{u.country}</span>
-                  </div>
+                  <Button 
+                    size="sm" 
+                    className="w-full h-8 rounded-lg bg-[#00A2FF] hover:bg-[#0081CC] text-white font-black text-[10px] uppercase tracking-widest gap-2 shadow-lg"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/chats?startWith=${u.uid}`);
+                    }}
+                  >
+                    <MessageSquare className="w-3 h-3" />
+                    CHAT
+                  </Button>
                 </div>
               </Card>
             ))}

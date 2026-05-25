@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useState } from "react"
@@ -11,34 +10,19 @@ import { Label } from "@/components/ui/label"
 import { ChevronLeft, Gem, History, Coins, ArrowRightLeft, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { convertDiamondsToCoinsAction } from "@/app/actions/matchflow-actions"
+import { useBalance } from "@/lib/providers/BalanceProvider"
 
 export default function IncomePage() {
   const router = useRouter()
   const { user } = useUser()
   const { toast } = useToast()
+  const { diamonds: globalDiamonds } = useBalance()
   
-  const [balances, setBalances] = useState({ coins: 0, diamonds: 0 })
-  const [balanceLoading, setBalanceLoading] = useState(true)
   const [diamondsToConvert, setDiamondsToConvert] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
 
-  useEffect(() => {
-    if (!user?.id) return
-    const fetchBalances = async () => {
-      const { data } = await supabase.from('balances').select('*').eq('user_id', user.id).maybeSingle()
-      if (data) setBalances({ coins: data.coins || 0, diamonds: Number(data.diamonds) || 0 })
-      setBalanceLoading(false)
-    }
-    fetchBalances()
-
-    const channel = supabase.channel(`income-sync:${user.id}`).on('postgres_changes', { event: 'UPDATE', table: 'balances', filter: `user_id=eq.${user.id}` }, (payload) => {
-      setBalances({ coins: payload.new.coins || 0, diamonds: Number(payload.new.diamonds) || 0 })
-    }).subscribe()
-      
-    return () => { supabase.removeChannel(channel) }
-  }, [user?.id])
-
-  const diamondBalance = balances.diamonds
+  // Use the synchronized global balance for all calculations
+  const diamondBalance = Number(globalDiamonds) || 0
   const conversionRate = 0.09 
   const minDiamonds = 1000
   const expectedCoins = Math.floor(Number(diamondsToConvert) * conversionRate)
@@ -99,7 +83,7 @@ export default function IncomePage() {
             </div>
           )}
 
-          <Button className="w-full h-16 rounded-full bg-[#00A2FF] text-white font-bold uppercase tracking-widest text-sm shadow-xl active:scale-95 transition-all" onClick={handleConvert} disabled={isProcessing || !diamondsToConvert || Number(diamondsToConvert) < minDiamonds}>
+          <Button className="w-full h-16 rounded-full bg-[#00A2FF] text-white font-bold uppercase tracking-widest text-sm shadow-xl active:scale-95 transition-all" onClick={handleConvert} disabled={isProcessing || !diamondsToConvert || Number(diamondsToConvert) < minDiamonds || Number(diamondsToConvert) > diamondBalance}>
             {isProcessing ? <Loader2 className="animate-spin" /> : <div className="flex items-center gap-2"><ArrowRightLeft className="w-5 h-5" />Confirm Conversion</div>}
           </Button>
         </div>

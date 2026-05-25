@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
@@ -21,7 +20,8 @@ export default function MePage() {
   const { toast } = useToast()
   const { coins, diamonds } = useBalance();
   
-  const [copied, setCopied] = useState(false)
+  const [idCopied, setIdCopied] = useState(false)
+  const [agencyCopied, setAgencyCopied] = useState(false)
   const [profile, setProfile] = useState<any>(null)
   const [isReady, setIsReady] = useState(false)
   const [agencyCode, setAgencyCode] = useState("")
@@ -70,12 +70,20 @@ export default function MePage() {
     setIsProcessing(false)
   }
 
+  const copyToClipboard = (text: string, setCopied: (val: boolean) => void) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast({ title: "Copied to clipboard" });
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   if (!isReady && (authLoading || !profile)) return <div className="h-screen flex items-center justify-center bg-white"><Loader2 className="animate-spin text-[#00A2FF]" /></div>
 
   const isAdmin = profile?.is_admin
   const isMerchant = profile?.is_coin_seller || isAdmin
   const isAgent = profile?.is_agent
   const isFemale = profile?.gender === 'female'
+  const isAgencyMember = profile?.agency_status === 'approved'
 
   return (
     <div className="flex-1 pb-24 bg-[#F8F9FA] min-h-screen relative animate-in fade-in duration-300">
@@ -89,7 +97,7 @@ export default function MePage() {
             <button className="absolute bottom-1 right-1 bg-white p-3 rounded-full shadow-xl" onClick={() => router.push('/edit-profile')}><Pencil className="w-4 h-4 text-[#00A2FF]" /></button>
           </div>
           <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-1.5">{profile?.name} {profile?.is_verified && <BadgeCheck className="w-4 h-4 text-white fill-blue-500" />}</h2>
-          <p onClick={() => { navigator.clipboard.writeText(profile?.match_flow_id); setCopied(true); setTimeout(() => setCopied(false), 2000); }} className="text-white/70 font-semibold text-[9px] uppercase tracking-widest mt-1 cursor-pointer">ID: {profile?.match_flow_id} {copied ? <Check className="w-2.5 h-2.5 inline text-green-300" /> : <div className="inline-block"><Copy className="w-2.5 h-2.5 opacity-50" /></div>}</p>
+          <p onClick={() => copyToClipboard(profile?.match_flow_id, setIdCopied)} className="text-white/70 font-semibold text-[9px] uppercase tracking-widest mt-1 cursor-pointer">ID: {profile?.match_flow_id} {idCopied ? <Check className="w-2.5 h-2.5 inline text-green-300" /> : <div className="inline-block"><Copy className="w-2.5 h-2.5 opacity-50" /></div>}</p>
         </header>
 
         <main className="px-6 space-y-6">
@@ -133,13 +141,15 @@ export default function MePage() {
                   </Button>
                 )}
                 
-                <Button variant="ghost" className="h-16 justify-between px-5 rounded-none border-b border-gray-50" onClick={() => router.push('/agency-wallet')}>
-                  <div className="flex items-center gap-4">
-                    <div className="bg-emerald-50 p-2.5 rounded-xl"><Wallet className="w-5 h-5 text-emerald-600" /></div>
-                    <span className="font-semibold text-xs text-black">Agency Wallet</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-300" />
-                </Button>
+                {isAgencyMember && (
+                  <Button variant="ghost" className="h-16 justify-between px-5 rounded-none border-b border-gray-50" onClick={() => router.push('/agency-wallet')}>
+                    <div className="flex items-center gap-4">
+                      <div className="bg-emerald-50 p-2.5 rounded-xl"><Wallet className="w-5 h-5 text-emerald-600" /></div>
+                      <span className="font-semibold text-xs text-black">Agency Wallet</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-gray-300" />
+                  </Button>
+                )}
 
                 {!profile?.agency_id ? (
                   <Dialog>
@@ -188,9 +198,19 @@ export default function MePage() {
                           <span className="text-[9px] font-bold text-[#00A2FF] uppercase">{profile.agency_status}</span>
                        </div>
                      </div>
-                     <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 rounded-full border">
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">ID: {profile.agency_id}</span>
-                     </div>
+                     {isAgent ? (
+                       <button 
+                         onClick={() => copyToClipboard(profile.agency_id, setAgencyCopied)}
+                         className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 rounded-full border hover:bg-gray-100 transition-colors"
+                       >
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">Code: {profile.agency_id}</span>
+                          {agencyCopied ? <Check className="w-2.5 h-2.5 text-green-500" /> : <Copy className="w-2.5 h-2.5 text-gray-300" />}
+                       </button>
+                     ) : (
+                       <div className="px-3 py-1 bg-gray-50 rounded-full border">
+                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">Linked</span>
+                       </div>
+                     )}
                   </div>
                 )}
               </div>
