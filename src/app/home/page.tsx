@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import { Card } from "@/components/ui/card"
@@ -17,10 +17,7 @@ interface UserProfile {
   country: string
   gender: string
   dob: string
-  onboarding_complete: boolean
   is_verified?: boolean
-  blocking?: string[]
-  blocked_by?: string[]
   updated_at: string
 }
 
@@ -44,33 +41,21 @@ export default function HomePage() {
   const [users, setUsers] = useState<UserProfile[]>([])
   const [initialLoading, setInitialLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'Recommend' | 'Nearby'>('Recommend')
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [statusChecked, setStatusChecked] = useState(false)
+  const [profile, setProfile] = useState<any>(null)
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
-  const [isLoadingMore, setIsLoadingMore] = useState(false)
-
-  // Avoid "Splash Blink" on internal navigation
-  const isFirstLoad = useRef(true);
 
   const fetchUsers = useCallback(async (pageNum = 0, isManual = false) => {
     if (!profile?.gender) return;
     
-    if (isManual) {
-      setIsRefreshing(true);
-      setPage(0);
-    } else if (pageNum === 0) {
-      setInitialLoading(true);
-    } else {
-      setIsLoadingMore(true);
-    }
+    if (isManual) setIsRefreshing(true);
+    if (pageNum === 0 && !isManual) setInitialLoading(true);
 
     try {
       const oppositeGender = profile.gender === 'male' ? 'female' : 'male';
       const from = pageNum * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
-      // Online priority: updated_at DESC
       const query = supabase
         .from('users')
         .select('uid, name, photo_url, country, dob, is_verified, updated_at')
@@ -80,78 +65,37 @@ export default function HomePage() {
         .order('updated_at', { ascending: false })
         .range(from, to);
 
-      if (activeTab === 'Nearby') {
-        query.eq('country', profile.country);
-      }
+      if (activeTab === 'Nearby') query.eq('country', profile.country);
 
       const { data, error } = await query;
-      if (error) throw error;
-
       if (data) {
-        const blockedUids = new Set([...(profile.blocking || []), ...(profile.blocked_by || [])]);
-        const filtered = (data as UserProfile[]).filter(u => u.uid !== currentUser?.id && !blockedUids.has(u.uid));
-        
-        if (pageNum === 0) {
-          setUsers(filtered);
-        } else {
-          setUsers(prev => [...prev, ...filtered]);
-        }
+        const filtered = data.filter(u => u.uid !== currentUser?.id);
+        if (pageNum === 0) setUsers(filtered);
+        else setUsers(prev => [...prev, ...filtered]);
         setHasMore(data.length === PAGE_SIZE);
       }
-    } catch (err) {
-      console.error("[Home Fetch Error]:", err);
     } finally {
       setIsRefreshing(false);
       setInitialLoading(false);
-      setIsLoadingMore(false);
-      isFirstLoad.current = false;
     }
   }, [currentUser?.id, profile, activeTab]);
 
   useEffect(() => {
-    if (!isInitialized || authLoading) return;
-    if (!currentUser) { router.replace("/welcome"); return; }
-
-    const setupProfile = async () => {
-      const { data } = await supabase
-        .from('users')
-        .select('uid, gender, country, onboarding_complete, blocking, blocked_by')
-        .eq('uid', currentUser.id)
-        .maybeSingle();
-      
-      if (!data || !data.onboarding_complete) { 
-        router.replace("/fastonboard"); 
-        return; 
-      }
-      setProfile(data as any);
-      setStatusChecked(true);
-    };
-
-    setupProfile();
-  }, [isInitialized, currentUser, authLoading, router])
-
-  // Initial load once profile is ready
-  useEffect(() => {
-    if (statusChecked && profile && users.length === 0) {
-      fetchUsers(0);
+    if (isInitialized && currentUser) {
+      supabase.from('users').select('uid, gender, country, onboarding_complete').eq('uid', currentUser.id).single()
+        .then(({ data }) => {
+          if (data?.onboarding_complete) setProfile(data);
+          else router.replace("/fastonboard");
+        });
     }
-  }, [statusChecked, profile, activeTab, fetchUsers, users.length]);
+  }, [isInitialized, currentUser, router]);
 
-  const handleManualRefresh = () => {
-    setPage(0);
-    fetchUsers(0, true);
-  };
-
-  if (!statusChecked && isFirstLoad.current) {
-    return (
-      <div className="fixed inset-0 bg-white flex items-center justify-center animate-in fade-in duration-500">
-         <h1 className="text-7xl font-logo font-black text-[#00A2FF] tracking-tight">QIVO</h1>
-      </div>
-    )
-  }
+  useEffect(() => {
+    if (profile) fetchUsers(0);
+  }, [profile, activeTab, fetchUsers]);
 
   return (
-    <div className="flex-1 pb-24 bg-white min-h-screen relative select-none animate-in fade-in duration-300">
+    <div className="flex-1 pb-24 bg-white min-h-screen relative select-none">
       <div className="bg-[#00A2FF] pt-6 pb-2 relative shadow-lg">
         <div className="px-4 grid grid-cols-2 gap-3 mb-4">
           <button onClick={() => router.push('/mystery-note')} className="h-28 bg-purple-600 border border-white/20 rounded-[1.5rem] p-4 flex flex-col items-start justify-center gap-1 active:scale-95 transition-all text-white shadow-lg">
@@ -165,20 +109,20 @@ export default function HomePage() {
         <div className="sticky top-0 z-50 bg-[#00A2FF] px-6 py-4 flex items-center justify-between border-t border-white/10">
           <div className="flex items-center gap-8">
             {(['Recommend', 'Nearby'] as const).map((tab) => (
-              <button key={tab} onClick={() => { setActiveTab(tab); setPage(0); setUsers([]); }} className={cn("text-sm font-black transition-all relative pb-2", activeTab === tab ? "text-white" : "text-white/40")}>
+              <button key={tab} onClick={() => { setActiveTab(tab); setPage(0); }} className={cn("text-sm font-black transition-all relative pb-2", activeTab === tab ? "text-white" : "text-white/40")}>
                 {tab}
                 {activeTab === tab && <div className="absolute -bottom-1 left-0 right-0 h-1 bg-white rounded-full animate-in zoom-in" />}
               </button>
             ))}
           </div>
-          <button onClick={handleManualRefresh} disabled={isRefreshing} className={cn("p-2 text-white active:scale-90 transition-transform", isRefreshing && "animate-spin")}>
+          <button onClick={() => fetchUsers(0, true)} className={cn("p-2 text-white active:scale-90 transition-transform", isRefreshing && "animate-spin")}>
             <RotateCw className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      <main className="px-4 pt-4 space-y-4 bg-white min-h-[60vh]">
-        {initialLoading && users.length === 0 ? (
+      <main className="px-4 pt-4 space-y-4">
+        {initialLoading ? (
           <div className="grid grid-cols-2 gap-2.5">{[...Array(6)].map((_, i) => <div key={i} className="aspect-[1/1.3] rounded-[1.2rem] bg-gray-100 animate-pulse" />)}</div>
         ) : (
           <div className="grid grid-cols-2 gap-2.5 pb-10">
@@ -187,35 +131,24 @@ export default function HomePage() {
                 <Image src={`${u.photo_url}?t=${u.updated_at}`} alt={u.name} fill className="object-cover" sizes="50vw" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-3 text-white flex flex-col gap-2">
-                  <div className="flex items-center justify-between min-w-0">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1 mb-0.5">
-                        <h4 className="font-black text-sm truncate tracking-tight">{u.name}</h4>
-                        {u.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-[#00A2FF] fill-white shrink-0" />}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="bg-[#00B200] text-white font-black text-[7px] px-1.5 py-0.5 rounded-sm">{calculateAge(u.dob)}</span>
-                        <span className="text-[7px] font-bold uppercase truncate opacity-70">{u.country}</span>
-                      </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1 mb-0.5">
+                      <h4 className="font-black text-sm truncate tracking-tight">{u.name}</h4>
+                      {u.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-[#00A2FF] fill-white shrink-0" />}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="bg-[#00B200] text-white font-black text-[7px] px-1.5 py-0.5 rounded-sm">{calculateAge(u.dob)}</span>
+                      <span className="text-[7px] font-bold uppercase truncate opacity-70">{u.country}</span>
                     </div>
                   </div>
-                  <Button 
-                    size="sm" 
-                    className="w-full h-8 rounded-lg bg-[#00A2FF] hover:bg-[#0081CC] text-white font-black text-[10px] uppercase tracking-widest gap-2 shadow-lg"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      router.push(`/chats?startWith=${u.uid}`);
-                    }}
-                  >
-                    <MessageSquare className="w-3 h-3" />
-                    CHAT
+                  <Button size="sm" className="w-full h-8 rounded-lg bg-[#00A2FF] hover:bg-[#0081CC] text-white font-black text-[10px] uppercase tracking-widest gap-2 shadow-lg" onClick={(e) => { e.stopPropagation(); router.push(`/chats?startWith=${u.uid}`); }}>
+                    <MessageSquare className="w-3 h-3" />CHAT
                   </Button>
                 </div>
               </Card>
             ))}
           </div>
         )}
-        {isLoadingMore && <div className="py-4 flex justify-center"><Loader2 className="animate-spin text-[#00A2FF]" /></div>}
       </main>
     </div>
   )
