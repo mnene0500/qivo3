@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from '@/lib/supabase';
 
 /**
  * @fileOverview Hardened, Atomic Server Actions for Owner hierarchy.
+ * Transitioned from is_admin to is_owner.
  */
 
 export async function completeOnboardingAction(payload: {
@@ -38,20 +39,20 @@ export async function completeOnboardingAction(payload: {
 
     if (initialCoins > 0) {
       const { error: coinErr } = await supabase.rpc("increment_coins", { p_user_id: payload.uid, p_amount: initialCoins });
-      if (!coinErr) {
-        await supabase.from('coin_history').insert({ 
-          user_id: payload.uid, amount: initialCoins, type: 'bonus', description: 'Welcome Bonus', timestamp 
-        });
-      }
+      if (coinErr) throw new Error("Welcome bonus allocation failed.");
+      
+      await supabase.from('coin_history').insert({ 
+        user_id: payload.uid, amount: initialCoins, type: 'bonus', description: 'Welcome Bonus', timestamp 
+      });
     }
 
     if (initialDiamonds > 0) {
       const { error: diamondErr } = await supabase.rpc("increment_diamonds", { p_user_id: payload.uid, p_amount: initialDiamonds });
-      if (!diamondErr) {
-        await supabase.from('diamond_history').insert({ 
-          user_id: payload.uid, amount: initialDiamonds, type: 'bonus', description: 'Welcome Bonus', timestamp 
-        });
-      }
+      if (diamondErr) throw new Error("Welcome bonus allocation failed.");
+
+      await supabase.from('diamond_history').insert({ 
+        user_id: payload.uid, amount: initialDiamonds, type: 'bonus', description: 'Welcome Bonus', timestamp 
+      });
     }
 
     return { success: true, bonus: initialCoins || initialDiamonds };
@@ -73,21 +74,14 @@ export async function deleteUserCompletelyAction(uid: string) {
       supabase.from('diamond_history').delete().eq('user_id', uid),
       supabase.from('withdrawals').delete().eq('user_id', uid),
       supabase.from('messages').delete().eq('sender_id', uid),
-      supabase.from('users').update({ blocking: '{}', blocked_by: '{}' }).eq('uid', uid)
+      // Clean up blocking arrays in other user records
+      supabase.rpc('remove_user_from_blocking_arrays', { target_uid: uid })
     ]);
 
-    // 2. Unlink from chats
-    const { data: userChats } = await supabase.from('chats').select('id').contains('participant_ids', [uid]);
-    if (userChats?.length) {
-      for (const chat of userChats) {
-        await supabase.from('chats').delete().eq('id', chat.id);
-      }
-    }
-
-    // 3. Delete Profile
+    // 2. Delete Profile
     await supabase.from('users').delete().eq('uid', uid);
     
-    // 4. Delete Auth record LAST
+    // 3. Delete Auth record LAST
     const { error: authErr } = await supabase.auth.admin.deleteUser(uid);
     if (authErr) throw authErr;
     
@@ -107,7 +101,7 @@ export async function awardCoinsAction(ownerUid: string, targetUid: string, amou
     // Only non-owners need to have the balance to deduct
     if (!owner.is_owner) {
       const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', ownerUid).single();
-      if ((bal?.coins || 0) < amount) throw new Error("Insufficient merchant balance");
+      if ((Number(bal?.coins) || 0) < amount) throw new Error("Insufficient merchant balance");
       await supabase.rpc("increment_coins", { p_user_id: ownerUid, p_amount: -amount });
     }
 

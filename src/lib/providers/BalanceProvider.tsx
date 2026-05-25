@@ -1,4 +1,3 @@
-
 'use client'
 
 import { createContext, useContext, useState, useEffect } from 'react';
@@ -9,7 +8,7 @@ const BalanceContext = createContext({ coins: 0, diamonds: 0 });
 
 /**
  * @fileOverview Global Balance Provider.
- * Optimized to be event-driven. Fetches once, then listens for precise changes.
+ * Optimized to be event-driven. Fetches once, then listens for INSERT and UPDATE changes.
  */
 export const BalanceProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useUser();
@@ -24,7 +23,7 @@ export const BalanceProvider = ({ children }: { children: React.ReactNode }) => 
     let balanceChannel: any;
 
     const fetchAndSubscribe = async () => {
-      // 1. Initial Fetch (Explicit columns only)
+      // 1. Initial Fetch
       const { data, error } = await supabase
         .from('balances')
         .select('coins, diamonds')
@@ -41,12 +40,13 @@ export const BalanceProvider = ({ children }: { children: React.ReactNode }) => 
       }
 
       // 2. Realtime Listener (Filtered to this user only)
+      // Listen for ALL events (INSERT/UPDATE) to catch the first-time welcome bonus
       balanceChannel = supabase
-        .channel(`bal-${user.id}`)
+        .channel(`bal-realtime-${user.id}`)
         .on(
           'postgres_changes',
           { 
-            event: 'UPDATE', 
+            event: '*', 
             schema: 'public', 
             table: 'balances', 
             filter: `user_id=eq.${user.id}` 
@@ -54,8 +54,8 @@ export const BalanceProvider = ({ children }: { children: React.ReactNode }) => 
           (payload) => {
             if (payload.new) {
               setBalances({
-                coins: Number(payload.new.coins) || 0,
-                diamonds: Number(payload.new.diamonds) || 0,
+                coins: Number((payload.new as any).coins) || 0,
+                diamonds: Number((payload.new as any).diamonds) || 0,
               });
             }
           }
