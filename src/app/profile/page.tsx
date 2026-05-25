@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
@@ -12,7 +11,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/firebase/auth/use-user"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { createAgencyAction, joinAgencyAction, leaveAgencyAction, deleteAgencyAction } from "@/app/actions/matchflow-actions"
+import { createAgencyAction, joinAgencyAction, leaveAgencyAction } from "@/app/actions/matchflow-actions"
 import { useBalance } from "@/lib/providers/BalanceProvider"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
@@ -29,7 +28,6 @@ export default function MePage() {
   const [agencyCode, setAgencyCode] = useState("")
   const [agencyName, setAgencyName] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
-  const [deleteConfirmText, setDeleteConfirmText] = useState("")
 
   const fetchProfile = useCallback(async () => {
     if (!user?.id) return
@@ -73,21 +71,6 @@ export default function MePage() {
     setIsProcessing(false)
   }
 
-  const handleDeleteAgency = async () => {
-    if (!user || !profile?.agency_id) return
-    if (deleteConfirmText.toUpperCase() !== "AGENCY DELETE") return
-
-    setIsProcessing(true)
-    const res = await deleteAgencyAction(user.id, profile.agency_id)
-    if (res.success) {
-      toast({ title: "Agency Deleted Permanently" })
-      fetchProfile()
-    } else {
-      toast({ variant: "destructive", title: "Error", description: res.error })
-    }
-    setIsProcessing(false)
-  }
-
   const handleCreateAgency = async () => {
     if (!user || !agencyName) return
     setIsProcessing(true)
@@ -102,6 +85,7 @@ export default function MePage() {
   }
 
   const copyToClipboard = (text: string, setCopied: (val: boolean) => void) => {
+    if (!text) return;
     navigator.clipboard.writeText(text);
     setCopied(true);
     toast({ title: "Copied to clipboard" });
@@ -162,7 +146,7 @@ export default function MePage() {
             <section className="space-y-3">
               <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Agency Console</h3>
               <div className="bg-white rounded-3xl p-2 shadow-sm border border-black/5 flex flex-col overflow-hidden">
-                {isAgent && (
+                {isAgent && profile?.agency_id && (
                   <Button variant="ghost" className="h-16 justify-between px-5 rounded-none border-b border-gray-50" onClick={() => router.push('/agency-manage')}>
                     <div className="flex items-center gap-4">
                       <div className="bg-purple-50 p-2.5 rounded-xl"><Briefcase className="w-5 h-5 text-purple-600" /></div>
@@ -240,17 +224,6 @@ export default function MePage() {
                          </AlertDialog>
                        )}
                     </div>
-                    {isAgent && (
-                      <div className="px-5 pb-4">
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild><Button variant="ghost" className="w-full h-10 rounded-2xl bg-red-50 text-red-500 text-[8px] font-black uppercase tracking-[0.2em] gap-2"><Trash2 className="w-3.5 h-3.5" /> Delete Agency</Button></AlertDialogTrigger>
-                          <AlertDialogContent className="rounded-[2.5rem] p-8 border-none"><AlertDialogHeader><AlertDialogTitle className="text-red-600">Danger Zone</AlertDialogTitle><AlertDialogDescription className="text-xs font-bold uppercase tracking-tight">This will permanently delete your agency and remove all members. Type <span className="text-black font-black">AGENCY DELETE</span> to confirm:</AlertDialogDescription></AlertDialogHeader>
-                            <div className="py-4"><Input placeholder="Type AGENCY DELETE" value={deleteConfirmText} onChange={(e) => setDeleteConfirmText(e.target.value)} className="h-12 rounded-xl text-center font-black uppercase" /></div>
-                            <AlertDialogFooter className="gap-3"><AlertDialogCancel className="h-12 rounded-full">Cancel</AlertDialogCancel><AlertDialogAction disabled={deleteConfirmText.toUpperCase() !== "AGENCY DELETE"} onClick={handleDeleteAgency} className="h-12 rounded-full bg-red-600 text-white">Confirm Deletion</AlertDialogAction></AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
