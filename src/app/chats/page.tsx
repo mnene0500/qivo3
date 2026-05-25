@@ -6,12 +6,11 @@ import { supabase } from "@/lib/supabase"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Send, ChevronLeft, Loader2, User, Lock, Gem, Gift, Video, Phone, Trash2, MoreVertical, BadgeCheck } from "lucide-react"
+import { Send, ChevronLeft, Loader2, User, Gift, Trash2, MoreVertical, BadgeCheck } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/firebase/auth/use-user"
 import { format } from "date-fns"
 import { sendGiftAction, clearChatAction, sendMessageAction } from "@/app/actions/matchflow-actions"
-import { checkCallBalanceAction, startCallAction } from "@/app/actions/call-actions"
 import { useBalance } from "@/lib/providers/BalanceProvider"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -124,7 +123,6 @@ function ChatsContent() {
       const p = profileMap.get(pId);
       
       const mySeenAt = (c.last_seen_at as Record<string, number>)?.[currentUser.id] || 0;
-      // UPDATED: Use last_sender_id for accurate notification
       const isUnread = c.last_message_at > mySeenAt && c.last_sender_id !== currentUser.id;
 
       return {
@@ -187,7 +185,6 @@ function ChatsContent() {
     }
   }, [chatId, currentUser?.id, newMessage, startWithId, toast]);
 
-  // Handle Auto-Messages (e.g. from Coin Sellers) - SENT AS VISIBLE BUBBLE
   useEffect(() => {
     if (isInitialized && chatId && autoMsgType === 'buy_coins' && !autoMsgSent.current) {
       autoMsgSent.current = true;
@@ -234,22 +231,6 @@ function ChatsContent() {
     } else {
       fetchSummaries()
       toast({ variant: "destructive", title: "Could not delete chat" })
-    }
-  }
-
-  const handleCall = async (type: 'video' | 'voice') => {
-    if (!currentUser || !startWithId || !chatId) return
-    const res = await checkCallBalanceAction(currentUser.id, type)
-    if (!res.success) {
-      toast({ variant: "destructive", title: "Balance Low", description: res.error })
-      router.push('/recharge')
-      return
-    }
-    const startRes = await startCallAction(chatId, currentUser.id, startWithId, type)
-    if (startRes.success) {
-      router.push(`/call/${chatId}?type=${type}&partnerId=${startWithId}&callId=${startRes.callId}`)
-    } else {
-      toast({ variant: "destructive", title: "Call Failed", description: startRes.error })
     }
   }
 
@@ -354,8 +335,6 @@ function ChatsContent() {
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Button size="icon" variant="ghost" onClick={() => handleCall('video')} className="rounded-full text-[#00A2FF]"><Video className="w-5 h-5" /></Button>
-          <Button size="icon" variant="ghost" onClick={() => handleCall('voice')} className="rounded-full text-[#00A2FF]"><Phone className="w-5 h-5" /></Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="rounded-full text-gray-400"><MoreVertical className="w-5 h-5" /></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="rounded-2xl min-w-[160px]">

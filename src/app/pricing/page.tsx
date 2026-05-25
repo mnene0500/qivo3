@@ -6,7 +6,7 @@ import { ChevronLeft, MessageSquare, Coins, Star } from "lucide-react"
 
 /**
  * @fileOverview Displays the cost of interactions in QIVO.
- * Optimized for messaging-only experience.
+ * Simplified for messaging and gifting.
  */
 export default function PricingPage() {
   const router = useRouter()
