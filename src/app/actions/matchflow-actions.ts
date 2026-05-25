@@ -63,7 +63,6 @@ export async function deleteUserCompletelyAction(uid: string) {
   try {
     // 1. Manual Deep Purge to avoid FK errors
     await Promise.all([
-      supabase.from('calls').delete().or(`caller_id.eq.${uid},receiver_id.eq.${uid}`),
       supabase.from('reports').delete().or(`reporter_id.eq.${uid},reported_id.eq.${uid}`),
       supabase.from('withdrawals').delete().eq('user_id', uid),
       supabase.from('messages').delete().eq('sender_id', uid),
@@ -142,6 +141,19 @@ export async function clearChatAction(uid: string, chatId: string) {
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message };
+  }
+}
+
+export async function markChatAsReadAction(uid: string, chatId: string) {
+  const supabase = getSupabaseAdmin();
+  try {
+    const { data } = await supabase.from('chats').select('last_seen_at').eq('id', chatId).single();
+    const currentSeen = data?.last_seen_at || {};
+    const updatedSeen = { ...currentSeen, [uid]: Date.now() };
+    await supabase.from('chats').update({ last_seen_at: updatedSeen }).eq('id', chatId);
+    return { success: true };
+  } catch (err: any) {
+    return { success: false };
   }
 }
 

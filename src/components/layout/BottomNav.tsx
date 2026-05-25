@@ -1,4 +1,3 @@
-
 "use client"
 
 import Link from "next/link"
@@ -11,7 +10,7 @@ import { useUser } from "@/firebase/auth/use-user"
 
 /**
  * @fileOverview High-fidelity Bottom Navigation with fixed positioning.
- * Corrected unread logic to only show incoming messages.
+ * Corrected unread logic to check against last_seen_at timestamps.
  */
 export function BottomNav() {
   const pathname = usePathname()
@@ -24,7 +23,7 @@ export function BottomNav() {
     const fetchUnread = async () => {
       const { data } = await supabase
         .from('chats')
-        .select('*')
+        .select('id, last_message_at, last_seen_at, last_sender_id')
         .contains('participant_ids', [user.id])
       
       if (data) {
@@ -32,9 +31,8 @@ export function BottomNav() {
           const userSeenAt = (chat.last_seen_at as Record<string, number>)?.[user.id] || 0;
           const lastMsgAt = chat.last_message_at || 0;
           
-          // Unread if: message is newer than my seen time AND I am NOT the last sender
-          // participant_ids[0] tracks the most recent sender in our chat implementation
-          const isUnread = lastMsgAt > userSeenAt && chat.participant_ids[0] !== user.id;
+          // Unread if: 1. New message exists AND 2. I wasn't the one who sent it
+          const isUnread = lastMsgAt > userSeenAt && chat.last_sender_id !== user.id;
           return isUnread ? acc + 1 : acc;
         }, 0);
         setTotalUnread(count);

@@ -10,7 +10,7 @@ import { Send, ChevronLeft, Loader2, User, Gift, Trash2, MoreVertical, BadgeChec
 import { cn } from "@/lib/utils"
 import { useUser } from "@/firebase/auth/use-user"
 import { format } from "date-fns"
-import { sendGiftAction, clearChatAction, sendMessageAction } from "@/app/actions/matchflow-actions"
+import { sendGiftAction, clearChatAction, sendMessageAction, markChatAsReadAction } from "@/app/actions/matchflow-actions"
 import { useBalance } from "@/lib/providers/BalanceProvider"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -158,6 +158,8 @@ function ChatsContent() {
       setChatId(cId)
       setMessages([])
       
+      markChatAsReadAction(currentUser.id, cId);
+      
       supabase.from('users').select('uid, name, photo_url, is_verified, blocking, blocked_by').eq('uid', startWithId).maybeSingle().then(({ data }) => setPartnerProfile(data))
       
       supabase.from('chats').select('cleared_at').eq('id', cId).maybeSingle().then(({ data }) => {
@@ -185,6 +187,27 @@ function ChatsContent() {
     }
   }, [chatId, currentUser?.id, newMessage, startWithId, toast]);
 
+  const handleSendGift = async (gift: typeof GIFTS[0]) => {
+    if (!currentUser?.id || !startWithId || !chatId) return;
+    
+    setIsGifting(true);
+    const ts = Date.now();
+    const giftMsg = `[Gift: ${gift.name}]`;
+    const optimistic: Message = { id: `gift-${ts}`, text: giftMsg, sender_id: currentUser.id, timestamp: ts, is_gift: true, is_optimistic: true };
+    
+    setMessages(prev => [optimistic, ...prev]);
+    setGiftDialogOpen(false);
+
+    const res = await sendGiftAction(currentUser.id, startWithId, gift.price, gift.name);
+    if (res.success) {
+      toast({ title: "Sent!" });
+    } else {
+      setMessages(prev => prev.filter(m => m.id !== optimistic.id));
+      toast({ variant: "destructive", title: "Failed", description: res.error });
+    }
+    setIsGifting(false);
+  }
+
   useEffect(() => {
     if (isInitialized && chatId && autoMsgType === 'buy_coins' && !autoMsgSent.current) {
       autoMsgSent.current = true;
@@ -210,7 +233,7 @@ function ChatsContent() {
       .on('postgres_changes', { event: 'INSERT', table: 'messages', filter: `chat_id=eq.${chatId}` }, (payload) => {
         const newMsg = payload.new as Message
         if (newMsg.timestamp <= activeChatClearedAt) return
-        setMessages(prev => [newMsg, ...prev.filter(m => m.id !== `temp-${newMsg.timestamp}`)]);
+        setMessages(prev => [newMsg, ...prev.filter(m => m.id !== `temp-${newMsg.timestamp}` && m.id !== `gift-${newMsg.timestamp}`)]);
       }).subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [chatId, activeChatClearedAt])
@@ -364,7 +387,7 @@ function ChatsContent() {
             )}>
               {m.is_gift ? (
                 <><div className="text-5xl animate-bounce">{gift?.icon || "🎁"}</div><p className="font-black uppercase tracking-widest text-[10px]">{gift?.name || "Premium Gift"}</p>
-                {isMe && <Button size="sm" onClick={() => sendGiftAction(currentUser.id, startWithId!, gift!.price, gift!.name)} className="mt-2 h-8 rounded-full bg-white/20 text-white text-[9px] uppercase font-black">Send One More</Button>}</>
+                {isMe && <Button size="sm" onClick={() => handleSendGift(gift!)} className="mt-2 h-8 rounded-full bg-white/20 text-white text-[9px] uppercase font-black">Send One More</Button>}</>
               ) : m.text}
             </div>
           )
@@ -379,12 +402,7 @@ function ChatsContent() {
               <DialogHeader className="p-6 pb-2"><DialogTitle className="text-lg font-black uppercase">Gifts ({coins} Coins)</DialogTitle></DialogHeader>
               <div className="grid grid-cols-3 gap-2 p-6 pt-0 max-h-[50vh] overflow-y-auto no-scrollbar">
                 {GIFTS.map((gift) => (
-                  <button key={gift.name} onClick={async () => { 
-                    setIsGifting(true); 
-                    const res = await sendGiftAction(currentUser!.id, startWithId!, gift.price, gift.name);
-                    if (res.success) { setGiftDialogOpen(false); toast({ title: "Sent!" }); }
-                    setIsGifting(false);
-                  }} disabled={isGifting} className="flex flex-col items-center p-3 bg-gray-50 rounded-2xl active:scale-95 transition-all">
+                  <button key={gift.name} onClick={() => handleSendGift(gift)} disabled={isGifting} className="flex flex-col items-center p-3 bg-gray-50 rounded-2xl active:scale-95 transition-all">
                     <span className="text-3xl">{gift.icon}</span><span className="text-[9px] font-black uppercase mt-1">{gift.name}</span><span className="text-[8px] font-bold text-[#00A2FF]">{gift.price}</span>
                   </button>
                 ))}
