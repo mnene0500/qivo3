@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState, Suspense, useCallback, useRef } from "react"
@@ -79,6 +80,8 @@ function ChatsContent() {
 
   const fetchSummaries = useCallback(async () => {
     if (!currentUser?.id) return
+    
+    // 1. Fetch raw chat records
     const { data: chatsData } = await supabase
       .from('chats')
       .select('id, participant_ids, last_message, last_message_at, cleared_at, last_seen_at')
@@ -86,36 +89,61 @@ function ChatsContent() {
       .order('last_message_at', { ascending: false })
       .limit(30);
 
-    if (chatsData) {
-      const { data: userData } = await supabase.from('users').select('blocking, blocked_by').eq('uid', currentUser.id).single();
-      const blockedUids = new Set([...(userData?.blocking || []), ...(userData?.blocked_by || [])]);
-
-      const enhanced = await Promise.all(chatsData.map(async (c) => {
-        const pId = c.participant_ids.find((id: string) => id !== currentUser.id)
-        if (!pId || blockedUids.has(pId)) return null;
-
-        const myClearedAt = (c.cleared_at as Record<string, number>)?.[currentUser.id] || 0;
-        if (c.last_message_at <= myClearedAt) return null;
-
-        const { data: p } = await supabase.from('users').select('name, photo_url, is_verified').eq('uid', pId).maybeSingle()
-        if (!p) return null; 
-        
-        const mySeenAt = (c.last_seen_at as Record<string, number>)?.[currentUser.id] || 0;
-        const isUnread = c.last_message_at > mySeenAt && c.participant_ids[0] !== currentUser.id;
-
-        return {
-          id: c.id,
-          partner_id: pId,
-          partner_name: p.name || `User`,
-          partner_photo: p.photo_url || "",
-          partner_is_verified: p.is_verified,
-          last_message: c.last_message || "",
-          last_message_at: c.last_message_at || Date.now(),
-          unread_count: isUnread ? 1 : 0
-        } as ChatSummary
-      }))
-      setChatSummaries(enhanced.filter(Boolean) as ChatSummary[])
+    if (!chatsData) {
+      setLoading(false)
+      return
     }
+
+    // 2. Fetch block status to filter them out entirely
+    const { data: userData } = await supabase.from('users').select('blocking, blocked_by').eq('uid', currentUser.id).single();
+    const blockedUids = new Set([...(userData?.blocking || []), ...(userData?.blocked_by || [])]);
+
+    // 3. Filter chats that are NOT cleared and NOT blocked
+    const validChats = chatsData.filter(c => {
+      const pId = c.participant_ids.find((id: string) => id !== currentUser.id)
+      if (!pId || blockedUids.has(pId)) return false;
+
+      const myClearedAt = (c.cleared_at as Record<string, number>)?.[currentUser.id] || 0;
+      // Strict filter: If the last message is older than or equal to the clear timestamp, don't show
+      return (c.last_message_at > myClearedAt);
+    });
+
+    if (validChats.length === 0) {
+      setChatSummaries([])
+      setLoading(false)
+      return
+    }
+
+    // 4. Batch fetch all partner profiles in ONE query to avoid flickering
+    const partnerIds = validChats.map(c => c.participant_ids.find((id: string) => id !== currentUser.id));
+    const { data: profiles } = await supabase
+      .from('users')
+      .select('uid, name, photo_url, is_verified')
+      .in('uid', partnerIds);
+
+    const profileMap = new Map(profiles?.map(p => [p.uid, p]));
+
+    // 5. Combine data into final summaries
+    const enhanced: ChatSummary[] = validChats.map(c => {
+      const pId = c.participant_ids.find((id: string) => id !== currentUser.id);
+      const p = profileMap.get(pId);
+      
+      const mySeenAt = (c.last_seen_at as Record<string, number>)?.[currentUser.id] || 0;
+      const isUnread = c.last_message_at > mySeenAt && c.participant_ids[0] !== currentUser.id;
+
+      return {
+        id: c.id,
+        partner_id: pId,
+        partner_name: p?.name || 'User',
+        partner_photo: p?.photo_url || '',
+        partner_is_verified: p?.is_verified,
+        last_message: c.last_message || "",
+        last_message_at: c.last_message_at || Date.now(),
+        unread_count: isUnread ? 1 : 0
+      }
+    });
+
+    setChatSummaries(enhanced)
     setLoading(false)
   }, [currentUser?.id])
 
@@ -124,6 +152,7 @@ function ChatsContent() {
       fetchSummaries()
       const channel = supabase.channel('chats_realtime_summaries')
         .on('postgres_changes', { event: 'UPDATE', table: 'chats', schema: 'public' }, () => fetchSummaries())
+        .on('postgres_changes', { event: 'INSERT', table: 'chats', schema: 'public' }, () => fetchSummaries())
         .subscribe()
       return () => { supabase.removeChannel(channel) }
     }
@@ -190,6 +219,7 @@ function ChatsContent() {
     const targetId = id || chatId
     if (!currentUser || !targetId) return
 
+    // 1. Optimistic Update: Hide the chat instantly
     setChatSummaries(prev => prev.filter(s => s.id !== targetId))
     
     const res = await clearChatAction(currentUser.id, targetId)
@@ -197,10 +227,12 @@ function ChatsContent() {
       toast({ title: "Chat Deleted" })
       if (!id || id === chatId) { 
         setMessages([]); 
-        router.push("/chats") 
+        if (startWithId) router.push("/chats") 
       }
     } else {
+      // If error, bring it back
       fetchSummaries()
+      toast({ variant: "destructive", title: "Could not delete chat" })
     }
   }
 
