@@ -4,7 +4,7 @@ import { getSupabaseAdmin } from '@/lib/supabase';
 
 /**
  * @fileOverview Hardened, Atomic Server Actions.
- * Optimized for database consistency and cascade safety.
+ * Optimized for guaranteed rewards and safe database purging.
  */
 
 export async function completeOnboardingAction(payload: {
@@ -13,7 +13,7 @@ export async function completeOnboardingAction(payload: {
   const supabase = getSupabaseAdmin();
   
   try {
-    // 1. Create the Profile first to satisfy Foreign Key constraints
+    // 1. Create Profile
     const qId = Math.floor(1000000 + Math.random() * 900000000).toString();
     const { error: profileErr } = await supabase.from('users').upsert({
       uid: payload.uid, 
@@ -31,12 +31,12 @@ export async function completeOnboardingAction(payload: {
 
     if (profileErr) throw profileErr;
 
-    // 2. Atomic Reward Logic: Male (500 Coins), Female (150 Diamonds)
+    // 2. Atomic Reward Logic
     const initialCoins = (payload.gender === 'male') ? 500 : 0;
     const initialDiamonds = (payload.gender === 'female') ? 150 : 0;
     const timestamp = Date.now();
 
-    // Use RPC for atomic initial balance creation
+    // Directly insert into balances or use RPC to ensure row exists
     if (initialCoins > 0) {
       await supabase.rpc("increment_coins", { p_user_id: payload.uid, p_amount: initialCoins });
       await supabase.from('coin_history').insert({ 
@@ -61,19 +61,23 @@ export async function completeOnboardingAction(payload: {
 export async function deleteUserCompletelyAction(uid: string) {
   const supabase = getSupabaseAdmin();
   try {
-    // 1. Manually wipe data in order to avoid FK triggers
+    // 1. Clear presence in blocking arrays of other users first
+    // This is the most common hidden cause of deletion errors
+    await supabase.rpc('remove_user_from_blocking_lists', { target_uid: uid });
+
+    // 2. Wipe related records manually (Extra safety for missing cascades)
     await Promise.all([
+      supabase.from('calls').delete().or(`caller_id.eq.${uid},receiver_id.eq.${uid}`),
       supabase.from('reports').delete().or(`reporter_id.eq.${uid},reported_id.eq.${uid}`),
       supabase.from('balances').delete().eq('user_id', uid),
       supabase.from('coin_history').delete().eq('user_id', uid),
       supabase.from('diamond_history').delete().eq('user_id', uid),
-      supabase.from('withdrawals').delete().eq('user_id', uid)
+      supabase.from('withdrawals').delete().eq('user_id', uid),
+      supabase.from('messages').delete().eq('sender_id', uid)
     ]);
 
-    // 2. Clear messages
-    await supabase.from('messages').delete().eq('sender_id', uid);
-
-    // 3. Clear Chat records (where user is participant)
+    // 3. Clear participant references in chats
+    // (Optional: In a production app you might mark chats as inactive instead)
     const { data: userChats } = await supabase.from('chats').select('id').contains('participant_ids', [uid]);
     if (userChats?.length) {
       for (const chat of userChats) {
@@ -81,10 +85,10 @@ export async function deleteUserCompletelyAction(uid: string) {
       }
     }
 
-    // 4. Finally delete from public.users
+    // 4. Delete profile
     await supabase.from('users').delete().eq('uid', uid);
     
-    // 5. Delete the Auth account last
+    // 5. Delete Auth record LAST
     const { error } = await supabase.auth.admin.deleteUser(uid);
     if (error) throw error;
     
@@ -92,6 +96,52 @@ export async function deleteUserCompletelyAction(uid: string) {
   } catch (err: any) {
     console.error("[Delete User Error]:", err.message);
     return { success: false, error: err.message || "Database synchronization error." };
+  }
+}
+
+export async function awardCoinsAction(adminUid: string, targetUid: string, amount: number) {
+  const supabase = getSupabaseAdmin();
+  try {
+    // Verify admin/merchant permission
+    const { data: admin } = await supabase.from('users').select('is_admin, is_coin_seller').eq('uid', adminUid).single();
+    if (!admin?.is_admin && !admin?.is_coin_seller) throw new Error("Unauthorized");
+
+    // Deduct from merchant if not master admin
+    if (!admin.is_admin) {
+      const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', adminUid).single();
+      if ((bal?.coins || 0) < amount) throw new Error("Insufficient merchant balance");
+      await supabase.rpc("increment_coins", { p_user_id: adminUid, p_amount: -amount });
+    }
+
+    // Award to recipient
+    const { error: awardErr } = await supabase.rpc("increment_coins", { p_user_id: targetUid, p_amount: amount });
+    if (awardErr) throw awardErr;
+
+    await supabase.from('coin_history').insert({
+      user_id: targetUid,
+      amount: amount,
+      type: 'purchase',
+      description: 'Transfer from Merchant',
+      timestamp: Date.now()
+    });
+
+    return { success: true, message: `Successfully sent ${amount} coins.` };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function clearChatAction(uid: string, chatId: string) {
+  const supabase = getSupabaseAdmin();
+  try {
+    const { data } = await supabase.from('chats').select('cleared_at').eq('id', chatId).single();
+    const currentCleared = data?.cleared_at || {};
+    const updatedCleared = { ...currentCleared, [uid]: Date.now() };
+
+    await supabase.from('chats').update({ cleared_at: updatedCleared }).eq('id', chatId);
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
   }
 }
 

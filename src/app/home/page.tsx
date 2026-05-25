@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import { Card } from "@/components/ui/card"
@@ -46,26 +46,29 @@ export default function HomePage() {
   const [hasMore, setHasMore] = useState(true)
 
   const fetchUsers = useCallback(async (pageNum = 0, isManual = false) => {
-    if (!profile?.gender) return;
+    // If onboarding is incomplete, profile check might block. We only proceed if we have basic profile context.
+    if (!profile) return;
     
     if (isManual) setIsRefreshing(true);
     if (pageNum === 0 && !isManual) setInitialLoading(true);
 
     try {
-      const oppositeGender = profile.gender === 'male' ? 'female' : 'male';
       const from = pageNum * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
+      
+      // Determine preference based on profile gender if available, otherwise fetch both
+      const oppositeGender = profile.gender === 'male' ? 'female' : profile.gender === 'female' ? 'male' : null;
 
       const query = supabase
         .from('users')
         .select('uid, name, photo_url, country, dob, is_verified, updated_at')
         .eq('onboarding_complete', true)
-        .eq('gender', oppositeGender)
         .is('is_deleted', false)
         .order('updated_at', { ascending: false })
         .range(from, to);
 
-      if (activeTab === 'Nearby') query.eq('country', profile.country);
+      if (oppositeGender) query.eq('gender', oppositeGender);
+      if (activeTab === 'Nearby' && profile.country) query.eq('country', profile.country);
 
       const { data, error } = await query;
       if (data) {
@@ -74,6 +77,8 @@ export default function HomePage() {
         else setUsers(prev => [...prev, ...filtered]);
         setHasMore(data.length === PAGE_SIZE);
       }
+    } catch (err) {
+      console.error("Fetch Users Error:", err);
     } finally {
       setIsRefreshing(false);
       setInitialLoading(false);
@@ -84,8 +89,12 @@ export default function HomePage() {
     if (isInitialized && currentUser) {
       supabase.from('users').select('uid, gender, country, onboarding_complete').eq('uid', currentUser.id).single()
         .then(({ data }) => {
-          if (data?.onboarding_complete) setProfile(data);
-          else router.replace("/fastonboard");
+          if (data?.onboarding_complete) {
+            setProfile(data);
+          } else if (!data) {
+             // In case profile doesn't exist at all
+             router.replace("/fastonboard");
+          }
         });
     }
   }, [isInitialized, currentUser, router]);
@@ -93,6 +102,8 @@ export default function HomePage() {
   useEffect(() => {
     if (profile) fetchUsers(0);
   }, [profile, activeTab, fetchUsers]);
+
+  if (authLoading || !isInitialized) return null; // Let root layout handle splash
 
   return (
     <div className="flex-1 pb-24 bg-white min-h-screen relative select-none">
