@@ -1,3 +1,4 @@
+
 "use client"
 
 import { usePathname, useSearchParams } from "next/navigation"
@@ -13,7 +14,7 @@ import { useRouter } from "next/navigation"
 
 /**
  * @fileOverview Signaling Shell for incoming calls and persistent navigation.
- * Fixed Accept/Reject buttons for reliable signaling.
+ * Hardened signaling listener for reliable ringing.
  */
 function ShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -27,13 +28,16 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user?.id) return
 
+    // Create a robust listener for the calls table
     const channel = supabase.channel(`calls-signaling-${user.id}`)
       .on('postgres_changes', { 
         event: 'INSERT', 
+        schema: 'public',
         table: 'calls', 
         filter: `receiver_id=eq.${user.id}` 
       }, async (payload) => {
         if (payload.new.status === 'calling') {
+          // Fetch caller details
           const { data } = await supabase.from('users').select('*').eq('uid', payload.new.caller_id).single()
           setCallerProfile(data)
           setIncomingCall(payload.new)
@@ -41,11 +45,14 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       })
       .on('postgres_changes', {
         event: 'UPDATE',
+        schema: 'public',
         table: 'calls',
         filter: `receiver_id=eq.${user.id}`
       }, (payload) => {
+        // If caller cancels or call ends elsewhere
         if (payload.new.status === 'ended') {
           setIncomingCall(null)
+          setCallerProfile(null)
         }
       })
       .subscribe()
@@ -67,6 +74,8 @@ function ShellContent({ children }: { children: React.ReactNode }) {
     if (!incomingCall) return
     const callId = incomingCall.id
     setIncomingCall(null)
+    setCallerProfile(null)
+    // Atomic status update to 'ended'
     await supabase.from('calls').update({ status: 'ended' }).eq('id', callId)
   }
   
@@ -81,8 +90,9 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       </main>
       {isVisible && <BottomNav />}
 
+      {/* INCOMING CALL OVERLAY */}
       <Dialog open={!!incomingCall} onOpenChange={(open) => !open && handleReject()}>
-        <DialogContent className="rounded-[2.5rem] p-8 max-w-[85vw] border-none shadow-2xl bg-zinc-900 text-white overflow-hidden outline-none">
+        <DialogContent className="rounded-[2.5rem] p-8 max-w-[85vw] border-none shadow-2xl bg-zinc-900 text-white overflow-hidden outline-none z-[9999]">
           <div className="absolute inset-0 bg-gradient-to-b from-blue-500/10 to-transparent pointer-events-none" />
           <DialogHeader className="items-center text-center relative z-10">
             <div className="relative mb-6">

@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState, useRef, use } from "react"
@@ -10,7 +11,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 
 /**
- * @fileOverview Hardened Agora Call Page with Phased Media Activation, Camera Switching, Mute, and Camera Cover.
+ * @fileOverview Hardened Agora Call Page with Status Monitoring.
+ * Automatically exits if the other side rejects or ends the call.
  */
 
 export default function CallPage({ params }: { params: Promise<{ chatId: string }> }) {
@@ -57,10 +59,17 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
     return () => { mounted.current = false }
   }, [partnerId])
 
+  // HARDENED STATUS MONITORING
   useEffect(() => {
     if (!callId) return
-    const channel = supabase.channel(`call-status-${callId}`)
-      .on('postgres_changes', { event: 'UPDATE', table: 'calls', filter: `id=eq.${callId}` }, (payload) => {
+    const channel = supabase.channel(`call-status-monitor-${callId}`)
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public',
+        table: 'calls', 
+        filter: `id=eq.${callId}` 
+      }, (payload) => {
+        // If call was rejected or ended by the other side
         if (payload.new.status === 'ended' && mounted.current) {
           handleEndCall(false)
         }
@@ -96,6 +105,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
       try {
         const AgoraRTC = (await import('agora-rtc-sdk-ng')).default
         
+        // PHASE 1: CAMERA PREVIEW
         if (type === 'video') {
           try {
             const videoTrack = await AgoraRTC.createCameraVideoTrack({
@@ -136,6 +146,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
             setRemoteUser((prev: any) => prev || remote)
           }
 
+          // PHASE 2: ACTIVATE MIC ONCE CONNECTED
           if (!rtc.current.localAudioTrack) {
              try {
                 const audioTrack = await AgoraRTC.createMicrophoneAudioTrack()
@@ -230,14 +241,12 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
         const currentDeviceId = rtc.current.localVideoTrack.getMediaStreamTrack().getSettings().deviceId;
         const nextDevice = cameras.find(c => c.deviceId !== currentDeviceId) || cameras[0];
 
-        // Unpublish & Close old
         if (rtc.current.client && joined) {
             await rtc.current.client.unpublish(rtc.current.localVideoTrack);
         }
         rtc.current.localVideoTrack.stop();
         rtc.current.localVideoTrack.close();
 
-        // Create & Publish new
         const newTrack = await AgoraRTC.createCameraVideoTrack({ cameraId: nextDevice.deviceId });
         rtc.current.localVideoTrack = newTrack;
         

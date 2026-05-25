@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS public.users (
   additional_photos TEXT[] DEFAULT '{}',
   match_flow_id TEXT UNIQUE,
   onboarding_complete BOOLEAN DEFAULT FALSE,
-  is_admin BOOLEAN DEFAULT FALSE,
+  is_owner BOOLEAN DEFAULT FALSE,
   is_coin_seller BOOLEAN DEFAULT FALSE,
   is_agent BOOLEAN DEFAULT FALSE,
   is_verified BOOLEAN DEFAULT FALSE,
@@ -57,6 +57,16 @@ CREATE TABLE IF NOT EXISTS public.balances (
   coins BIGINT DEFAULT 0,
   diamonds NUMERIC DEFAULT 0,
   updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.calls (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  chat_id TEXT NOT NULL,
+  caller_id UUID REFERENCES public.users(uid) ON DELETE CASCADE,
+  receiver_id UUID REFERENCES public.users(uid) ON DELETE CASCADE,
+  type TEXT CHECK (type IN ('video', 'voice')),
+  status TEXT DEFAULT 'calling', -- calling, active, ended
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS public.processed_payments (
@@ -135,8 +145,9 @@ CREATE TABLE IF NOT EXISTS public.reports (
 -- 3. ENABLE REALTIME SAFELY (FULL PAYLOAD)
 ALTER TABLE public.balances REPLICA IDENTITY FULL;
 ALTER TABLE public.users REPLICA IDENTITY FULL;
-ALTER TABLE public.coin_history REPLICA IDENTITY FULL;
-ALTER TABLE public.diamond_history REPLICA IDENTITY FULL;
+ALTER TABLE public.calls REPLICA IDENTITY FULL;
+ALTER TABLE public.chats REPLICA IDENTITY FULL;
+ALTER TABLE public.messages REPLICA IDENTITY FULL;
 
 DO $$ 
 BEGIN 
@@ -147,25 +158,19 @@ END $$;
 
 ALTER PUBLICATION supabase_realtime SET TABLE 
   public.balances, 
-  public.coin_history, 
-  public.diamond_history, 
-  public.chats, 
-  public.messages, 
   public.users, 
+  public.calls, 
+  public.chats, 
+  public.messages,
   public.withdrawals, 
   public.reports;
 
 -- 4. ENABLE RLS & POLICIES
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.balances ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.coin_history ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.diamond_history ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.processed_payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.calls ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.agencies ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.withdrawals ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 
 -- 5. CREATE POLICIES
 DROP POLICY IF EXISTS "Users can manage own profile" ON public.users;
