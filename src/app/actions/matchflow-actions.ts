@@ -400,7 +400,7 @@ export async function sendMysteryNoteAction(user_id: string, message: string, re
   try {
     const cost = Number(recipientCount) * 10;
     const { data: user } = await supabase.from('users').select('gender, blocking, blocked_by').eq('uid', user_id).single();
-    const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', user_id).single();
+    const { data: bal = { coins: 0 } } = await supabase.from('balances').select('coins').eq('user_id', user_id).single();
     
     if ((Number(bal?.coins) || 0) < cost) throw new Error("Insufficient coins.");
 
