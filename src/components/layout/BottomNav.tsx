@@ -1,3 +1,4 @@
+
 "use client"
 
 import Link from "next/link"
@@ -9,8 +10,8 @@ import { supabase } from "@/lib/supabase"
 import { useUser } from "@/firebase/auth/use-user"
 
 /**
- * @fileOverview High-fidelity Bottom Navigation with fixed positioning.
- * Corrected unread logic to check against last_seen_at timestamps.
+ * @fileOverview High-fidelity Fixed Bottom Navigation.
+ * Locked at bottom=0 with high z-index to allow content to scroll behind.
  */
 export function BottomNav() {
   const pathname = usePathname()
@@ -30,8 +31,6 @@ export function BottomNav() {
         const count = data.reduce((acc, chat) => {
           const userSeenAt = (chat.last_seen_at as Record<string, number>)?.[user.id] || 0;
           const lastMsgAt = chat.last_message_at || 0;
-          
-          // Unread if: 1. New message exists AND 2. I wasn't the one who sent it
           const isUnread = lastMsgAt > userSeenAt && chat.last_sender_id !== user.id;
           return isUnread ? acc + 1 : acc;
         }, 0);
@@ -54,7 +53,7 @@ export function BottomNav() {
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t h-16 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_12px_rgba(0,0,0,0.02)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-[100] bg-white border-t h-16 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(0,0,0,0.04)]">
       {navItems.map((item) => {
         const isActive = pathname === item.href || (item.href === '/chats' && pathname?.startsWith('/chats'))
         
