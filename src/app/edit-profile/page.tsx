@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useRef } from "react"
@@ -8,11 +9,24 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { ChevronLeft, Loader2, Save, Camera, Plus, X } from "lucide-react"
+import { ChevronLeft, Loader2, Save, Camera, Plus, X, MapPin, Calendar, Heart, GraduationCap } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Cropper from "react-easy-crop"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import Image from "next/image"
+
+const AFRICAN_COUNTRIES = [
+  "Kenya", "Tanzania", "Uganda", "Rwanda", "Burundi", "South Sudan", "Ethiopia", "Somalia", "Eritrea", "Djibouti", "South Africa", "Nigeria", "Ghana", "Egypt"
+]
+
+const LOOKING_FOR_OPTIONS = [
+  "Serious partner", "Casual friendship", "Networking", "Dating", "Travel buddy"
+]
+
+const EDUCATION_LEVELS = [
+  "High School", "Diploma", "Bachelor's Degree", "Master's Degree", "Doctorate", "Other"
+]
 
 export default function EditProfilePage() {
   const router = useRouter()
@@ -21,18 +35,40 @@ export default function EditProfilePage() {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [formData, setFormData] = useState({ name: "", interests: "", photo_url: "", additional_photos: [] as string[] })
+  const [formData, setFormData] = useState({ 
+    name: "", 
+    interests: "", 
+    photo_url: "", 
+    additional_photos: [] as string[],
+    country: "",
+    dob: "",
+    looking_for: "",
+    education_level: ""
+  })
 
   const [cropOpen, setCropOpen] = useState(false)
   const [tempImage, setTempImage] = useState<string | null>(null)
-  const [crop, setCrop] = useState({ x: 0, y: 0 }); const [zoom, setZoom] = useState(1); const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
+  const [crop, setCrop] = useState({ x: 0, y: 0 }); 
+  const [zoom, setZoom] = useState(1); 
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
   const [targetPhotoIndex, setTargetPhotoIndex] = useState<number | 'profile'>('profile')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (user?.id) {
       supabase.from('users').select('*').eq('uid', user.id).single().then(({ data }) => {
-        if (data) setFormData({ name: data.name || "", interests: data.interests || "", photo_url: data.photo_url || "", additional_photos: data.additional_photos || [] })
+        if (data) {
+          setFormData({ 
+            name: data.name || "", 
+            interests: data.interests || "", 
+            photo_url: data.photo_url || "", 
+            additional_photos: data.additional_photos || [],
+            country: data.country || "",
+            dob: data.dob || "",
+            looking_for: data.looking_for || "",
+            education_level: data.education_level || ""
+          })
+        }
         setLoading(false)
       })
     }
@@ -55,6 +91,18 @@ export default function EditProfilePage() {
 
   const handleSave = async () => {
     if (!user?.id) return
+
+    // VALIDATION: Bio is compulsory
+    if (!formData.interests || formData.interests.trim().length < 5) {
+      toast({ variant: "destructive", title: "Bio is Compulsory", description: "Please write a short bio about yourself." });
+      return;
+    }
+
+    if (!formData.name.trim()) {
+      toast({ variant: "destructive", title: "Name Required" });
+      return;
+    }
+
     setSaving(true)
     try {
       let finalPhotoUrl = formData.photo_url;
@@ -62,19 +110,41 @@ export default function EditProfilePage() {
         const { blob } = base64ToBlob(formData.photo_url);
         finalPhotoUrl = await uploadProfilePhoto(blob, user.id);
       }
+      
       const finalGallery = await Promise.all(formData.additional_photos.map(async (p) => {
-        if (p.startsWith('data:image')) { const { blob } = base64ToBlob(p); return uploadPostPhoto(blob, user.id); }
+        if (p.startsWith('data:image')) { 
+          const { blob } = base64ToBlob(p); 
+          return uploadPostPhoto(blob, user.id); 
+        }
         return p;
       }))
-      await supabase.from('users').update({ name: formData.name, interests: formData.interests, photo_url: finalPhotoUrl, additional_photos: finalGallery, updated_at: new Date().toISOString() }).eq('uid', user.id)
-      toast({ title: "Profile Updated" }); router.replace('/profile')
-    } catch (e: any) { toast({ variant: "destructive", title: "Failed", description: e.message }); setSaving(false); }
+
+      const { error } = await supabase.from('users').update({ 
+        name: formData.name, 
+        interests: formData.interests, 
+        photo_url: finalPhotoUrl, 
+        additional_photos: finalGallery,
+        country: formData.country,
+        dob: formData.dob,
+        looking_for: formData.looking_for,
+        education_level: formData.education_level,
+        updated_at: new Date().toISOString() 
+      }).eq('uid', user.id)
+
+      if (error) throw error
+
+      toast({ title: "Profile Updated" }); 
+      router.replace('/profile')
+    } catch (e: any) { 
+      toast({ variant: "destructive", title: "Failed", description: e.message }); 
+      setSaving(false); 
+    }
   }
 
   if (loading) return <div className="h-screen flex items-center justify-center bg-white"><Loader2 className="animate-spin text-[#00A2FF]" /></div>
 
   return (
-    <div className="flex-1 bg-white min-h-screen flex flex-col pb-20 select-none">
+    <div className="flex-1 bg-white min-h-screen flex flex-col pb-20 select-none native-page-transition">
       <header className="px-4 h-16 flex items-center justify-between border-b sticky top-0 bg-white z-50">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full"><ChevronLeft className="w-6 h-6 text-black" /></Button>
         <h1 className="text-sm font-black text-black uppercase tracking-widest">Edit Profile</h1>
@@ -84,7 +154,7 @@ export default function EditProfilePage() {
       <main className="flex-1 p-6 space-y-8 overflow-y-auto no-scrollbar">
         <div className="flex flex-col items-center">
           <div className="relative group cursor-pointer" onClick={() => { setTargetPhotoIndex('profile'); fileInputRef.current?.click(); }}>
-            <Avatar className="w-32 h-32 border-4 border-gray-50 shadow-2xl overflow-hidden bg-gray-100">
+            <Avatar className="w-32 h-32 border-none shadow-2xl overflow-hidden bg-gray-100">
               <AvatarImage src={formData.photo_url} className="object-cover" />
               <AvatarFallback className="bg-gray-100"><Camera className="w-10 h-10 text-gray-300" /></AvatarFallback>
             </Avatar>
@@ -110,10 +180,69 @@ export default function EditProfilePage() {
         </div>
 
         <div className="space-y-6 pt-4">
-          <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-gray-400 ml-1">Display Name</Label><Input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="rounded-2xl h-14 border-gray-100 bg-gray-50 font-bold" /></div>
-          <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-gray-400 ml-1">Bio & Interests</Label><textarea value={formData.interests} onChange={(e) => setFormData({...formData, interests: e.target.value})} className="w-full rounded-2xl min-h-[120px] border border-gray-100 bg-gray-50 font-medium text-sm p-4 outline-none" /></div>
+          <div className="space-y-2">
+            <Label className="text-[10px] font-black uppercase text-gray-400 ml-1">Display Name</Label>
+            <Input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="rounded-2xl h-14 border-gray-100 bg-gray-50 font-bold" />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between items-center ml-1">
+              <Label className="text-[10px] font-black uppercase text-gray-400">Bio & Interests</Label>
+              <span className="text-[8px] font-black text-[#00A2FF] uppercase tracking-widest">Compulsory</span>
+            </div>
+            <textarea 
+              value={formData.interests} 
+              onChange={(e) => setFormData({...formData, interests: e.target.value})} 
+              placeholder="Tell others about yourself..."
+              className="w-full rounded-2xl min-h-[120px] border border-gray-100 bg-gray-50 font-medium text-sm p-4 outline-none focus:bg-white transition-colors" 
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase text-gray-400 ml-1 flex items-center gap-1.5"><Calendar className="w-3 h-3"/> Date of Birth</Label>
+              <Input type="date" value={formData.dob} onChange={(e) => setFormData({...formData, dob: e.target.value})} className="rounded-xl h-14 border-gray-50 bg-gray-50 font-bold" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase text-gray-400 ml-1 flex items-center gap-1.5"><MapPin className="w-3 h-3"/> Origin</Label>
+              <Select onValueChange={(v) => setFormData({...formData, country: v})} value={formData.country}>
+                <SelectTrigger className="rounded-xl h-14 border-gray-50 bg-gray-50 font-bold">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {AFRICAN_COUNTRIES.map((c) => <SelectItem key={c} value={c} className="font-bold">{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase text-gray-400 ml-1 flex items-center gap-1.5"><GraduationCap className="w-3 h-3"/> Education</Label>
+              <Select onValueChange={(v) => setFormData({...formData, education_level: v})} value={formData.education_level}>
+                <SelectTrigger className="rounded-xl h-14 border-gray-50 bg-gray-50 font-bold">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {EDUCATION_LEVELS.map((level) => <SelectItem key={level} value={level} className="font-bold">{level}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase text-gray-400 ml-1 flex items-center gap-1.5"><Heart className="w-3 h-3"/> Looking For</Label>
+              <Select onValueChange={(v) => setFormData({...formData, looking_for: v})} value={formData.looking_for}>
+                <SelectTrigger className="rounded-xl h-14 border-gray-50 bg-gray-50 font-bold">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {LOOKING_FOR_OPTIONS.map((opt) => <SelectItem key={opt} value={opt} className="font-bold">{opt}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
       </main>
+
       <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
 
       <Dialog open={cropOpen} onOpenChange={setCropOpen}>
