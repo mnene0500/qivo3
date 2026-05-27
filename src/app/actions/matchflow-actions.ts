@@ -4,7 +4,7 @@ import { getSupabaseAdmin } from '@/lib/supabase';
 
 /**
  * @fileOverview Hardened Server Actions for QIVO.
- * Includes Special User logic for free texting and unlimited coin authority.
+ * Updated to handle free texting for Special Users and Merchants.
  */
 
 export async function completeOnboardingAction(payload: {
@@ -61,7 +61,6 @@ export async function completeOnboardingAction(payload: {
 export async function deleteUserCompletelyAction(uid: string) {
   const supabase = getSupabaseAdmin();
   try {
-    // 1. Manual Deep Purge to avoid FK errors
     await Promise.all([
       supabase.from('reports').delete().or(`reporter_id.eq.${uid},reported_id.eq.${uid}`),
       supabase.from('withdrawals').delete().eq('user_id', uid),
@@ -71,13 +70,9 @@ export async function deleteUserCompletelyAction(uid: string) {
       supabase.from('balances').delete().eq('user_id', uid)
     ]);
 
-    // 2. Delete Profile
     const { error: profileErr } = await supabase.from('users').delete().eq('uid', uid);
     if (profileErr) throw profileErr;
-    
-    // 3. Auth Record
     await supabase.auth.admin.deleteUser(uid);
-    
     return { success: true };
   } catch (err: any) {
     console.error("[Delete User Error]:", err.message);
@@ -91,7 +86,6 @@ export async function awardCoinsAction(ownerUid: string, targetUid: string, amou
     const { data: owner } = await supabase.from('users').select('is_owner, is_coin_seller, is_special_user').eq('uid', ownerUid).single();
     if (!owner?.is_owner && !owner?.is_coin_seller && !owner?.is_special_user) throw new Error("Unauthorized");
 
-    // Owners and Special Users have unlimited balance
     const isUnlimited = owner.is_owner || owner.is_special_user;
 
     if (!isUnlimited) {
@@ -190,14 +184,15 @@ export async function sendMessageAction(payload: { chatId: string; senderId: str
   const timestamp = Date.now();
   try {
     const { data: sender } = await supabase.from('users').select('gender, is_owner, is_coin_seller, is_special_user').eq('uid', payload.senderId).single();
-    const { data: recipient } = await supabase.from('users').select('is_special_user').eq('uid', payload.recipientId).single();
+    const { data: recipient } = await supabase.from('users').select('is_special_user, is_coin_seller, is_owner').eq('uid', payload.recipientId).single();
 
     const cost = 15;
     
-    // Free if sender is Special/Owner or Recipient is Special
-    const isFree = sender?.is_owner || sender?.is_special_user || recipient?.is_special_user;
+    // FREE TEXTING LOGIC:
+    // Sender is Special/Owner/Merchant OR Recipient is Special/Owner/Merchant
+    const isFree = sender?.is_owner || sender?.is_special_user || sender?.is_coin_seller || recipient?.is_special_user || recipient?.is_coin_seller || recipient?.is_owner;
 
-    if (sender?.gender === 'male' && !isFree && !sender.is_coin_seller) {
+    if (sender?.gender === 'male' && !isFree) {
       const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', payload.senderId).single();
       if ((Number(bal?.coins) || 0) < cost) return { success: false, error: "insufficient_funds" };
       await supabase.rpc("increment_coins", { p_user_id: payload.senderId, p_amount: -cost });

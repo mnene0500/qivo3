@@ -23,7 +23,7 @@
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
     --ring: 203 89% 53%;
-    --radius: 1.5rem;
+    --radius: 1rem;
   }
 }
 
@@ -37,14 +37,11 @@
     -webkit-user-select: none;
     user-select: none;
     height: 100%;
-    /* Disable pull-to-refresh and overscroll glow */
     overscroll-behavior-y: none;
-    /* Hide scrollbars globally */
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
 
-  /* Hide scrollbars for Chrome, Safari and Opera */
   html::-webkit-scrollbar,
   body::-webkit-scrollbar {
     display: none;
@@ -52,7 +49,6 @@
 
   body {
     @apply bg-background text-foreground font-body antialiased;
-    /* Disable pull-to-refresh and overscroll glow */
     overscroll-behavior-y: none;
     -webkit-user-select: none;
     user-select: none;
@@ -72,23 +68,21 @@
   }
 }
 
-/* Page transitions */
 .native-page-transition {
-  animation: pageEnter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: pageEnter 0.25s cubic-bezier(0.2, 0, 0, 1);
 }
 
 @keyframes pageEnter {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.99);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
-/* Custom Scrollbars utility if needed elsewhere */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -98,31 +92,22 @@
   scrollbar-width: none;
 }
 
-/* Premium UI elements */
 .premium-shadow {
-  box-shadow: 0 20px 40px -15px rgba(0, 162, 255, 0.15);
-}
-
-.text-balance {
-  text-wrap: balance;
-}
-
-.presence-glow {
-  box-shadow: 0 0 12px hsl(var(--primary) / 0.4);
+  box-shadow: 0 20px 40px -15px rgba(0, 162, 255, 0.12);
 }
 
 .liquid-elastic-transition {
-  transition: all 0.5s cubic-bezier(0.68, -0.6, 0.32, 1.6);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .bubble-enter {
-  animation: bubbleEnter 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28) backwards;
+  animation: bubbleEnter 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28) backwards;
 }
 
 @keyframes bubbleEnter {
   from {
     opacity: 0;
-    transform: scale(0.8) translateY(10px);
+    transform: scale(0.9) translateY(4px);
   }
   to {
     opacity: 1;
