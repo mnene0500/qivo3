@@ -23,7 +23,6 @@ interface UserProfile {
 
 const PAGE_SIZE = 12;
 
-// GLOBAL CACHE to survive tab switches and navigation
 let cachedUsers: UserProfile[] = [];
 let cachedTab: 'Recommend' | 'Nearby' = 'Recommend';
 let cachedPage = 0;
@@ -151,10 +150,6 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col w-full bg-white select-none">
-      {/* 
-         TOP HEADER AREA: 
-         Glossy buttons with improved size and appearance.
-      */}
       <div className="px-4 grid grid-cols-2 gap-3 py-6 bg-[#00A2FF] shrink-0">
         <button 
           onClick={() => router.push('/mystery-note')} 
@@ -163,8 +158,8 @@ export default function HomePage() {
           <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-2xl group-active:scale-150 transition-transform" />
           <FileText className="w-6 h-6 mb-1 text-purple-100" />
           <div>
-            <p className="text-[11px] font-black uppercase tracking-widest leading-none mb-1">Message Blast</p>
-            <p className="text-[8px] font-bold text-purple-100/70 uppercase tracking-widest">Connect with many</p>
+            <p className="text-[13px] font-black tracking-tight leading-none mb-1">Message Blast</p>
+            <p className="text-[9px] font-bold text-purple-100/70">Connect with many</p>
           </div>
         </button>
         
@@ -175,20 +170,16 @@ export default function HomePage() {
           <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-2xl group-active:scale-150 transition-transform" />
           <Target className="w-6 h-6 mb-1 text-blue-100" />
           <div>
-            <p className="text-[11px] font-black uppercase tracking-widest leading-none mb-1">Task Center</p>
-            <p className="text-[8px] font-bold text-blue-100/70 uppercase tracking-widest">Daily rewards</p>
+            <p className="text-[13px] font-black tracking-tight leading-none mb-1">Task Center</p>
+            <p className="text-[9px] font-bold text-blue-100/70">Daily rewards</p>
           </div>
         </button>
       </div>
 
-      {/* 
-         STICKY TAB BAR: 
-         Locks to top-0 of the AppShell's scrolling area.
-      */}
       <div className="sticky top-0 z-40 bg-[#00A2FF] px-6 py-4 flex items-center justify-between border-b border-white/10 shadow-md">
         <div className="flex items-center gap-8">
           {(['Recommend', 'Nearby'] as const).map((tab) => (
-            <button key={tab} onClick={() => handleTabChange(tab)} className={cn("text-sm font-black transition-all relative pb-1 uppercase tracking-widest", activeTab === tab ? "text-white" : "text-white/40")}>
+            <button key={tab} onClick={() => handleTabChange(tab)} className={cn("text-[13px] font-black transition-all relative pb-1", activeTab === tab ? "text-white" : "text-white/40")}>
               {tab}
               {activeTab === tab && <div className="absolute -bottom-1 left-0 right-0 h-1 bg-white rounded-full animate-in fade-in" />}
             </button>
@@ -199,10 +190,6 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* 
-         USER GRID: 
-         Content flows behind the fixed BottomNav.
-      */}
       <main className="px-3 pt-4">
         {users.length > 0 ? (
           <>
@@ -218,12 +205,12 @@ export default function HomePage() {
                         {u.is_verified && <BadgeCheck className="w-4 h-4 text-[#00A2FF] fill-white shrink-0" />}
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="bg-[#00B200] text-white font-black text-[8px] px-2 py-0.5 rounded-md">{calculateAge(u.dob)}</span>
-                        <span className="text-[8px] font-bold uppercase truncate opacity-70 tracking-widest">{u.country}</span>
+                        <span className="bg-[#00B200] text-white font-black text-[9px] px-2 py-0.5 rounded-md">{calculateAge(u.dob)}</span>
+                        <span className="text-[9px] font-bold opacity-70">{u.country}</span>
                       </div>
                     </div>
-                    <Button size="sm" className="w-full h-10 rounded-2xl bg-[#00A2FF] hover:bg-[#0081CC] text-white font-black text-[10px] uppercase tracking-[0.2em] gap-2 shadow-lg z-10" onClick={(e) => { e.stopPropagation(); router.push(`/chats?startWith=${u.uid}`); }}>
-                      <MessageSquare className="w-3.5 h-3.5" />CHAT
+                    <Button size="sm" className="w-full h-10 rounded-2xl bg-[#00A2FF] hover:bg-[#0081CC] text-white font-black text-[11px] gap-2 shadow-lg z-10" onClick={(e) => { e.stopPropagation(); router.push(`/chats?startWith=${u.uid}`); }}>
+                      <MessageSquare className="w-3.5 h-3.5" />Chat
                     </Button>
                   </div>
                 </Card>
@@ -236,7 +223,7 @@ export default function HomePage() {
                   onClick={handleLoadMore} 
                   disabled={isLoadingMore} 
                   variant="outline" 
-                  className="rounded-full border-gray-100 font-black text-[10px] uppercase tracking-widest h-14 px-12 shadow-sm hover:bg-gray-50"
+                  className="rounded-full border-gray-100 font-bold text-[11px] h-12 px-10 shadow-sm hover:bg-gray-50"
                 >
                   {isLoadingMore ? <Loader2 className="w-4 h-4 animate-spin text-[#00A2FF]" /> : "Show More Users"}
                 </Button>
@@ -247,7 +234,7 @@ export default function HomePage() {
           !isRefreshing && (
             <div className="flex flex-col items-center justify-center py-40 opacity-20 text-center px-10">
               <Target className="w-12 h-12 mb-4 text-gray-400" />
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+              <p className="text-[11px] font-bold text-gray-500">
                 {activeTab === 'Nearby' ? "No users found in your country" : "No users here"}
               </p>
             </div>

@@ -10,7 +10,7 @@ import { useUser } from "@/firebase/auth/use-user"
 
 /**
  * @fileOverview Strictly Fixed Global Navigation.
- * Height reduced for a more compact, modern feel. Explore removed.
+ * Updated to Title Case and fixed Link import.
  */
 export function BottomNav() {
   const pathname = usePathname()
@@ -71,12 +71,12 @@ export function BottomNav() {
             )}>
               <item.icon className={cn("w-5 h-5", isActive ? "text-[#00A2FF] fill-current" : "text-gray-400")} />
               {item.badge !== undefined && item.badge > 0 && (
-                <div className="absolute top-0 right-0 bg-red-500 text-white text-[7px] font-black min-w-[14px] h-3.5 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                <div className="absolute top-0 right-0 bg-red-500 text-white text-[7px] font-bold min-w-[14px] h-3.5 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
                   {item.badge > 9 ? '9+' : item.badge}
                 </div>
               )}
             </div>
-            <span className={cn("text-[8px] font-black uppercase tracking-tight", isActive ? "opacity-100" : "opacity-60")}>
+            <span className={cn("text-[9px] font-bold tracking-tight", isActive ? "opacity-100" : "opacity-60")}>
               {item.label}
             </span>
           </Link>

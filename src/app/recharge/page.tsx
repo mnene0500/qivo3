@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react"
@@ -63,7 +62,7 @@ export default function RechargePage() {
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full text-black">
           <ChevronLeft className="w-6 h-6" />
         </Button>
-        <h1 className="text-base font-black text-black uppercase tracking-widest">Recharge</h1>
+        <h1 className="text-base font-black text-black tracking-widest">Recharge</h1>
         <Button variant="ghost" size="icon" onClick={() => router.push('/coin-history')} className="rounded-full text-black">
           <History className="w-5 h-5" />
         </Button>
@@ -75,7 +74,7 @@ export default function RechargePage() {
                 <Coins className='w-6 h-6 text-yellow-500 fill-yellow-500'/>
                 <span className="text-2xl font-black text-black">{coins}</span>
             </div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Available Coins</p>
+            <p className="text-[10px] font-bold text-gray-400 tracking-widest">Available Coins</p>
         </div>
 
         <div className="grid grid-cols-3 gap-3">
@@ -104,7 +103,7 @@ export default function RechargePage() {
                   <Coins className="w-4 h-4" />
                 </div>
                 <span className="text-sm font-black text-black leading-none">{pkg.label}</span>
-                <span className="text-[8px] font-bold text-gray-400 uppercase">Coins</span>
+                <span className="text-[8px] font-bold text-gray-400">Coins</span>
               </div>
               
               <div className="mt-auto">
@@ -127,14 +126,14 @@ export default function RechargePage() {
               <div className="bg-[#00A2FF]/10 p-2 rounded-lg">
                 <MessageSquare className="w-4 h-4 text-[#00A2FF]" />
               </div>
-              <span className="uppercase tracking-tight text-[10px] font-black">Offline Merchants</span>
+              <span className="tracking-tight text-[10px] font-black">Offline Merchants</span>
             </div>
             <ExternalLink className="w-3.5 h-3.5 opacity-30" />
           </Button>
 
           <div className="flex items-center justify-center gap-2 text-gray-300 py-4">
             <ShieldCheck className="w-4 h-4" />
-            <span className="text-[9px] font-black uppercase tracking-[0.2em]">Secure PesaPal Channel</span>
+            <span className="text-[9px] font-black tracking-[0.2em]">Secure PesaPal Channel</span>
           </div>
         </div>
       </main>
@@ -143,7 +142,7 @@ export default function RechargePage() {
         <Button 
           onClick={handleRecharge}
           disabled={isProcessing || !selectedId}
-          className="w-full h-16 rounded-full bg-[#00A2FF] hover:bg-[#0081CC] text-white font-black uppercase tracking-widest text-sm shadow-xl active:scale-95 transition-all"
+          className="w-full h-16 rounded-full bg-[#00A2FF] hover:bg-[#0081CC] text-white font-black tracking-widest text-sm shadow-xl active:scale-95 transition-all"
         >
           {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : (
             <div className="flex items-center gap-2">

@@ -91,7 +91,7 @@ export default function MysteryNotePage() {
       <main className="flex-1 px-6 pt-4 pb-10 space-y-12 overflow-y-auto no-scrollbar relative z-10">
         <div className="space-y-2 px-2">
           <h1 className="text-5xl font-black text-white tracking-tighter leading-tight">Message<br/>Blast</h1>
-          <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.3em] ml-1">Send a message to multiple users instantly</p>
+          <p className="text-[10px] font-black text-white/60 tracking-[0.3em] ml-1">Send a message to multiple users instantly</p>
         </div>
 
         <div className="bg-white/15 backdrop-blur-3xl border border-white/20 rounded-[3rem] p-8 shadow-2xl space-y-8">
@@ -99,7 +99,7 @@ export default function MysteryNotePage() {
             <div className="flex justify-between items-start">
                <h2 className="text-2xl font-black text-white leading-tight">What's on<br/>your mind?</h2>
                <div className="flex flex-col items-end">
-                 <span className="text-[8px] font-black text-white/40 uppercase tracking-widest">My Balance</span>
+                 <span className="text-[8px] font-black text-white/40 tracking-widest">My Balance</span>
                  <span className="text-xs font-black text-white flex items-center gap-1.5 bg-black/20 px-3 py-1 rounded-full">
                    <Coins className="w-3 h-3 text-yellow-400" />
                    {userCoins === null ? "..." : userCoins}
@@ -130,7 +130,7 @@ export default function MysteryNotePage() {
 
           <div className="space-y-4">
             <div className="flex justify-between items-center px-6">
-              <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Total Cost</span>
+              <span className="text-[10px] font-black text-white/60 tracking-widest">Total Cost</span>
               <div className="flex items-center gap-2">
                 <span className="text-2xl font-black text-white tracking-tighter">{totalCost}</span>
                 <Coins className="w-5 h-5 text-yellow-400" />
@@ -139,7 +139,7 @@ export default function MysteryNotePage() {
             <Button 
               onClick={handleSend} 
               disabled={isSending || !message.trim() || userCoins === null} 
-              className="w-full h-18 rounded-full bg-white text-purple-600 font-black uppercase tracking-[0.2em] text-sm shadow-2xl active:scale-95 transition-all py-8"
+              className="w-full h-18 rounded-full bg-white text-purple-600 font-black tracking-[0.2em] text-sm shadow-2xl active:scale-95 transition-all py-8"
             >
               {isSending ? <Loader2 className="w-6 h-6 animate-spin" /> : <div className="flex items-center gap-3"><Send className="w-5 h-5" />Send Broadcast</div>}
             </Button>

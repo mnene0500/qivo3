@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useRef } from "react"
@@ -108,32 +107,32 @@ export default function FastOnboardingPage() {
           <Button variant="ghost" size="icon" onClick={() => setShowPhotoStep(false)} className="rounded-full">
             <ChevronLeft className="w-5 h-5 text-black" />
           </Button>
-          <span className="text-[10px] font-black uppercase tracking-widest ml-2">Verification Photo</span>
+          <span className="text-[11px] font-bold tracking-tight ml-2">Verification Photo</span>
         </header>
 
         <main className="flex-1 p-6 flex flex-col items-center justify-center space-y-6">
            <div className="text-center space-y-1">
-             <h2 className="text-xl font-black text-black">A quick photo!</h2>
-             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Required for female profiles</p>
+             <h2 className="text-2xl font-black text-black">A Quick Photo</h2>
+             <p className="text-[11px] text-gray-400 font-bold">Required for female profiles</p>
            </div>
 
            <div className="relative cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-            <Avatar className="w-40 h-40 border-none shadow-2xl overflow-hidden bg-gray-100 rounded-[2.5rem]">
+            <Avatar className="w-48 h-48 border-none shadow-2xl overflow-hidden bg-gray-100 rounded-[2.5rem]">
               <AvatarImage src={uploadedPhoto || ""} className="object-cover" />
-              <AvatarFallback className="bg-gray-50"><Camera className="w-12 h-12 text-gray-200" /></AvatarFallback>
+              <AvatarFallback className="bg-gray-50"><Camera className="w-16 h-16 text-gray-200" /></AvatarFallback>
             </Avatar>
-            <div className="absolute bottom-2 right-2 bg-[#00A2FF] p-3 rounded-2xl text-white shadow-xl border-4 border-white"><Camera className="w-5 h-5" /></div>
+            <div className="absolute bottom-2 right-2 bg-[#00A2FF] p-3 rounded-2xl text-white shadow-xl border-4 border-white"><Camera className="w-6 h-6" /></div>
           </div>
 
           <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
-          <p className="text-[9px] font-black text-gray-300 uppercase tracking-[0.2em]">Tap the icon to upload</p>
+          <p className="text-[10px] font-bold text-gray-300 tracking-widest">Tap icon to upload</p>
         </main>
 
         <footer className="p-6 bg-white border-t shrink-0 pb-[env(safe-area-inset-bottom)]">
           <Button 
             disabled={!uploadedPhoto || loading}
             onClick={handleComplete}
-            className="w-full h-14 rounded-2xl bg-black text-white font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all"
+            className="w-full h-14 rounded-2xl bg-black text-white font-bold tracking-tight shadow-xl active:scale-95 transition-all"
           >
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Start Exploring"}
           </Button>
@@ -149,14 +148,14 @@ export default function FastOnboardingPage() {
           <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center shadow-sm">
             <Heart className="w-5 h-5 text-[#00A2FF] fill-current" />
           </div>
-          <h1 className="text-xl font-black text-black tracking-tight">Complete Profile</h1>
+          <h1 className="text-2xl font-black text-black tracking-tight">Complete Profile</h1>
         </div>
       </header>
 
-      <main className="flex-1 px-6 pt-2 pb-10 space-y-4 overflow-y-auto no-scrollbar">
+      <main className="flex-1 px-6 pt-2 pb-10 space-y-5 overflow-y-auto no-scrollbar">
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label className="text-[9px] font-black uppercase text-gray-400 ml-1 flex items-center gap-1.5"><User className="w-3 h-3"/> I am a</Label>
+            <Label className="text-[11px] font-bold text-gray-400 ml-1 flex items-center gap-1.5"><User className="w-3.5 h-3.5"/> I am a</Label>
             <div className="grid grid-cols-2 gap-3">
               {['male', 'female'].map((g) => (
                 <button
@@ -170,35 +169,36 @@ export default function FastOnboardingPage() {
                   )}
                 >
                   <span className="text-xl">{g === 'male' ? '♂️' : '♀️'}</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest">{g}</span>
+                  <span className="text-[11px] font-bold">{g === 'male' ? 'Male' : 'Female'}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-[9px] font-black uppercase text-gray-400 ml-1 flex items-center gap-1.5"><Calendar className="w-3 h-3"/> Date of Birth</Label>
-            <Input type="date" max={maxDate} value={dob} onChange={(e) => setDob(e.target.value)} className="rounded-xl h-14 border-gray-50 bg-gray-50 font-bold text-base" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-[11px] font-bold text-gray-400 ml-1 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5"/> Birth Date</Label>
+              <Input type="date" max={maxDate} value={dob} onChange={(e) => setDob(e.target.value)} className="rounded-xl h-14 border-gray-50 bg-gray-50 font-bold text-sm" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[11px] font-bold text-gray-400 ml-1 flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5"/> Origin</Label>
+              <Select onValueChange={setCountry} value={country}>
+                <SelectTrigger className="rounded-xl h-14 border-gray-50 bg-gray-50 font-bold text-sm">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {AFRICAN_COUNTRIES.map((c) => (
+                    <SelectItem key={c} value={c} className="font-bold">{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[9px] font-black uppercase text-gray-400 ml-1 flex items-center gap-1.5"><MapPin className="w-3 h-3"/> Origin</Label>
-            <Select onValueChange={setCountry} value={country}>
-              <SelectTrigger className="rounded-xl h-14 border-gray-50 bg-gray-50 font-bold text-base">
-                <SelectValue placeholder="Select Country" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                {AFRICAN_COUNTRIES.map((c) => (
-                  <SelectItem key={c} value={c} className="font-bold">{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-[9px] font-black uppercase text-gray-400 ml-1 flex items-center gap-1.5"><Heart className="w-3 h-3"/> Looking For</Label>
+            <Label className="text-[11px] font-bold text-gray-400 ml-1 flex items-center gap-1.5"><Heart className="w-3.5 h-3.5"/> Looking For</Label>
             <Select onValueChange={setLookingFor} value={lookingFor}>
-              <SelectTrigger className="rounded-xl h-14 border-gray-50 bg-gray-50 font-bold text-base">
+              <SelectTrigger className="rounded-xl h-14 border-gray-50 bg-gray-50 font-bold text-sm">
                 <SelectValue placeholder="What's your goal?" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
@@ -215,7 +215,7 @@ export default function FastOnboardingPage() {
         <Button 
           disabled={!canContinue() || loading}
           onClick={handleComplete}
-          className="w-full h-14 rounded-2xl bg-[#00A2FF] hover:bg-[#0081CC] text-white font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all"
+          className="w-full h-14 rounded-2xl bg-[#00A2FF] hover:bg-[#0081CC] text-white font-bold shadow-xl active:scale-95 transition-all"
         >
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (gender === 'female' ? "Next: Add Photo" : "Get Started")}
         </Button>
