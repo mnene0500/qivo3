@@ -1,11 +1,10 @@
-
 "use client"
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Settings, ChevronRight, Copy, Check, BadgeCheck, Headphones, Pencil, Gem, Award, Briefcase, UserPlus, Wallet, Shield, PlusCircle, UserCheck, Flag, Star } from "lucide-react"
+import { Settings, ChevronRight, Copy, Check, BadgeCheck, Headphones, Pencil, Gem, Award, Briefcase, UserPlus, Wallet, Shield, PlusCircle, UserCheck, Flag, Star, Gamepad2 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
@@ -142,23 +141,39 @@ export default function MePage() {
           <div className="grid grid-cols-2 gap-4 -mt-6">
             <Button className="h-24 bg-white rounded-3xl shadow-2xl flex flex-col items-center justify-center text-[#00A2FF] active:scale-95 transition-transform" onClick={() => router.push('/recharge')}>
               <div className="flex items-center gap-2"><PlusCircle className="w-5 h-5" /><span className="text-lg font-black">{coins}</span></div>
-              <span className="text-[8px] font-black opacity-60 tracking-widest">Coins</span>
+              <span className="text-[8px] font-black opacity-60 tracking-widest uppercase">Coins</span>
             </Button>
             <Button className="h-24 bg-white rounded-3xl shadow-2xl flex flex-col items-center justify-center text-black active:scale-95 transition-transform" onClick={() => router.push("/income")}>
               <div className="flex items-center gap-2"><Gem className="w-5 h-5 text-blue-500" /><span className="text-lg font-black">{Number(diamonds || 0).toFixed(0)}</span></div>
-              <span className="text-[8px] font-black opacity-60 tracking-widest">Diamonds</span>
+              <span className="text-[8px] font-black opacity-60 tracking-widest uppercase">Diamonds</span>
             </Button>
           </div>
 
+          <section className="space-y-3">
+            <h3 className="text-[10px] font-black text-gray-400 tracking-widest ml-1 uppercase">Social Gaming</h3>
+            <div className="bg-white rounded-3xl p-2 shadow-sm border border-black/5 overflow-hidden">
+              <Button variant="ghost" className="h-16 w-full justify-between px-5 rounded-none" onClick={() => router.push('/game-center')}>
+                <div className="flex items-center gap-4">
+                  <div className="bg-amber-50 p-2.5 rounded-xl"><Gamepad2 className="w-5 h-5 text-amber-600" /></div>
+                  <div className="flex flex-col items-start">
+                     <span className="font-black text-[11px] tracking-widest text-black uppercase">Game Center</span>
+                     <span className="text-[8px] font-bold text-amber-500 tracking-tighter uppercase">Win coins while playing</span>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-300" />
+              </Button>
+            </div>
+          </section>
+
           {(isOwner || isSpecial) && (
             <section className="space-y-3">
-              <h3 className="text-[10px] font-black text-gray-400 tracking-widest ml-1">{isSpecial ? "Special Console" : "Owner Console"}</h3>
+              <h3 className="text-[10px] font-black text-gray-400 tracking-widest ml-1 uppercase">{isSpecial ? "Special Console" : "Owner Console"}</h3>
               <div className="bg-white rounded-3xl p-2 shadow-sm border border-black/5 flex flex-col overflow-hidden">
                 <Button variant="ghost" className="h-16 justify-between px-5 rounded-none border-b border-gray-50" asChild>
                   <Link href="/manage-roles">
                     <div className="flex items-center gap-4">
                       <div className="bg-indigo-50 p-2.5 rounded-xl"><Shield className="w-5 h-5 text-indigo-600" /></div>
-                      <span className="font-black text-[11px] tracking-widest text-black">Authority Manager</span>
+                      <span className="font-black text-[11px] tracking-widest text-black uppercase">Authority Manager</span>
                     </div>
                     <ChevronRight className="w-4 h-4 text-gray-300" />
                   </Link>
@@ -167,7 +182,7 @@ export default function MePage() {
                   <Link href="/manage-reports">
                     <div className="flex items-center gap-4">
                       <div className="bg-red-50 p-2.5 rounded-xl"><Flag className="w-5 h-5 text-red-600" /></div>
-                      <span className="font-black text-[11px] tracking-widest text-black">Report Queue</span>
+                      <span className="font-black text-[11px] tracking-widest text-black uppercase">Report Queue</span>
                     </div>
                     <ChevronRight className="w-4 h-4 text-gray-300" />
                   </Link>
@@ -175,7 +190,7 @@ export default function MePage() {
                 <Button variant="ghost" className="h-16 justify-between px-5 rounded-none" onClick={() => router.push('/award-coins')}>
                   <div className="flex items-center gap-4">
                     <div className="bg-yellow-50 p-2.5 rounded-xl"><Award className="w-5 h-5 text-yellow-600" /></div>
-                    <span className="font-black text-[11px] tracking-widest text-black">Coin Terminal</span>
+                    <span className="font-black text-[11px] tracking-widest text-black uppercase">Coin Terminal</span>
                   </div>
                   <ChevronRight className="w-4 h-4 text-gray-300" />
                 </Button>
@@ -185,14 +200,14 @@ export default function MePage() {
 
           {!isVerified && (
             <section className="space-y-3">
-              <h3 className="text-[10px] font-black text-gray-400 tracking-widest ml-1">Identity Trust</h3>
+              <h3 className="text-[10px] font-black text-gray-400 tracking-widest ml-1 uppercase">Identity Trust</h3>
               <div className="bg-white rounded-3xl p-2 shadow-sm border border-black/5 overflow-hidden">
                 <Button variant="ghost" className="h-16 w-full justify-between px-5 rounded-none" onClick={() => router.push('/verify-identity')}>
                   <div className="flex items-center gap-4">
                     <div className="bg-blue-50 p-2.5 rounded-xl"><UserCheck className="w-5 h-5 text-[#00A2FF]" /></div>
                     <div className="flex flex-col items-start">
-                       <span className="font-black text-[11px] tracking-widest text-black">Verify My Face</span>
-                       <span className="text-[8px] font-bold text-[#00A2FF] tracking-tighter">Get Trusted Badge</span>
+                       <span className="font-black text-[11px] tracking-widest text-black uppercase">Verify My Face</span>
+                       <span className="text-[8px] font-bold text-[#00A2FF] tracking-tighter uppercase">Get Trusted Badge</span>
                     </div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-gray-300" />
@@ -203,12 +218,12 @@ export default function MePage() {
 
           {isMerchant && !isOwner && !isSpecial && (
             <section className="space-y-3">
-              <h3 className="text-[10px] font-black text-gray-400 tracking-widest ml-1">Merchant Console</h3>
+              <h3 className="text-[10px] font-black text-gray-400 tracking-widest ml-1 uppercase">Merchant Console</h3>
               <div className="bg-white rounded-3xl p-2 shadow-sm border border-black/5 flex flex-col overflow-hidden">
                 <Button variant="ghost" className="h-16 justify-between px-5 rounded-none" onClick={() => router.push('/award-coins')}>
                   <div className="flex items-center gap-4">
                     <div className="bg-yellow-50 p-2.5 rounded-xl"><Award className="w-5 h-5 text-yellow-600" /></div>
-                    <span className="font-black text-[11px] tracking-widest text-black">Award Coins</span>
+                    <span className="font-black text-[11px] tracking-widest text-black uppercase">Award Coins</span>
                   </div>
                   <ChevronRight className="w-4 h-4 text-gray-300" />
                 </Button>
@@ -218,13 +233,13 @@ export default function MePage() {
 
           {isKenyanFemale && (
             <section className="space-y-3">
-              <h3 className="text-[10px] font-black text-gray-400 tracking-widest ml-1">Agency Access</h3>
+              <h3 className="text-[10px] font-black text-gray-400 tracking-widest ml-1 uppercase">Agency Access</h3>
               <div className="bg-white rounded-3xl p-2 shadow-sm border border-black/5 flex flex-col overflow-hidden">
                 {isAgent && profile?.agency_id && (
                   <Button variant="ghost" className="h-16 justify-between px-5 rounded-none border-b border-gray-50" onClick={() => router.push('/agency-manage')}>
                     <div className="flex items-center gap-4">
                       <div className="bg-purple-50 p-2.5 rounded-xl"><Briefcase className="w-5 h-5 text-purple-600" /></div>
-                      <span className="font-black text-[11px] tracking-widest text-black">Agency Center</span>
+                      <span className="font-black text-[11px] tracking-widest text-black uppercase">Agency Center</span>
                     </div>
                     <ChevronRight className="w-4 h-4 text-gray-300" />
                   </Button>
@@ -234,7 +249,7 @@ export default function MePage() {
                   <Button variant="ghost" className="h-16 justify-between px-5 rounded-none border-b border-gray-50" onClick={() => router.push('/agency-wallet')}>
                     <div className="flex items-center gap-4">
                       <div className="bg-emerald-50 p-2.5 rounded-xl"><Wallet className="w-5 h-5 text-emerald-600" /></div>
-                      <span className="font-black text-[11px] tracking-widest text-black">Agency Wallet</span>
+                      <span className="font-black text-[11px] tracking-widest text-black uppercase">Agency Wallet</span>
                     </div>
                     <ChevronRight className="w-4 h-4 text-gray-300" />
                   </Button>
@@ -246,26 +261,26 @@ export default function MePage() {
                       <Button variant="ghost" className="h-16 justify-between px-5 rounded-none">
                         <div className="flex items-center gap-4">
                           <div className="bg-blue-50 p-2.5 rounded-xl"><UserPlus className="w-5 h-5 text-blue-600" /></div>
-                          <span className="font-black text-[11px] tracking-widest text-black">Join Agency</span>
+                          <span className="font-black text-[11px] tracking-widest text-black uppercase">Join Agency</span>
                         </div>
                         <ChevronRight className="w-4 h-4 text-gray-300" />
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="rounded-3xl p-8">
-                      <DialogHeader><DialogTitle className="text-xl font-black tracking-tight">Agency Portal</DialogTitle></DialogHeader>
+                      <DialogHeader><DialogTitle className="text-xl font-black tracking-tight uppercase">Agency Portal</DialogTitle></DialogHeader>
                       <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black text-gray-400">Invite Code</label>
+                          <label className="text-[10px] font-black text-gray-400 uppercase">Invite Code</label>
                           <Input placeholder="5-digit code" value={agencyCode} onChange={(e) => setAgencyCode(e.target.value)} className="rounded-xl h-12 font-bold" />
                         </div>
-                        <Button onClick={handleJoinAgency} disabled={isProcessing || !agencyCode} className="w-full h-12 rounded-xl bg-[#00A2FF] font-black text-[10px] tracking-widest">Join Now</Button>
+                        <Button onClick={handleJoinAgency} disabled={isProcessing || !agencyCode} className="w-full h-12 rounded-xl bg-[#00A2FF] font-black text-[10px] tracking-widest uppercase">Join Now</Button>
                         {isAgent && !profile?.agency_id && (
                           <div className="pt-4 border-t mt-4 space-y-4">
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black text-gray-400">Agency Name</label>
+                              <label className="text-[10px] font-black text-gray-400 uppercase">Agency Name</label>
                               <Input placeholder="Enter Name" value={agencyName} onChange={(e) => setAgencyName(e.target.value)} className="rounded-xl h-12 font-bold" />
                             </div>
-                            <Button onClick={handleCreateAgency} disabled={isProcessing || !agencyName} variant="outline" className="w-full h-12 rounded-xl border-purple-200 text-purple-600 font-black text-[10px] tracking-widest">Create Agency</Button>
+                            <Button onClick={handleCreateAgency} disabled={isProcessing || !agencyName} variant="outline" className="w-full h-12 rounded-xl border-purple-200 text-purple-600 font-black text-[10px] tracking-widest uppercase">Create Agency</Button>
                           </div>
                         )}
                       </div>
@@ -275,12 +290,12 @@ export default function MePage() {
                   <div className="h-16 flex items-center justify-between px-5">
                      <div className="flex items-center gap-4">
                        <div className="bg-blue-50 p-2.5 rounded-xl"><Briefcase className="w-5 h-5 text-blue-600" /></div>
-                       <div className="flex flex-col"><span className="font-black text-[11px] tracking-widest text-black">{isAgent ? "Leader" : "Member"}</span><span className="text-[9px] font-bold text-[#00A2FF]">{profile.agency_status}</span></div>
+                       <div className="flex flex-col"><span className="font-black text-[11px] tracking-widest text-black uppercase">{isAgent ? "Leader" : "Member"}</span><span className="text-[9px] font-bold text-[#00A2FF] uppercase">{profile.agency_status}</span></div>
                      </div>
                      {!isAgent && (
                        <AlertDialog>
-                          <AlertDialogTrigger asChild><Button variant="ghost" size="sm" className="h-8 rounded-full text-red-500 text-[9px] font-black tracking-widest bg-red-50 px-4">Leave</Button></AlertDialogTrigger>
-                          <AlertDialogContent className="rounded-3xl p-8 border-none"><AlertDialogHeader><AlertDialogTitle className="font-black text-center">Leave Agency?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter className="gap-3 mt-6"><AlertDialogCancel className="h-12 rounded-xl font-black text-[10px]">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleLeaveAgency} className="h-12 rounded-xl bg-red-500 font-black text-[10px]">Leave</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                          <AlertDialogTrigger asChild><Button variant="ghost" size="sm" className="h-8 rounded-full text-red-500 text-[9px] font-black tracking-widest bg-red-50 px-4 uppercase">Leave</Button></AlertDialogTrigger>
+                          <AlertDialogContent className="rounded-3xl p-8 border-none"><AlertDialogHeader><AlertDialogTitle className="font-black text-center uppercase">Leave Agency?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter className="gap-3 mt-6"><AlertDialogCancel className="h-12 rounded-xl font-black text-[10px] uppercase">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleLeaveAgency} className="h-12 rounded-xl bg-red-500 font-black text-[10px] uppercase">Leave</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
                        </AlertDialog>
                      )}
                   </div>
@@ -290,13 +305,13 @@ export default function MePage() {
           )}
 
           <section className="space-y-3 pb-10">
-            <h3 className="text-[10px] font-black text-gray-400 tracking-widest ml-1">Account & Support</h3>
+            <h3 className="text-[10px] font-black text-gray-400 tracking-widest ml-1 uppercase">Account & Support</h3>
             <div className="bg-white rounded-3xl p-2 shadow-sm border border-black/5 flex flex-col overflow-hidden">
               <Button variant="ghost" className="h-16 justify-between px-5 rounded-none border-b border-gray-50" asChild>
                 <Link href="/support">
                   <div className="flex items-center gap-4">
                     <div className="bg-blue-50 p-2.5 rounded-xl"><Headphones className="w-5 h-5 text-blue-600" /></div>
-                    <span className="font-black text-[11px] tracking-widest text-black">Support Center</span>
+                    <span className="font-black text-[11px] tracking-widest text-black uppercase">Support Center</span>
                   </div>
                   <ChevronRight className="w-4 h-4 text-gray-300" />
                 </Link>
@@ -305,7 +320,7 @@ export default function MePage() {
                 <Link href="/settings">
                   <div className="flex items-center gap-4">
                     <div className="bg-gray-50 p-2.5 rounded-xl"><Settings className="w-5 h-5 text-gray-600" /></div>
-                    <span className="font-black text-[11px] tracking-widest text-black">Settings</span>
+                    <span className="font-black text-[11px] tracking-widest text-black uppercase">Settings</span>
                   </div>
                   <ChevronRight className="w-4 h-4 text-gray-300" />
                 </Link>

@@ -7,6 +7,7 @@ import { getSupabaseAdmin } from '@/lib/supabase';
  * Updated: 
  * - Default placeholders for males.
  * - Identity lock for verified users.
+ * - Spin to Win game logic.
  */
 
 export async function completeOnboardingAction(payload: {
@@ -68,9 +69,6 @@ export async function completeOnboardingAction(payload: {
 export async function checkIdentityDuplicateAction(uid: string) {
   const supabase = getSupabaseAdmin();
   try {
-    // In a real prod environment, we would compare face hashes. 
-    // Here we simulate checking if this specific auth user is trying to verify 
-    // while another account with the same 'email' or 'identity_key' is already verified.
     const { data: user } = await supabase.from('users').select('email').eq('uid', uid).single();
     if (!user) return { success: true };
 
@@ -87,7 +85,7 @@ export async function checkIdentityDuplicateAction(uid: string) {
     }
     return { success: true };
   } catch (e) {
-    return { success: true }; // Fail open for the prototype
+    return { success: true };
   }
 }
 
@@ -402,6 +400,34 @@ export async function sendGiftAction(senderUid: string, recipientUid: string, co
     ].filter(Boolean));
 
     return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function playSpinGameAction(userId: string, stake: number) {
+  const supabase = getSupabaseAdmin();
+  try {
+    const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', userId).single();
+    if ((Number(bal?.coins) || 0) < stake) throw new Error("Insufficient coins.");
+
+    const prizes = [0, 20, 0, 100, 50, 0, 1000, 200, 0, 500];
+    const index = Math.floor(Math.random() * prizes.length);
+    const winAmount = prizes[index];
+    const net = winAmount - stake;
+
+    const { error: rpcErr } = await supabase.rpc("increment_coins", { p_user_id: userId, p_amount: net });
+    if (rpcErr) throw rpcErr;
+
+    await supabase.from('coin_history').insert({
+      user_id: userId,
+      amount: net,
+      type: 'game',
+      description: `Spin to Win: Staked ${stake}, Won ${winAmount}`,
+      timestamp: Date.now()
+    });
+
+    return { success: true, winAmount, index };
   } catch (err: any) {
     return { success: false, error: err.message };
   }
