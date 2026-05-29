@@ -4,13 +4,21 @@ import { supabase } from '@/lib/supabase'
 import { useUser } from '@/firebase/auth/use-user'
 
 /**
- * Hook to manage user presence via Supabase Channels.
+ * Hook to manage user presence via Supabase Channels and Heartbeat.
  */
 export function usePresence() {
   const { user } = useUser()
 
   useEffect(() => {
     if (!user?.id) return
+
+    // Standard Heartbeat to the database to help with ranking
+    const updateActivity = async () => {
+      await supabase.from('users').update({ updated_at: new Date().toISOString() }).eq('uid', user.id);
+    }
+
+    updateActivity();
+    const interval = setInterval(updateActivity, 60000 * 3); // Every 3 mins
 
     const channel = supabase.channel('online-users', {
       config: { presence: { key: user.id } }
@@ -26,7 +34,10 @@ export function usePresence() {
         }
       })
 
-    return () => { channel.unsubscribe() }
+    return () => { 
+      clearInterval(interval);
+      channel.unsubscribe();
+    }
   }, [user?.id])
 }
 
@@ -36,7 +47,6 @@ export function useUserPresence(userId?: string) {
   useEffect(() => {
     if (!userId) return;
 
-    // For a prototype, we'll check if the user tracked presence in the last 2 minutes
     const fetchPresence = async () => {
       const channel = supabase.channel('online-users');
       channel.on('presence', { event: 'sync' }, () => {

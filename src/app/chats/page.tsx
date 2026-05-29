@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useState, Suspense, useCallback, useRef } from "react"
@@ -213,6 +212,18 @@ function ChatsContent() {
     setLoadingMessages(false);
   }, [chatId, activeChatClearedAt, messages, hasMoreMessages, loadingMessages]);
 
+  const handleDeleteChat = async (id: string) => {
+    if (!currentUser) return
+    // Immediate UI update
+    setChatSummaries(prev => prev.filter(s => s.id !== id))
+    setDeletingChatId(null)
+    const res = await clearChatAction(currentUser.id, id)
+    if (!res.success) {
+       toast({ variant: "destructive", title: "Action failed." })
+       fetchSummaries(0)
+    }
+  }
+
   useEffect(() => {
     if (startWithId && hasMoreMessages) {
       const observer = new IntersectionObserver((entries) => {
@@ -363,7 +374,7 @@ function ChatsContent() {
           <AlertDialogHeader className="items-center text-center"><AlertDialogTitle className="text-xl font-bold">Delete Conversation?</AlertDialogTitle><AlertDialogDescription className="text-[10px] uppercase font-bold tracking-widest text-gray-400">History will be cleared.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter className="flex flex-row items-center justify-center gap-4 mt-6">
             <AlertDialogCancel className="flex-1 h-14 rounded-full bg-gray-50 text-[10px] font-black uppercase">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { if (deletingChatId) clearChatAction(currentUser!.id, deletingChatId); setDeletingChatId(null); fetchSummaries(0); }} className="flex-1 h-14 rounded-full bg-red-500 text-white text-[10px] font-black uppercase">Delete</AlertDialogAction>
+            <AlertDialogAction onClick={() => deletingChatId && handleDeleteChat(deletingChatId)} className="flex-1 h-14 rounded-full bg-red-500 text-white text-[10px] font-black uppercase">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -381,7 +392,7 @@ function ChatsContent() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="rounded-full text-gray-400"><MoreVertical className="w-5 h-5" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="rounded-2xl min-w-[160px] p-2 border-none shadow-xl">
-            <DropdownMenuItem onClick={() => { clearChatAction(currentUser!.id, chatId!); router.push("/chats"); }} className="rounded-xl h-11 text-red-500 font-bold gap-3 px-4">
+            <DropdownMenuItem onClick={() => { if (chatId) handleDeleteChat(chatId); router.push("/chats"); }} className="rounded-xl h-11 text-red-500 font-bold gap-3 px-4">
               <Trash2 className="w-4 h-4" /> Delete Chat
             </DropdownMenuItem>
             <DropdownMenuItem className="rounded-xl h-11 font-bold gap-3 px-4 text-gray-700">
@@ -399,7 +410,7 @@ function ChatsContent() {
           const isMe = m.sender_id === currentUser?.id;
           const gift = m.is_gift ? GIFTS.find(g => m.text.includes(g.name)) : null;
           return (
-            <div key={m.id} className={cn("max-w-[85%] p-4 rounded-2xl text-sm font-medium shadow-sm relative animate-in fade-in slide-in-from-bottom-2", 
+            <div key={m.id} className={cn("max-w-[85%] p-4 rounded-2xl text-sm font-medium shadow-sm relative animate-in fade-in duration-200", 
               isMe ? "bg-[#00A2FF] text-white self-end rounded-br-none" : "bg-white text-black self-start rounded-bl-none border",
               m.is_gift && "bg-gradient-to-br from-pink-500 to-rose-600 text-white border-none p-6 flex flex-col items-center text-center gap-3 shadow-lg"
             )}>

@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getSupabaseAdmin } from '@/lib/supabase';
@@ -8,10 +7,8 @@ import { getSupabaseAdmin } from '@/lib/supabase';
  */
 
 // Helper to keep history lean (latest 50 records)
-// Optimized to only run occasionally or if explicitly needed to save on DB writes
 async function trimHistory(supabase: any, userId: string, table: 'coin_history' | 'diamond_history') {
   try {
-    // We only delete if we are significantly over the limit to reduce DB pressure
     const { count } = await supabase
       .from(table)
       .select('*', { count: 'exact', head: true })
@@ -205,7 +202,6 @@ export async function awardCoinsAction(ownerUid: string, targetUid: string, amou
 
     const ts = Date.now();
 
-    // Deduct from owner if not unlimited (relying on DB check constraint for zero balance)
     if (!owner.is_owner && !owner.is_special_user) {
       const { error: deductErr } = await supabase.rpc("increment_coins", { p_user_id: ownerUid, p_amount: -amount });
       if (deductErr) throw new Error("Insufficient merchant balance");
@@ -302,7 +298,6 @@ export async function sendMessageAction(payload: { chatId: string; senderId: str
     const isFree = sender?.is_owner || sender?.is_special_user || sender?.is_coin_seller || recipient?.is_special_user || recipient?.is_coin_seller || recipient?.is_owner;
 
     if (sender?.gender === 'male' && !isFree) {
-      // Direct RPC call - DB constraint handles the "check"
       const { error: deductErr } = await supabase.rpc("increment_coins", { p_user_id: payload.senderId, p_amount: -cost });
       if (deductErr) return { success: false, error: "insufficient_funds" };
       
@@ -320,8 +315,12 @@ export async function sendMessageAction(payload: { chatId: string; senderId: str
       last_message: payload.text.slice(0, 100), 
       last_message_at: timestamp, 
       participant_ids: [payload.senderId, payload.recipientId],
-      last_sender_id: payload.senderId 
+      last_sender_id: payload.senderId,
+      updated_at: new Date().toISOString()
     }, { onConflict: 'id' });
+
+    // Also update sender's activity to keep them "online"
+    await supabase.from('users').update({ updated_at: new Date().toISOString() }).eq('uid', payload.senderId);
 
     const { error: msgError } = await supabase.from('messages').insert({ chat_id: payload.chatId, text: payload.text, sender_id: payload.senderId, timestamp });
     if (msgError) throw msgError;
@@ -410,7 +409,15 @@ export async function requestWithdrawalAction(userUid: string, diamonds: number,
       timestamp: ts
     });
     
-    await supabase.from('withdrawals').insert({ user_id: userUid, agency_id: agencyId, diamonds, amount_kes, mpesa_number: mpesaNumber, status: 'pending', timestamp: ts });
+    await supabase.from('withdrawals').insert({ 
+      user_id: userUid, 
+      agency_id: agencyId, 
+      diamonds, 
+      amount_kes, 
+      mpesa_number: mpesaNumber, 
+      status: 'pending', 
+      timestamp: ts 
+    });
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message };
@@ -554,7 +561,7 @@ export async function sendGiftAction(senderUid: string, recipientUid: string, co
     
     await Promise.all([
       supabase.from('messages').insert({ chat_id: chatId, sender_id: senderUid, text: `[Gift: ${giftName}]`, is_gift: true, timestamp: ts }),
-      supabase.from('chats').upsert({ id: chatId, last_message: `[Gift: ${giftName}]`, last_message_at: ts, participant_ids: [senderUid, recipientUid], last_sender_id: senderUid })
+      supabase.from('chats').upsert({ id: chatId, last_message: `[Gift: ${giftName}]`, last_message_at: ts, participant_ids: [senderUid, recipientUid], last_sender_id: senderUid, updated_at: new Date().toISOString() })
     ]);
 
     return { success: true };
@@ -566,7 +573,6 @@ export async function sendGiftAction(senderUid: string, recipientUid: string, co
 export async function playSpinGameAction(userId: string, stake: number) {
   const supabase = getSupabaseAdmin();
   try {
-    // Deduct stake first - DB constraint handles balance check
     const { error: deductErr } = await supabase.rpc("increment_coins", { p_user_id: userId, p_amount: -stake });
     if (deductErr) throw new Error("Insufficient coins.");
 
@@ -604,7 +610,6 @@ export async function playSpinGameAction(userId: string, stake: number) {
 export async function playSlotsAction(userId: string, stake: number) {
   const supabase = getSupabaseAdmin();
   try {
-    // Atomically try to deduct stake
     const { error: deductErr } = await supabase.rpc("increment_coins", { p_user_id: userId, p_amount: -stake });
     if (deductErr) throw new Error("Insufficient coins.");
 

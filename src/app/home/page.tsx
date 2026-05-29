@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
@@ -73,7 +72,7 @@ export default function HomePage() {
         .eq('onboarding_complete', true)
         .is('is_deleted', false)
         .not('uid', 'in', `(${[currentUser?.id, ...blockedList].join(',')})`)
-        .order('updated_at', { ascending: false })
+        .order('updated_at', { ascending: false }) // Prioritize recent activity
         .range(from, to);
 
       if (oppositeGender) {
@@ -89,8 +88,13 @@ export default function HomePage() {
       if (error) throw error;
 
       if (data) {
-        const filtered = (data as any[]).filter(u => u.uid !== currentUser?.id);
+        let filtered = (data as any[]).filter(u => u.uid !== currentUser?.id);
         
+        // Manual Shuffle logic for "Recommend" to feel fresh
+        if (isManual && currentTab === 'Recommend') {
+          filtered = [...filtered].sort(() => Math.random() - 0.5);
+        }
+
         if (pageNum === 0) {
           setUsers(filtered);
           cachedUsers = filtered;
@@ -221,32 +225,44 @@ export default function HomePage() {
         {users.length > 0 ? (
           <>
             <div className="grid grid-cols-2 gap-2.5">
-              {users.map((u) => (
-                <Card key={u.uid} className="relative overflow-hidden border-none aspect-[1/1.25] rounded-lg shadow-lg bg-gray-50 active:scale-95 transition-all cursor-pointer" onClick={() => router.push(`/users/${u.uid}`)}>
-                  <Image src={`${u.photo_url}?t=${u.updated_at}`} alt={u.name} fill className="object-cover" sizes="50vw" priority />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                  
-                  <Button 
-                    className="absolute top-2 right-2 rounded-full h-7 px-4 bg-[#00A2FF]/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest shadow-xl z-20 active:scale-90 border border-white/20" 
-                    onClick={(e) => { e.stopPropagation(); router.push(`/chats?startWith=${u.uid}`); }}
-                  >
-                    Chat
-                  </Button>
-
-                  <div className="absolute inset-x-0 bottom-0 p-3 text-white">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        <h4 className="font-black text-[13px] truncate tracking-tight">{u.name}</h4>
-                        {u.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-[#00A2FF] fill-white shrink-0" />}
+              {users.map((u) => {
+                // Determine if user was active recently (last 5 mins)
+                const isRecentlyActive = (Date.now() - new Date(u.updated_at).getTime()) < 300000;
+                
+                return (
+                  <Card key={u.uid} className="relative overflow-hidden border-none aspect-[1/1.25] rounded-lg shadow-lg bg-gray-50 active:scale-95 transition-all cursor-pointer" onClick={() => router.push(`/users/${u.uid}`)}>
+                    <Image src={`${u.photo_url}?t=${u.updated_at}`} alt={u.name} fill className="object-cover" sizes="50vw" priority />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                    
+                    {isRecentlyActive && (
+                      <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/10 z-20">
+                         <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                         <span className="text-[8px] font-black text-white uppercase tracking-widest">Active</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="bg-[#00B200] text-white font-black text-[9px] px-1.5 py-0.5 rounded-md">{calculateAge(u.dob)}</span>
-                        <span className="text-[9px] font-bold opacity-70 truncate uppercase tracking-tighter">{u.country}</span>
+                    )}
+
+                    <Button 
+                      className="absolute top-2 right-2 rounded-full h-7 px-4 bg-[#00A2FF]/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest shadow-xl z-20 active:scale-90 border border-white/20" 
+                      onClick={(e) => { e.stopPropagation(); router.push(`/chats?startWith=${u.uid}`); }}
+                    >
+                      Chat
+                    </Button>
+
+                    <div className="absolute inset-x-0 bottom-0 p-3 text-white">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <h4 className="font-black text-[13px] truncate tracking-tight">{u.name}</h4>
+                          {u.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-[#00A2FF] fill-white shrink-0" />}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="bg-[#00B200] text-white font-black text-[9px] px-1.5 py-0.5 rounded-md">{calculateAge(u.dob)}</span>
+                          <span className="text-[9px] font-bold opacity-70 truncate uppercase tracking-tighter">{u.country}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                )
+              })}
             </div>
             
             <div ref={observerTarget} className="h-20 flex items-center justify-center py-10">
