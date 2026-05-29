@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getSupabaseAdmin } from '@/lib/supabase';
@@ -7,7 +8,7 @@ import { getSupabaseAdmin } from '@/lib/supabase';
  * Updated: 
  * - Default placeholders for males.
  * - Identity lock for verified users.
- * - Spin to Win game logic.
+ * - Spin to Win game logic with 20-slot dynamic prizes.
  */
 
 export async function completeOnboardingAction(payload: {
@@ -411,7 +412,16 @@ export async function playSpinGameAction(userId: string, stake: number) {
     const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', userId).single();
     if ((Number(bal?.coins) || 0) < stake) throw new Error("Insufficient coins.");
 
-    const prizes = [0, 20, 0, 100, 50, 0, 1000, 200, 0, 500];
+    // Dynamic Prize Logic based on stake (20 Slots)
+    let prizes: number[] = [];
+    if (stake === 20) {
+      prizes = [0, 5, 10, 0, 20, 0, 50, 5, 0, 10, 20, 0, 5, 0, 30, 0, 10, 50, 0, 15];
+    } else if (stake === 50 || stake === 100) {
+      prizes = [0, 20, 50, 0, 100, 0, 200, 20, 0, 50, 100, 0, 20, 0, 150, 0, 50, 200, 0, 80];
+    } else {
+      prizes = [0, 100, 200, 0, 500, 0, 1000, 100, 0, 200, 500, 0, 100, 0, 750, 0, 200, 1000, 0, 400];
+    }
+
     const index = Math.floor(Math.random() * prizes.length);
     const winAmount = prizes[index];
     const net = winAmount - stake;
