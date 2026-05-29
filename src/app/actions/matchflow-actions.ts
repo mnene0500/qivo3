@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getSupabaseAdmin } from '@/lib/supabase';
@@ -126,6 +125,7 @@ export async function reportUserAction(payload: {
     if (error) throw error;
     return { success: true };
   } catch (err: any) {
+    console.error("[Report User Action Error]:", err.message);
     return { success: false, error: err.message };
   }
 }

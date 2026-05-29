@@ -26,7 +26,12 @@ export function useUser() {
           localStorage.clear();
           sessionStorage.clear();
           supabase.auth.signOut().then(() => {
-            if (mounted) window.location.replace("/welcome");
+            if (mounted) {
+              setUser(null);
+              setLoading(false);
+              setIsInitialized(true);
+              window.location.replace("/welcome");
+            }
           });
           return;
         }
@@ -56,6 +61,10 @@ export function useUser() {
       } else if (event === 'TOKEN_REFRESHED' && !session) {
         setUser(null);
         if (mounted) window.location.replace("/welcome");
+      } else if (event === 'SIGNED_IN' && session?.user) {
+        setUser(session.user);
+        setLoading(false);
+        setIsInitialized(true);
       }
     });
 

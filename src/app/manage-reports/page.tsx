@@ -1,7 +1,6 @@
-
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { useUser } from "@/firebase/auth/use-user"
@@ -35,7 +34,7 @@ export default function ManageReportsPage() {
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState<string | null>(null)
 
-  const fetchReports = async () => {
+  const fetchReports = useCallback(async () => {
     const { data: reportsData } = await supabase
       .from('reports')
       .select('*')
@@ -45,19 +44,21 @@ export default function ManageReportsPage() {
     if (reportsData) {
       const enriched = await Promise.all(reportsData.map(async (r) => {
         const [reporter, reported] = await Promise.all([
-          supabase.from('users').select('name, photo_url, match_flow_id').eq('uid', r.reporter_id).single(),
-          supabase.from('users').select('name, photo_url, match_flow_id').eq('uid', r.reported_id).single()
+          supabase.from('users').select('name, photo_url, match_flow_id').eq('uid', r.reporter_id).maybeSingle(),
+          supabase.from('users').select('name, photo_url, match_flow_id').eq('uid', r.reported_id).maybeSingle()
         ])
         return {
           ...r,
-          reporter_profile: reporter.data,
-          reported_profile: reported.data
+          reporter_profile: reporter?.data || { name: 'Unknown User' },
+          reported_profile: reported?.data || { name: 'Unknown User' }
         }
       }))
       setReports(enriched)
+    } else {
+      setReports([])
     }
     setLoading(false)
-  }
+  }, [])
 
   useEffect(() => {
     if (!user?.id) return
@@ -68,7 +69,7 @@ export default function ManageReportsPage() {
       .subscribe()
       
     return () => { supabase.removeChannel(channel) }
-  }, [user?.id])
+  }, [user?.id, fetchReports])
 
   const handleResolve = async (reportId: string, reporterUid: string) => {
     if (!user) return
@@ -139,9 +140,9 @@ export default function ManageReportsPage() {
                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Reporter</p>
                     <div className="p-3 bg-white rounded-2xl border border-black/5 flex items-center gap-3">
                       <Avatar className="w-8 h-8"><AvatarImage src={report.reporter_profile?.photo_url} /><AvatarFallback><User /></AvatarFallback></Avatar>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="text-xs font-black truncate">{report.reporter_profile?.name}</p>
-                        <p className="text-[8px] font-bold text-[#00A2FF] tracking-widest">ID: {report.reporter_profile?.match_flow_id}</p>
+                        <p className="text-[8px] font-bold text-[#00A2FF] tracking-widest">ID: {report.reporter_profile?.match_flow_id || '---'}</p>
                       </div>
                     </div>
                   </div>
@@ -149,9 +150,9 @@ export default function ManageReportsPage() {
                     <p className="text-[9px] font-black text-red-400 uppercase tracking-widest ml-1">Reported</p>
                     <div className="p-3 bg-white rounded-2xl border border-black/5 flex items-center gap-3 shadow-sm shadow-red-50">
                       <Avatar className="w-8 h-8 border border-red-100"><AvatarImage src={report.reported_profile?.photo_url} /><AvatarFallback><UserX /></AvatarFallback></Avatar>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="text-xs font-black truncate text-red-600">{report.reported_profile?.name}</p>
-                        <p className="text-[8px] font-bold text-red-400 tracking-widest">ID: {report.reported_profile?.match_flow_id}</p>
+                        <p className="text-[8px] font-bold text-red-400 tracking-widest">ID: {report.reported_profile?.match_flow_id || '---'}</p>
                       </div>
                     </div>
                   </div>

@@ -28,6 +28,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   
   const showNav = useMemo(() => {
     const navRoutes = ['/home', '/chats', '/profile'];
+    // Re-evaluate whenever user OR pathname changes
     return !!user && navRoutes.includes(pathname || "") && !isChatDetail && !isCall && !isWelcome && !isAuth && !isSplash;
   }, [user, pathname, isChatDetail, isCall, isWelcome, isAuth, isSplash]);
 

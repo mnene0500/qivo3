@@ -1,7 +1,6 @@
-
 "use client"
 
-import { use, useState, useEffect, useRef } from "react"
+import { use, useState, useEffect, useRef, useCallback } from "react"
 import { supabase, base64ToBlob, uploadPostPhoto } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -59,7 +58,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
     }
   }
 
-  const submitReport = async () => {
+  const submitReport = useCallback(async () => {
     if (!currentUser || !reportDesc.trim()) {
       toast({ variant: "destructive", title: "Description Required" })
       return
@@ -90,11 +89,12 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
         throw new Error(res.error)
       }
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Failed", description: e.message })
+      console.error("[Submit Report Error]:", e.message)
+      toast({ variant: "destructive", title: "Failed", description: e.message || "An unexpected error occurred." })
     } finally {
       setIsReporting(false)
     }
-  }
+  }, [currentUser, reportDesc, reportProof, reportReason, userId, toast])
 
   const handleBlock = async () => {
     if (!currentUser || !profile) return
@@ -279,9 +279,9 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
 
           <DialogFooter className="flex-col gap-3 mt-4">
              <Button onClick={submitReport} disabled={isReporting || !reportDesc.trim()} className="w-full h-14 rounded-full bg-black text-white font-black uppercase tracking-widest text-[10px] shadow-xl">
-               {isReporting ? <Loader2 className="animate-spin" /> : <div className="flex items-center gap-2"><Send className="w-4 h-4" /> Submit for Review</div>}
+               {isReporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <div className="flex items-center gap-2"><Send className="w-4 h-4" /> Submit for Review</div>}
              </Button>
-             <Button variant="ghost" onClick={() => setReportDialogOpen(false)} className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Cancel</Button>
+             <Button variant="ghost" onClick={() => !isReporting && setReportDialogOpen(false)} className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Cancel</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
