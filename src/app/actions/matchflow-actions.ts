@@ -459,3 +459,31 @@ export async function playSpinGameAction(userId: string, stake: number) {
     return { success: false, error: err.message };
   }
 }
+
+export async function playSlotsAction(userId: string, stake: number) {
+  const supabase = getSupabaseAdmin();
+  try {
+    const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', userId).single();
+    if ((Number(bal?.coins) || 0) < stake) throw new Error("Insufficient coins.");
+
+    const slotsPossible = ["bar", "bar", "bar", "cherry", "crown"];
+    const slot1 = slotsPossible[Math.floor(Math.random() * slotsPossible.length)];
+    const slot2 = slotsPossible[Math.floor(Math.random() * slotsPossible.length)];
+    const slot3 = slotsPossible[Math.floor(Math.random() * slotsPossible.length)];
+
+    let winAmount = 0;
+    if (slot1 === slot2 && slot2 === slot3) {
+      if (slot1 === "cherry") winAmount = stake * 10;
+      else if (slot1 === "crown") winAmount = 50;
+      else if (slot1 === "bar") winAmount = 5;
+    }
+
+    const net = winAmount - stake;
+    const { error: rpcErr } = await supabase.rpc("increment_coins", { p_user_id: userId, p_amount: net });
+    if (rpcErr) throw rpcErr;
+
+    return { success: true, winAmount, slots: [slot1, slot2, slot3] };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}

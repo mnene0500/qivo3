@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, Gamepad2, Trophy, Coins, Sparkles, Star } from "lucide-react"
+import { ChevronLeft, Gamepad2, Trophy, Coins, Sparkles, Star, LayoutGrid } from "lucide-react"
 
 export default function GameCenterHub() {
   const router = useRouter()
@@ -15,6 +15,15 @@ export default function GameCenterHub() {
       icon: Trophy,
       color: 'bg-amber-50 text-amber-600',
       href: '/game-center/spin',
+      active: true
+    },
+    {
+      id: 'slots',
+      name: 'Slot Machine',
+      desc: 'Match 3 symbols to win up to 10x your stake!',
+      icon: LayoutGrid,
+      color: 'bg-indigo-50 text-indigo-600',
+      href: '/game-center/slots',
       active: true
     }
   ]
