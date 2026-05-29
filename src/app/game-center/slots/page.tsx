@@ -56,10 +56,12 @@ export default function SlotMachinePage() {
             clearInterval(interval)
             setReels(res.slots)
             setIsSpinning(false)
-            setLastWin(res.winAmount)
             
             if (res.winAmount > 0) {
-              toast({ title: `JACKPOT! +${res.winAmount} Coins`, description: "Winning added to your wallet." })
+              setLastWin(res.winAmount)
+              toast({ title: res.message || "WINNER!", description: "Winning added to your wallet." })
+            } else {
+              toast({ title: "No Luck", description: res.message || "Not today kid!" })
             }
           }
         }, 100)

@@ -472,17 +472,29 @@ export async function playSlotsAction(userId: string, stake: number) {
     const slot3 = slotsPossible[Math.floor(Math.random() * slotsPossible.length)];
 
     let winAmount = 0;
+    let message = "";
+
     if (slot1 === slot2 && slot2 === slot3) {
-      if (slot1 === "cherry") winAmount = stake * 10;
-      else if (slot1 === "crown") winAmount = 50;
-      else if (slot1 === "bar") winAmount = 5;
+      if (slot1 === "cherry") {
+        winAmount = stake * 10;
+        message = `JACKPOT! You win ${winAmount}`;
+      } else if (slot1 === "crown") {
+        winAmount = 50;
+        message = "ROYALTY! You win 50 Coins";
+      } else if (slot1 === "bar") {
+        winAmount = 5;
+        message = "BAR MATCH! You win 5 Coins";
+      }
+    } else {
+      const loserPhrases = ["Not today, kid!", "So close, yet so far.", "The machine wins again.", "Better luck next pull!"];
+      message = loserPhrases[Math.floor(Math.random() * loserPhrases.length)];
     }
 
     const net = winAmount - stake;
     const { error: rpcErr } = await supabase.rpc("increment_coins", { p_user_id: userId, p_amount: net });
     if (rpcErr) throw rpcErr;
 
-    return { success: true, winAmount, slots: [slot1, slot2, slot3] };
+    return { success: true, winAmount, slots: [slot1, slot2, slot3], message };
   } catch (err: any) {
     return { success: false, error: err.message };
   }
