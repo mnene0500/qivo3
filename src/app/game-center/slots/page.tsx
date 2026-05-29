@@ -61,7 +61,7 @@ export default function SlotMachinePage() {
               setLastWin(res.winAmount)
               toast({ title: "WINNER!", description: res.message || "Winnings added to your wallet." })
             } else {
-              toast({ title: "You Lost", description: res.message || "Better luck next time!" })
+              toast({ title: "No Win", description: res.message || "Try again!" })
             }
           }
         }, 100)
@@ -94,7 +94,7 @@ export default function SlotMachinePage() {
       <main className="flex-1 flex flex-col items-center justify-center p-6 space-y-12 relative z-10">
         <div className="text-center space-y-1">
           <h1 className="text-4xl font-black text-white tracking-tighter italic uppercase">Slot <span className="text-indigo-500">Machine</span></h1>
-          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.3em]">Match 3 & Multiply Your Luck</p>
+          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.3em]">Match 3 & Double Your Stake</p>
         </div>
 
         {/* SLOT REELS */}
@@ -150,14 +150,10 @@ export default function SlotMachinePage() {
             {isSpinning ? <Loader2 className="w-6 h-6 animate-spin" /> : "Pull Lever"}
           </Button>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
              <div className="p-3 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center">
-                <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">3x Cherries</span>
-                <span className="text-xs font-black text-green-400">10x STAKE</span>
-             </div>
-             <div className="p-3 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center">
-                <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">3x Crowns</span>
-                <span className="text-xs font-black text-yellow-400">+50 COINS</span>
+                <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Match Any 3 Symbols</span>
+                <span className="text-xs font-black text-green-400">WIN 2.0x STAKE</span>
              </div>
           </div>
         </div>
@@ -169,7 +165,7 @@ export default function SlotMachinePage() {
            <div className="bg-indigo-600 p-10 rounded-[3rem] text-center space-y-6 shadow-[0_0_100px_rgba(99,102,241,0.5)] border-4 border-white/20">
              <Trophy className="w-20 h-20 text-white mx-auto animate-bounce" />
              <div className="space-y-1">
-               <h3 className="text-4xl font-black text-white tracking-tighter uppercase italic">Big Win!</h3>
+               <h3 className="text-4xl font-black text-white tracking-tighter uppercase italic">Winner!</h3>
                <div className="flex items-center justify-center gap-3 text-white bg-black px-6 py-2 rounded-full mt-4">
                  <Coins className="w-6 h-6 fill-current text-yellow-500" />
                  <span className="text-3xl font-black">+{lastWin}</span>

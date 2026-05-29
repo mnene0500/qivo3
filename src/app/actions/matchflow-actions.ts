@@ -474,17 +474,10 @@ export async function playSlotsAction(userId: string, stake: number) {
     let winAmount = 0;
     let message = "";
 
+    // Simplified Logic: Match all 3 = 2x Stake (as per 20 -> 40 example)
     if (slot1 === slot2 && slot2 === slot3) {
-      if (slot1 === "cherry") {
-        winAmount = stake * 10;
-        message = `JACKPOT! You win ${winAmount}`;
-      } else if (slot1 === "crown") {
-        winAmount = 50;
-        message = "ROYALTY! You win 50 Coins";
-      } else if (slot1 === "bar") {
-        winAmount = 5;
-        message = "BAR MATCH! You win 5 Coins";
-      }
+      winAmount = stake * 2;
+      message = `WINNER! You matched 3 symbols and won ${winAmount} Coins!`;
     } else {
       const loserPhrases = ["So close, yet so far.", "The machine wins again.", "Better luck next pull!", "Try again!"];
       message = loserPhrases[Math.floor(Math.random() * loserPhrases.length)];
