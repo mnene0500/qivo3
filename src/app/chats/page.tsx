@@ -95,6 +95,11 @@ function ChatsContent() {
         return (c.last_message_at || 0) > clearedAt;
       });
 
+      if (filteredChats.length === 0) {
+        setChatSummaries([])
+        return
+      }
+
       const partnerIds = Array.from(new Set(filteredChats.map(c => c.participant_ids.find((id: string) => id !== currentUser.id))));
       const { data: profiles } = await supabase.from('users').select('uid, name, photo_url, is_verified').in('uid', partnerIds);
       const profileMap = new Map(profiles?.map(p => [p.uid, p]));
@@ -103,6 +108,8 @@ function ChatsContent() {
         const pId = c.participant_ids.find((id: string) => id !== currentUser.id);
         const p = profileMap.get(pId);
         const mySeenAt = (c.last_seen_at as Record<string, number>)?.[currentUser.id] || 0;
+        const lastMsgAt = c.last_message_at || 0;
+        
         return {
           id: c.id,
           partner_id: pId!,
@@ -110,8 +117,8 @@ function ChatsContent() {
           partner_photo: p?.photo_url || '',
           partner_is_verified: p?.is_verified,
           last_message: c.last_message || "",
-          last_message_at: c.last_message_at || Date.now(),
-          unread_count: (c.last_message_at > mySeenAt && c.last_sender_id !== currentUser.id) ? 1 : 0
+          last_message_at: lastMsgAt,
+          unread_count: (lastMsgAt > mySeenAt && c.last_sender_id !== currentUser.id) ? 1 : 0
         };
       });
 
@@ -190,6 +197,8 @@ function ChatsContent() {
     const res = await sendGiftAction(currentUser.id, startWithId, gift.cost, gift.name)
     if (res.success) {
       toast({ title: `${gift.name} Sent!` })
+      const ts = Date.now();
+      setMessages(prev => [{ id: `gift-${ts}`, text: `[Gift: ${gift.name}]`, sender_id: currentUser.id, timestamp: ts }, ...prev]);
     } else {
       toast({ variant: "destructive", title: res.error === 'insufficient_funds' ? "Insufficient Coins" : "Failed to send gift" })
     }

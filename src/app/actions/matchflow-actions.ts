@@ -513,7 +513,7 @@ export async function sendMysteryNoteAction(senderUid: string, text: string, cou
           participant_ids: [senderUid, t.uid],
           last_sender_id: senderUid,
           updated_at: new Date().toISOString()
-        });
+        }, { onConflict: 'id' });
         await supabase.from('messages').insert({ chat_id: chatId, sender_id: senderUid, text, timestamp: ts });
       }
     }

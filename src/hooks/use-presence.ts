@@ -1,3 +1,4 @@
+
 "use client"
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -5,6 +6,7 @@ import { useUser } from '@/firebase/auth/use-user'
 
 /**
  * Hook to manage user presence via Supabase Channels and Heartbeat.
+ * Optimized for real-time online/offline accuracy.
  */
 export function usePresence() {
   const { user } = useUser()
@@ -12,13 +14,14 @@ export function usePresence() {
   useEffect(() => {
     if (!user?.id) return
 
-    // Standard Heartbeat to the database to help with ranking
+    // Rapid Heartbeat to the database to ensure "Active Now" accuracy
     const updateActivity = async () => {
       await supabase.from('users').update({ updated_at: new Date().toISOString() }).eq('uid', user.id);
     }
 
+    // Update immediately on mount, then every 60 seconds
     updateActivity();
-    const interval = setInterval(updateActivity, 60000 * 3); // Every 3 mins
+    const interval = setInterval(updateActivity, 60000); 
 
     const channel = supabase.channel('online-users', {
       config: { presence: { key: user.id } }
@@ -26,7 +29,7 @@ export function usePresence() {
 
     channel
       .on('presence', { event: 'sync' }, () => {
-        // Sync complete
+        // Presence sync
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
