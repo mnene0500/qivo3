@@ -1,9 +1,9 @@
+
 'use server';
 
 import { getSupabaseAdmin } from '@/lib/supabase';
 
 const PESAPAL_BASE_URL = "https://pay.pesapal.com/v3";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://qivo-five.vercel.app";
 
 async function getAuthToken() {
   const res = await fetch(`${PESAPAL_BASE_URL}/api/Auth/RequestToken`, {
@@ -19,16 +19,13 @@ async function getAuthToken() {
   return data.token;
 }
 
-/**
- * Initiates a PesaPal Payment
- */
 export async function initiatePesaPalPayment(userId: string, amount: number, coins: number) {
   const supabase = getSupabaseAdmin();
   try {
     const token = await getAuthToken();
     const orderId = crypto.randomUUID();
 
-    // 1. Create a tracking record
+    // 1. Create a tracking record in your own database
     await supabase.from('pending_payments').insert({
       order_id: orderId,
       user_id: userId,
@@ -41,7 +38,7 @@ export async function initiatePesaPalPayment(userId: string, amount: number, coi
       currency: "KES",
       amount: amount,
       description: `Purchase of ${coins} Coins`,
-      callback_url: `${APP_URL}/payment-success`,
+      callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment-success`,
       notification_id: process.env.PESAPAL_IPN_ID,
       billing_address: {
         email_address: "user@qivo.com"
@@ -77,20 +74,24 @@ export async function verifyPaymentAction(orderTrackingId: string, merchantRefer
     
     const data = await res.json();
     
+    // Status Code 1 is "Completed" in PesaPal v3
     if (data.status_code === 1 || data.payment_status_description === "Completed") {
       const supabase = getSupabaseAdmin();
       
+      // Check if already processed
       const { data: existing } = await supabase.from('processed_payments').select('*').eq('order_tracking_id', orderTrackingId).maybeSingle();
       if (existing) return { success: true, coins: existing.coins, message: "Already processed." };
 
+      // Get the original record
       const { data: pending } = await supabase.from('pending_payments').select('*').eq('order_id', merchantReference).single();
       if (!pending) throw new Error("Payment record matching this reference not found.");
 
       let coins = 0;
       const amt = Number(pending.amount);
       
-      // Tiered Coin Logic
-      if (amt === 80) coins = 500;
+      // Tiered Coin Logic (Match with packages on recharge page)
+      if (amt === 1) coins = 5;
+      else if (amt === 80) coins = 500;
       else if (amt === 120) coins = 1000;
       else if (amt === 600) coins = 5000;
       else if (amt === 800) coins = 7000;
