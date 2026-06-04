@@ -6,6 +6,7 @@ Run this entire script in the **Supabase SQL Editor** to initialize all tables, 
 ```sql
 -- 1. SETUP ATOMIC ECONOMY HELPERS
 -- These functions handle balance shifts securely via SECURITY DEFINER
+-- UPDATED: Enforces non-negative balances using GREATEST(0, ...)
 CREATE OR REPLACE FUNCTION public.increment_diamonds(p_user_id UUID, p_amount NUMERIC)
 RETURNS VOID AS $$
 BEGIN

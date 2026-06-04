@@ -68,12 +68,20 @@ export async function sendMessageAction(payload: { chatId: string; senderId: str
 
   try {
     const { data: sender } = await supabase.from('users').select('gender, is_owner, is_coin_seller, is_special_user').eq('uid', payload.senderId).single();
+    const { data: balance } = await supabase.from('balances').select('coins').eq('user_id', payload.senderId).maybeSingle();
+    
     const cost = 15;
     const isFree = sender?.is_owner || sender?.is_special_user || sender?.is_coin_seller;
 
+    // PRE-CHECK BALANCE TO PREVENT NEGATIVE
     if (sender?.gender === 'male' && !isFree) {
+      if ((Number(balance?.coins) || 0) < cost) {
+        return { success: false, error: "insufficient_funds" };
+      }
+      
       const { error: deductErr } = await supabase.rpc("increment_coins", { p_user_id: payload.senderId, p_amount: -cost });
       if (deductErr) return { success: false, error: "insufficient_funds" };
+      
       await supabase.from('coin_history').insert({ user_id: payload.senderId, amount: -cost, type: 'fee', description: 'Message Cost', timestamp });
       await trimHistory(supabase, payload.senderId, 'coin_history');
     }
@@ -109,6 +117,12 @@ export async function sendGiftAction(senderUid: string, recipientUid: string, co
   const supabase = getSupabaseAdmin();
   try {
     const ts = Date.now();
+    const { data: balance } = await supabase.from('balances').select('coins').eq('user_id', senderUid).maybeSingle();
+    
+    if ((Number(balance?.coins) || 0) < coinAmount) {
+      throw new Error("insufficient_funds");
+    }
+
     const { error: deductErr } = await supabase.rpc("increment_coins", { p_user_id: senderUid, p_amount: -coinAmount });
     if (deductErr) throw new Error("insufficient_funds");
 
@@ -162,7 +176,7 @@ export async function toggleUserRoleAction(ownerUid: string, targetMatchFlowId: 
     const { data: owner } = await supabase.from('users').select('is_owner').eq('uid', ownerUid).single();
     if (!owner?.is_owner) throw new Error("Unauthorized");
 
-    const { error } = await supabase.from('users').update({ [role]: value }).eq('match_flow_id', targetMatchFlowId);
+    const { error } = await supabase.from('users').update({ [role]: value }).eq('match_flow_id', targetMatchMatchFlowId);
     if (error) throw error;
     
     return { success: true };
@@ -329,6 +343,9 @@ export async function playSlotsAction(userId: string, stake: number) {
   const supabase = getSupabaseAdmin();
   try {
     const ts = Date.now();
+    const { data: balance } = await supabase.from('balances').select('coins').eq('user_id', userId).maybeSingle();
+    if ((Number(balance?.coins) || 0) < stake) throw new Error("Insufficient coins");
+
     const { error: dErr } = await supabase.rpc("increment_coins", { p_user_id: userId, p_amount: -stake });
     if (dErr) throw new Error("Insufficient coins");
     
@@ -354,6 +371,9 @@ export async function playSpinGameAction(userId: string, stake: number) {
   const supabase = getSupabaseAdmin();
   try {
     const ts = Date.now();
+    const { data: balance } = await supabase.from('balances').select('coins').eq('user_id', userId).maybeSingle();
+    if ((Number(balance?.coins) || 0) < stake) throw new Error("Insufficient coins");
+
     const { error: dErr } = await supabase.rpc("increment_coins", { p_user_id: userId, p_amount: -stake });
     if (dErr) throw new Error("Insufficient coins");
 
@@ -390,6 +410,9 @@ export async function sendMysteryNoteAction(userId: string, text: string, recipi
   try {
     const cost = recipientCount * 10;
     const ts = Date.now();
+    const { data: balance } = await supabase.from('balances').select('coins').eq('user_id', userId).maybeSingle();
+    if ((Number(balance?.coins) || 0) < cost) throw new Error("Insufficient coins");
+
     const { error: dErr } = await supabase.rpc("increment_coins", { p_user_id: userId, p_amount: -cost });
     if (dErr) throw new Error("Insufficient coins");
 

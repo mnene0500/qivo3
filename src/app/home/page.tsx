@@ -43,11 +43,13 @@ export default function HomePage() {
 
     if (activeTab === 'nearby') query = query.eq('country', myProfile.country);
     
+    // STRICT PRIORITY: Active Now (updated_at)
     const { data } = await query.order('updated_at', { ascending: false }).limit(40);
 
     if (data) {
       let final = data as any[];
       if (reshuffle && final.length > 5) {
+        // Cyclic shuffle within presence priority
         const top = final[0];
         const rest = final.slice(1);
         const mid = Math.floor(rest.length / 2);
@@ -71,29 +73,30 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col w-full bg-white select-none">
-      <div className="bg-[#00A2FF] pt-10 pb-4 shadow-xl">
-        <div className="px-4 grid grid-cols-2 gap-3 py-6">
+      {/* COMPACT BLUE HEADER */}
+      <div className="bg-[#00A2FF] pt-4 pb-2 shadow-xl">
+        <div className="px-4 grid grid-cols-2 gap-3 py-4">
           <button 
             onClick={() => router.push('/mystery-note')} 
-            className="h-28 bg-orange-500 rounded-[2rem] p-6 flex flex-col items-start justify-center text-white shadow-lg active:scale-95 transition-all"
+            className="h-24 bg-orange-500 rounded-[2rem] p-5 flex flex-col items-start justify-center text-white shadow-lg active:scale-95 transition-all"
           >
-            <FileText className="w-6 h-6 mb-1" />
-            <p className="text-sm font-black uppercase tracking-widest leading-tight">Message<br/>Blast</p>
+            <FileText className="w-5 h-5 mb-1" />
+            <p className="text-xs font-black uppercase tracking-widest leading-tight">Message<br/>Blast</p>
           </button>
-          <button onClick={() => router.push('/tasks')} className="h-28 bg-white/10 backdrop-blur-md rounded-[2rem] p-6 flex flex-col items-start justify-center text-white border border-white/20 active:scale-95 transition-all">
-            <Target className="w-6 h-6 mb-1" />
-            <p className="text-sm font-black uppercase tracking-widest leading-tight">Task<br/>Center</p>
+          <button onClick={() => router.push('/tasks')} className="h-24 bg-white/10 backdrop-blur-md rounded-[2rem] p-5 flex flex-col items-start justify-center text-white border border-white/20 active:scale-95 transition-all">
+            <Target className="w-5 h-5 mb-1" />
+            <p className="text-xs font-black uppercase tracking-widest leading-tight">Task<br/>Center</p>
           </button>
         </div>
 
-        <div className="px-5 py-3 flex items-center justify-between h-14">
+        <div className="px-5 py-2 flex items-center justify-between h-12">
           <div className="flex items-center gap-6">
             {['recommend', 'nearby'].map((t) => (
               <button 
                 key={t} 
                 onClick={() => setActiveTab(t as any)} 
                 className={cn(
-                  "text-xs font-black uppercase tracking-widest transition-all", 
+                  "text-[10px] font-black uppercase tracking-widest transition-all", 
                   activeTab === t ? "text-white scale-110" : "text-white/40"
                 )}
               >
@@ -102,7 +105,7 @@ export default function HomePage() {
             ))}
           </div>
           <button onClick={() => fetchUsers(true)} className="p-2 text-white/60 active:rotate-180 transition-transform duration-500">
-            <RotateCw className="w-4 h-4" />
+            <RotateCw className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
@@ -128,8 +131,12 @@ export default function HomePage() {
                     <span className="text-[9px] font-bold opacity-60 uppercase truncate">{u.country}</span>
                   </div>
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); router.push(`/chats?startWith=${u.uid}`); }} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white">
-                  <MessageSquare className="w-4 h-4 fill-current" />
+                {/* UPDATED BUTTON: CHAT TEXT */}
+                <button 
+                  onClick={(e) => { e.stopPropagation(); router.push(`/chats?startWith=${u.uid}`); }} 
+                  className="absolute top-4 right-4 h-8 px-4 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white text-[9px] font-black uppercase tracking-widest shadow-xl"
+                >
+                  CHAT
                 </button>
               </Card>
             ))}

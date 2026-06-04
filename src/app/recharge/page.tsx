@@ -242,7 +242,8 @@ export default function RechargePage() {
         </div>
       </main>
 
-      <footer className="fixed bottom-0 inset-x-0 p-6 bg-white/95 backdrop-blur-xl border-t border-black/5 z-[80] flex flex-col gap-4 pb-[env(safe-area-inset-bottom,24px)] shadow-[0_-10px_30px_rgba(0,0,0,0.04)] shrink-0">
+      {/* FOOTER: ADDED TINY SPACE AT BOTTOM */}
+      <footer className="fixed bottom-0 inset-x-0 p-6 bg-white/95 backdrop-blur-xl border-t border-black/5 z-[80] flex flex-col gap-4 pb-[calc(env(safe-area-inset-bottom,24px)+8px)] shadow-[0_-10px_30px_rgba(0,0,0,0.04)] shrink-0">
         <Button 
           onClick={handleRecharge}
           disabled={isProcessing || !selectedId}

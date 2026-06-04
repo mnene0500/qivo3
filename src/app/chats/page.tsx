@@ -185,7 +185,7 @@ function ChatsContent() {
     const res = await sendMessageAction({ chatId, senderId: currentUser.id, recipientId: startWithId, text });
     
     if (!res.success) {
-      toast({ variant: "destructive", title: "Error", description: res.error });
+      toast({ variant: "destructive", title: "Message Failed", description: res.error === 'insufficient_funds' ? "You need more coins to message." : "System error, please try again." });
       setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
     }
     setIsSending(false);
@@ -314,11 +314,12 @@ function ChatsContent() {
         ))}
       </main>
 
-      <footer className="p-4 border-t bg-white shrink-0 pb-[env(safe-area-inset-bottom,20px)]">
-        <div className="flex items-center gap-2 max-w-5xl mx-auto w-full">
+      {/* FOOTER: ADDED TINY SPACE AT BOTTOM */}
+      <footer className="p-4 border-t bg-white shrink-0 pb-[calc(env(safe-area-inset-bottom,20px)+8px)]">
+        <div className="flex items-center gap-2 max-w-5xl mx-auto w-full mb-2">
           <Sheet onOpenChange={(open) => !open && setLastGiftSent(null)}>
             <SheetTrigger asChild>
-              <Button size="icon" variant="ghost" className="rounded-full text-pink-500 hover:bg-pink-50 transition-colors">
+              <Button size="icon" variant="ghost" className="rounded-full text-pink-500 hover:bg-pink-50 transition-colors shrink-0">
                 <Gift className="w-6 h-6" />
               </Button>
             </SheetTrigger>
@@ -334,7 +335,7 @@ function ChatsContent() {
                       onClick={() => router.push('/recharge')} 
                       variant="ghost" 
                       size="sm" 
-                      className="h-8 rounded-full bg-[#00A2FF] hover:bg-[#00A2FF]/90 text-white text-[9px] font-black uppercase px-4 shadow-lg shadow-blue-500/20"
+                      className="h-8 rounded-full bg-[#00A2FF] hover:bg-[#0081CC] text-white text-[9px] font-black uppercase px-4 shadow-lg shadow-blue-500/20"
                     >
                       <PlusCircle className="w-3 h-3 mr-1" /> Top Up
                     </Button>
