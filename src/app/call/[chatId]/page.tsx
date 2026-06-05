@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useRef, use } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { PhoneOff, Mic, MicOff, Video, VideoOff, User, Loader2, AlertCircle, Minimize2 } from "lucide-react"
+import { PhoneOff, Mic, MicOff, Video, VideoOff, User, Loader2, AlertCircle, Minimize2, Volume2, VolumeX } from "lucide-react"
 import { useUser } from "@/firebase/auth/use-user"
 import { supabase } from "@/lib/supabase"
 import { generateAgoraTokenAction, deductCallCoinsAction, endCallAction } from "@/app/actions/call-actions"
@@ -12,10 +12,9 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
 /**
- * @fileOverview Hardened Agora Call Page with 40s Timeout and Sync.
- * Deduction Schedule:
- * - Minute 1: Deduct at 11th second (10s free trial).
- * - Minute 2+: Deduct at start of each minute (61s, 121s, etc.).
+ * @fileOverview Hardened Agora Call Page.
+ * Fixed: Sanitized Channel Name for Agora.
+ * Added: Loudspeaker/Earpiece toggle UI.
  */
 
 export default function CallPage({ params }: { params: Promise<{ chatId: string }> }) {
@@ -37,6 +36,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
   const [joined, setJoined] = useState(false)
   const [muted, setMuted] = useState(false)
   const [cameraOff, setCameraOff] = useState(false)
+  const [isLoudspeaker, setIsLoudspeaker] = useState(true)
   const [remoteUser, setRemoteUser] = useState<any>(null)
   const [partnerProfile, setPartnerProfile] = useState<any>(null)
   const [duration, setDuration] = useState(0)
@@ -58,22 +58,20 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
     return () => { mounted.current = false }
   }, [partnerId])
 
-  // 1. SYNC: Listen for Global Call End
   useEffect(() => {
     if (!callId) return
     const channel = supabase.channel(`call-mon-${callId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'calls', filter: `id=eq.${callId}` }, (payload) => {
         if (payload.new.status === 'ended' && mounted.current) {
-          handleEndCall(false); // End locally without pushing another update
+          handleEndCall(false); 
         }
       }).subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [callId])
 
-  // 2. TIMEOUT: 40s Ringing Limit
   useEffect(() => {
     if (isRinging && !remoteUser) {
-      ringingTimeoutRef.current = setTimeout(() => {
+       ringingTimeoutRef.current = setTimeout(() => {
         if (mounted.current && isRinging && !remoteUser) {
           handleEndCall(true, 'No Answer');
         }
@@ -82,7 +80,6 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
     return () => { if (ringingTimeoutRef.current) clearTimeout(ringingTimeoutRef.current) }
   }, [isRinging, !!remoteUser])
 
-  // 3. TIMER & BILLING: Starts ONLY when connected
   useEffect(() => {
     if (joined && remoteUser && user?.id && partnerId) {
       billingTimer.current = setInterval(async () => {
@@ -132,13 +129,11 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
 
         client.on("user-left", () => { if (mounted.current) handleEndCall(false) })
 
-        // Audio track setup
         const audioTrack = await AgoraRTC.createMicrophoneAudioTrack().catch(e => {
           throw new Error("Microphone permission required.");
         });
         rtc.current.localAudioTrack = audioTrack;
 
-        // Video track setup
         if (type === 'video') {
           const videoTrack = await AgoraRTC.createCameraVideoTrack({ facingMode: "user" }).catch(e => {
             console.warn("Camera failed", e);
@@ -150,6 +145,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
           }
         }
 
+        // FIXED: Using tokenData.channelName (sanitized) instead of raw chatId
         const tokenData = await generateAgoraTokenAction(chatId, user.id);
         await client.join(tokenData.appId, tokenData.channelName, tokenData.token, tokenData.uid);
         
@@ -162,6 +158,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
         if (callId) await supabase.from('calls').update({ status: 'active' }).eq('id', callId);
 
       } catch (err: any) {
+        console.error("Agora Init Error:", err);
         setPermissionError(err.message || "Hardware setup failed.");
       }
     }
@@ -196,8 +193,8 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
   if (permissionError) return (
     <div className="fixed inset-0 bg-black flex flex-col items-center justify-center p-10 text-center z-[200]">
       <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
-      <h2 className="text-white font-bold text-xl mb-2">Hardware Error</h2>
-      <p className="text-gray-400 text-sm mb-10 leading-relaxed">{permissionError}</p>
+      <h2 className="text-white font-bold text-xl mb-2">Call Error</h2>
+      <p className="text-gray-400 text-xs mb-10 leading-relaxed max-w-[280px]">{permissionError}</p>
       <Button onClick={() => router.back()} className="rounded-2xl h-14 px-10 bg-[#00A2FF] text-white font-black uppercase tracking-widest text-xs">Go Back</Button>
     </div>
   )
@@ -259,28 +256,38 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
         </div>
       )}
 
-      <div className="absolute bottom-12 inset-x-0 px-8 flex items-center justify-center gap-4 z-50">
+      <div className="absolute bottom-12 inset-x-0 px-6 flex items-center justify-center gap-3 z-50">
         <button 
           onClick={() => { setMuted(!muted); rtc.current.localAudioTrack?.setEnabled(muted); }} 
           className={cn(
-            "w-16 h-16 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl transition-all flex items-center justify-center", 
+            "w-14 h-14 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl transition-all flex items-center justify-center", 
             muted ? "bg-red-500 text-white" : "bg-white/10 text-white"
           )}
         >
-          {muted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+          {muted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+        </button>
+
+        <button 
+          onClick={() => setIsLoudspeaker(!isLoudspeaker)} 
+          className={cn(
+            "w-14 h-14 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl transition-all flex items-center justify-center", 
+            !isLoudspeaker ? "bg-black/80 text-white" : "bg-white/10 text-white"
+          )}
+        >
+          {isLoudspeaker ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
         </button>
         
-        <button onClick={() => handleEndCall(true)} className="w-20 h-20 rounded-full bg-red-600 text-white shadow-2xl shadow-red-500/40 border-4 border-white/10 flex items-center justify-center active:scale-95 transition-all"><PhoneOff className="w-8 h-8" /></button>
+        <button onClick={() => handleEndCall(true)} className="w-20 h-20 rounded-full bg-red-600 text-white shadow-2xl shadow-red-500/40 border-4 border-white/10 flex items-center justify-center active:scale-95 transition-all mx-2"><PhoneOff className="w-8 h-8" /></button>
         
         {type === 'video' && (
           <button 
             onClick={() => { setCameraOff(!cameraOff); rtc.current.localVideoTrack?.setEnabled(cameraOff); }} 
             className={cn(
-              "w-16 h-16 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl transition-all flex items-center justify-center", 
+              "w-14 h-14 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl transition-all flex items-center justify-center", 
               cameraOff ? "bg-red-500 text-white" : "bg-white/10 text-white"
             )}
           >
-            {cameraOff ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
+            {cameraOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
           </button>
         )}
       </div>

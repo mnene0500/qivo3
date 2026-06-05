@@ -6,18 +6,22 @@ import { RtcTokenBuilder, RtcRole } from 'agora-token';
 
 /**
  * @fileOverview Hardened Agora Token Generation and Billing Engine.
- * Rates: Audio 70/min, Video 150/min. 
- * Logic: 10s free preview, deduct at 11s, then at the start of every minute.
- * Added: Strict Real-time Busy Check, Coin Verification, and Chat Status Logs.
+ * Fixed: Sanitizes channelName to ensure it is under 64 bytes.
  */
 
-export async function generateAgoraTokenAction(channelName: string, uid: string) {
+export async function generateAgoraTokenAction(chatId: string, uid: string) {
   const appId = process.env.AGORA_APP_ID;
   const appCertificate = process.env.AGORA_APP_CERTIFICATE;
 
   if (!appId || !appCertificate) {
     throw new Error("Agora Credentials missing in Vercel Settings.");
   }
+
+  // AGORA LIMIT: Channel name must be within 64 bytes.
+  // Direct chat IDs are often 80+ chars. We deterministically shorten them.
+  const sanitizedChannelName = chatId.length > 64 
+    ? `ch_${chatId.slice(-60)}` 
+    : chatId;
 
   const numericUid = Math.abs(uid.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a }, 0)) >>> 0;
   const role = RtcRole.PUBLISHER;
@@ -28,7 +32,7 @@ export async function generateAgoraTokenAction(channelName: string, uid: string)
   const token = RtcTokenBuilder.buildTokenWithUid(
     appId,
     appCertificate,
-    channelName,
+    sanitizedChannelName,
     numericUid,
     role,
     privilegeExpiredTs,
@@ -38,7 +42,7 @@ export async function generateAgoraTokenAction(channelName: string, uid: string)
   return {
     appId,
     token,
-    channelName,
+    channelName: sanitizedChannelName,
     uid: numericUid
   };
 }
@@ -133,7 +137,6 @@ export async function deductCallCoinsAction(uid: string, type: 'video' | 'voice'
 
     const cost = type === 'video' ? 150 : 70;
     
-    // ATOMIC DEDUCTION
     const { error: deductError } = await supabase.rpc("increment_coins", { p_user_id: uid, p_amount: -cost });
     if (deductError) return { success: false, error: "insufficient_funds" };
 
