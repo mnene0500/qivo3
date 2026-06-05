@@ -5,7 +5,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ChevronLeft, Users, Loader2, UserPlus, UserMinus, Search, ShieldCheck, Briefcase, Coins, Crown, Star, Trash2, AlertCircle } from "lucide-react"
+import { ChevronLeft, Users, Loader2, UserMinus, Search, ShieldCheck, Briefcase, Coins, AlertCircle, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { toggleUserRoleAction, deleteUserCompletelyAction } from "@/app/actions/matchflow-actions"
 import { supabase } from "@/lib/supabase"
@@ -32,8 +32,7 @@ interface TargetUser {
   gender: string
   is_coin_seller: boolean
   is_agent: boolean
-  is_owner: boolean
-  is_special_user: boolean
+  is_admin: boolean
 }
 
 export default function ManageRolesPage() {
@@ -41,13 +40,12 @@ export default function ManageRolesPage() {
   const { user } = useUser()
   const { toast } = useToast()
   
-  const [activeTab, setActiveTab] = useState<'search' | 'merchants' | 'agents' | 'special' | 'owners'>('search')
+  const [activeTab, setActiveTab] = useState<'search' | 'merchants' | 'agents'>('search')
   const [targetId, setTargetId] = useState("")
   const [targetUser, setTargetUser] = useState<TargetUser | null>(null)
   const [roleUsers, setRoleUsers] = useState<TargetUser[]>([])
   const [loading, setLoading] = useState(false)
   const [searching, setSearching] = useState(false)
-  const [deletingUid, setDeletingUid] = useState<string | null>(null)
 
   const handleSearch = async () => {
     if (!targetId.trim()) return
@@ -78,8 +76,6 @@ export default function ManageRolesPage() {
     let column = ''
     if (activeTab === 'merchants') column = 'is_coin_seller'
     if (activeTab === 'agents') column = 'is_agent'
-    if (activeTab === 'special') column = 'is_special_user'
-    if (activeTab === 'owners') column = 'is_owner'
 
     const { data } = await supabase.from('users').select('*').eq(column, true).limit(50)
     setRoleUsers(data as any || [])
@@ -90,7 +86,7 @@ export default function ManageRolesPage() {
     fetchRoleUsers()
   }, [activeTab])
 
-  const handleRoleUpdate = async (role: 'is_coin_seller' | 'is_agent' | 'is_owner' | 'is_special_user', value: boolean, userToUpdate?: TargetUser) => {
+  const handleRoleUpdate = async (role: 'is_coin_seller' | 'is_agent', value: boolean, userToUpdate?: TargetUser) => {
     if (!user) return
     const target = userToUpdate || targetUser
     if (!target) return
@@ -128,7 +124,6 @@ export default function ManageRolesPage() {
       toast({ variant: "destructive", title: "Action Failed" })
     } finally {
       setLoading(false)
-      setDeletingUid(null)
     }
   }
 
@@ -136,7 +131,7 @@ export default function ManageRolesPage() {
     <div className="flex-1 bg-white min-h-screen flex flex-col select-none">
       <header className="px-4 h-16 flex items-center justify-between border-b bg-white sticky top-0 z-50">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full"><ChevronLeft className="w-6 h-6 text-black" /></Button>
-        <h1 className="text-sm font-black text-black uppercase tracking-widest">Master Console</h1>
+        <h1 className="text-sm font-black text-black uppercase tracking-widest">Admin Console</h1>
         <div className="w-10" />
       </header>
 
@@ -144,11 +139,9 @@ export default function ManageRolesPage() {
         {[
           { id: 'search', label: 'Search' },
           { id: 'merchants', label: 'Merchants' },
-          { id: 'agents', label: 'Agents' },
-          { id: 'special', label: 'Special' },
-          { id: 'owners', label: 'Owners' }
+          { id: 'agents', label: 'Agents' }
         ].map((tab) => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={cn("px-6 py-4 flex flex-col items-center gap-1 border-b-2 transition-all shrink-0", activeTab === tab.id ? "border-[#00A2FF] text-[#00A2FF]" : "border-transparent text-gray-400")}>
+          <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={cn("px-6 py-4 flex flex-col items-center gap-1 border-b-2 transition-all shrink-0 flex-1", activeTab === tab.id ? "border-[#00A2FF] text-[#00A2FF]" : "border-transparent text-gray-400")}>
             <span className="text-[10px] font-black uppercase tracking-tighter">{tab.label}</span>
           </button>
         ))}
@@ -175,20 +168,20 @@ export default function ManageRolesPage() {
                     <p className="text-sm font-black text-black">{targetUser.name}</p>
                     <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">ID: {targetUser.match_flow_id}</p>
                   </div>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" className="h-9 px-6 rounded-full text-red-500 bg-red-50 text-[9px] font-black uppercase tracking-widest">Remove Acc</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent className="rounded-3xl p-8 border-none shadow-2xl">
-                      <AlertDialogHeader className="items-center"><AlertCircle className="w-12 h-12 text-red-500 mb-2" /><AlertDialogTitle className="font-black uppercase text-center">Confirm Removal</AlertDialogTitle><AlertDialogDescription className="text-center text-[10px] font-bold uppercase tracking-widest text-gray-400 leading-relaxed">This will permanently delete this account and all associated history. This action is irreversible.</AlertDialogDescription></AlertDialogHeader>
-                      <AlertDialogFooter className="gap-3 mt-6"><AlertDialogCancel className="h-12 rounded-xl font-black text-[10px] uppercase">Keep</AlertDialogCancel><AlertDialogAction onClick={() => handleRemoveAccount(targetUser.uid)} className="h-12 rounded-xl bg-red-500 font-black text-[10px] uppercase">Delete Forever</AlertDialogAction></AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  {targetUser.uid !== user?.id && !targetUser.is_admin && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" className="h-9 px-6 rounded-full text-red-500 bg-red-50 text-[9px] font-black uppercase tracking-widest">Remove Acc</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="rounded-3xl p-8 border-none shadow-2xl">
+                        <AlertDialogHeader className="items-center"><AlertCircle className="w-12 h-12 text-red-500 mb-2" /><AlertDialogTitle className="font-black uppercase text-center">Confirm Removal</AlertDialogTitle><AlertDialogDescription className="text-center text-[10px] font-bold uppercase tracking-widest text-gray-400 leading-relaxed">This will permanently delete this account and all associated history.</AlertDialogDescription></AlertDialogHeader>
+                        <AlertDialogFooter className="gap-3 mt-6"><AlertDialogCancel className="h-12 rounded-xl font-black text-[10px] uppercase">Keep</AlertDialogCancel><AlertDialogAction onClick={() => handleRemoveAccount(targetUser.uid)} className="h-12 rounded-xl bg-red-500 font-black text-[10px] uppercase">Delete Forever</AlertDialogAction></AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                 </div>
                 
                 <div className="space-y-4">
-                  <RoleToggle label="Special User" active={targetUser.is_special_user} icon={Star} color="text-yellow-500" onToggle={() => handleRoleUpdate('is_special_user', !targetUser.is_special_user)} disabled={loading} />
-                  <RoleToggle label="System Owner" active={targetUser.is_owner} icon={Crown} color="text-indigo-600" onToggle={() => handleRoleUpdate('is_owner', !targetUser.is_owner)} disabled={loading} />
                   <RoleToggle label="Certified Merchant" active={targetUser.is_coin_seller} icon={Coins} color="text-yellow-600" onToggle={() => handleRoleUpdate('is_coin_seller', !targetUser.is_coin_seller)} disabled={loading} />
                   <RoleToggle label="Agency Leader" active={targetUser.is_agent} icon={Briefcase} color="text-purple-600" onToggle={() => handleRoleUpdate('is_agent', !targetUser.is_agent)} disabled={loading || targetUser.gender !== 'female'} />
                 </div>
@@ -209,7 +202,7 @@ export default function ManageRolesPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="icon" onClick={() => handleRoleUpdate(activeTab === 'merchants' ? 'is_coin_seller' : activeTab === 'agents' ? 'is_agent' : activeTab === 'special' ? 'is_special_user' : 'is_owner', false, u)} className="h-9 w-9 rounded-full bg-white text-red-500 shadow-sm"><UserMinus className="w-4 h-4" /></Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleRoleUpdate(activeTab === 'merchants' ? 'is_coin_seller' : 'is_agent', false, u)} className="h-9 w-9 rounded-full bg-white text-red-500 shadow-sm"><UserMinus className="w-4 h-4" /></Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full bg-white text-gray-400 shadow-sm"><Trash2 className="w-4 h-4" /></Button>

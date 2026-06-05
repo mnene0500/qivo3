@@ -55,9 +55,9 @@ export async function startCallAction(chatId: string, callerId: string, receiver
   const supabase = getSupabaseAdmin();
   try {
     const cost = type === 'video' ? 150 : 70;
-    const { data: user } = await supabase.from('users').select('is_owner, is_coin_seller').eq('uid', callerId).single();
+    const { data: user } = await supabase.from('users').select('is_admin, is_coin_seller').eq('uid', callerId).single();
     
-    if (!user?.is_owner && !user?.is_coin_seller) {
+    if (!user?.is_admin && !user?.is_coin_seller) {
       const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', callerId).single();
       if ((Number(bal?.coins) || 0) < cost) {
         return { success: false, error: "Insufficient coins for call." };
@@ -96,8 +96,8 @@ export async function endCallAction(callId: string) {
 export async function checkCallBalanceAction(uid: string, type: 'video' | 'voice') {
   const supabase = getSupabaseAdmin();
   try {
-    const { data: user } = await supabase.from('users').select('is_owner, is_coin_seller').eq('uid', uid).single();
-    if (user?.is_owner || user?.is_coin_seller) return { success: true };
+    const { data: user } = await supabase.from('users').select('is_admin, is_coin_seller').eq('uid', uid).single();
+    if (user?.is_admin || user?.is_coin_seller) return { success: true };
 
     const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', uid).single();
     const cost = type === 'video' ? 150 : 70;
@@ -115,12 +115,12 @@ export async function checkCallBalanceAction(uid: string, type: 'video' | 'voice
 export async function deductCallCoinsAction(uid: string, type: 'video' | 'voice', partnerId: string) {
   const supabase = getSupabaseAdmin();
   try {
-    const { data: user } = await supabase.from('users').select('is_owner, is_coin_seller, gender, name').eq('uid', uid).single();
+    const { data: user } = await supabase.from('users').select('is_admin, is_coin_seller, gender, name').eq('uid', uid).single();
     
     const cost = type === 'video' ? 150 : 70;
     const ts = Date.now();
 
-    if (!user?.is_owner && !user?.is_coin_seller) {
+    if (!user?.is_admin && !user?.is_coin_seller) {
       const { error: deductError } = await supabase.rpc("increment_coins", { p_user_id: uid, p_amount: -cost });
       if (deductError) throw deductError;
 

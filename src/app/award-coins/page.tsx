@@ -1,10 +1,11 @@
+
 "use client"
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ChevronLeft, Coins, Trophy, Loader2, Wallet, UserCheck, Search, Copy, Check, Star } from "lucide-react"
+import { ChevronLeft, Coins, Trophy, Loader2, Wallet, UserCheck, Search, Copy, Check, ShieldCheck } from "lucide-react"
 import { useUser } from "@/firebase/auth/use-user"
 import { useToast } from "@/hooks/use-toast"
 import { awardCoinsAction } from "@/app/actions/matchflow-actions"
@@ -87,7 +88,7 @@ export default function AwardCoinsPage() {
       return;
     }
 
-    const isUnlimited = profile?.is_owner || profile?.is_special_user;
+    const isUnlimited = profile?.is_admin;
 
     if (!isUnlimited && coins < numAmount) {
       toast({ variant: "destructive", title: "Insufficient Balance" });
@@ -113,8 +114,7 @@ export default function AwardCoinsPage() {
     }
   }
 
-  const isUnlimited = profile?.is_owner || profile?.is_special_user;
-  const isSpecial = profile?.is_special_user;
+  const isUnlimited = !!profile?.is_admin;
 
   return (
     <div className="flex-1 bg-white min-h-screen flex flex-col select-none">
@@ -130,12 +130,12 @@ export default function AwardCoinsPage() {
         <div className="text-center space-y-4">
           <div className="w-20 h-20 bg-yellow-50 rounded-[2.5rem] flex items-center justify-center mx-auto shadow-inner relative">
             <Coins className="w-10 h-10 text-yellow-500" />
-            {isSpecial && <Star className="absolute -top-1 -right-1 w-6 h-6 text-yellow-400 fill-current" />}
+            {isUnlimited && <ShieldCheck className="absolute -top-1 -right-1 w-6 h-6 text-indigo-600 fill-current" />}
           </div>
           <div className="space-y-1">
             <h2 className="text-2xl font-black text-black tracking-tight">Transfer Coins</h2>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-              {isSpecial ? "Special User Master Terminal" : profile?.is_owner ? "Owner Master Terminal" : "Merchant Sales Portal"}
+              {isUnlimited ? "System Admin Master Console" : "Merchant Sales Portal"}
             </p>
           </div>
         </div>

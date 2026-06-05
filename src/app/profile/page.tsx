@@ -1,11 +1,11 @@
 
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Settings, ChevronRight, Copy, Check, BadgeCheck, Headphones, Pencil, Gem, Award, Briefcase, UserPlus, Wallet, Shield, PlusCircle, UserCheck, Flag, Star, Gamepad2 } from "lucide-react"
+import { Settings, ChevronRight, Copy, Check, BadgeCheck, Headphones, Pencil, Gem, Award, Briefcase, UserPlus, Wallet, Shield, PlusCircle, UserCheck, Flag, Gamepad2 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
@@ -103,9 +103,8 @@ export default function MePage() {
 
   if (authLoading || !isInitialized) return null;
 
-  const isOwner = !!(profile?.is_owner || profile?.is_admin)
-  const isSpecial = !!profile?.is_special_user
-  const isMerchant = !!(profile?.is_coin_seller || isOwner || isSpecial)
+  const isAdmin = !!profile?.is_admin
+  const isMerchant = !!(profile?.is_coin_seller || isAdmin)
   const isAgent = !!profile?.is_agent
   const isVerified = !!profile?.is_verified
   
@@ -130,7 +129,7 @@ export default function MePage() {
           </div>
           <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-1.5">
             {profile?.name || "User"} {isVerified && <BadgeCheck className="w-4 h-4 text-white fill-blue-500" />}
-            {isSpecial && <Star className="w-4 h-4 text-yellow-300 fill-current" />}
+            {isAdmin && <Shield className="w-4 h-4 text-indigo-300 fill-current" />}
           </h2>
           <p onClick={() => copyToClipboard(profile?.match_flow_id, setIdCopied)} className="text-white/60 font-black text-[9px] tracking-[0.2em] mt-2 cursor-pointer active:opacity-50 transition-opacity">
             ID: {profile?.match_flow_id || "---"} {idCopied ? <Check className="w-2.5 h-2.5 inline text-green-300" /> : <Copy className="w-2.5 h-2.5 inline opacity-50" />}
@@ -165,9 +164,9 @@ export default function MePage() {
             </div>
           </section>
 
-          {(isOwner || isSpecial) && (
+          {isAdmin && (
             <section className="space-y-3">
-              <h3 className="text-[10px] font-black text-gray-400 tracking-widest ml-1 uppercase">{isSpecial ? "Special Console" : "Owner Console"}</h3>
+              <h3 className="text-[10px] font-black text-gray-400 tracking-widest ml-1 uppercase">System Console</h3>
               <div className="bg-white rounded-3xl p-2 shadow-sm border border-black/5 flex flex-col overflow-hidden">
                 <Button variant="ghost" className="h-16 justify-between px-5 rounded-none border-b border-gray-50" asChild>
                   <Link href="/manage-roles">
@@ -216,7 +215,7 @@ export default function MePage() {
             </section>
           )}
 
-          {isMerchant && !isOwner && !isSpecial && (
+          {isMerchant && !isAdmin && (
             <section className="space-y-3">
               <h3 className="text-[10px] font-black text-gray-400 tracking-widest ml-1 uppercase">Merchant Console</h3>
               <div className="bg-white rounded-3xl p-2 shadow-sm border border-black/5 flex flex-col overflow-hidden">
@@ -266,7 +265,7 @@ export default function MePage() {
                         <ChevronRight className="w-4 h-4 text-gray-300" />
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="rounded-3xl p-8">
+                    <DialogContent className="rounded-3xl p-8 border-none shadow-2xl">
                       <DialogHeader><DialogTitle className="text-xl font-black tracking-tight uppercase">Agency Portal</DialogTitle></DialogHeader>
                       <div className="space-y-4 py-4">
                         <div className="space-y-2">

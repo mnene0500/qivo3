@@ -42,10 +42,9 @@ CREATE TABLE IF NOT EXISTS public.users (
   match_flow_id TEXT UNIQUE,
   education_level TEXT,
   onboarding_complete BOOLEAN DEFAULT FALSE,
-  is_owner BOOLEAN DEFAULT FALSE,
+  is_admin BOOLEAN DEFAULT FALSE,
   is_coin_seller BOOLEAN DEFAULT FALSE,
   is_agent BOOLEAN DEFAULT FALSE,
-  is_special_user BOOLEAN DEFAULT FALSE,
   is_verified BOOLEAN DEFAULT FALSE,
   is_deleted BOOLEAN DEFAULT FALSE,
   agency_id TEXT,
@@ -133,28 +132,13 @@ CREATE TABLE IF NOT EXISTS public.reports (
   timestamp BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)
 );
 
-CREATE TABLE IF NOT EXISTS public.pending_payments (
-  order_id UUID PRIMARY KEY,
-  user_id UUID REFERENCES public.users(uid) ON DELETE CASCADE,
-  amount NUMERIC,
-  status TEXT DEFAULT 'pending',
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS public.processed_payments (
-  order_tracking_id TEXT PRIMARY KEY,
-  user_id UUID REFERENCES public.users(uid) ON DELETE CASCADE,
-  amount NUMERIC,
-  coins BIGINT,
-  payment_method TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS public.push_subscriptions (
-  id BIGSERIAL PRIMARY KEY,
-  user_id UUID REFERENCES public.users(uid) ON DELETE CASCADE,
-  endpoint TEXT UNIQUE NOT NULL,
-  subscription_json JSONB NOT NULL,
+CREATE TABLE IF NOT EXISTS public.calls (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  chat_id TEXT NOT NULL,
+  caller_id UUID REFERENCES public.users(uid) ON DELETE CASCADE,
+  receiver_id UUID REFERENCES public.users(uid) ON DELETE CASCADE,
+  type TEXT CHECK (type IN ('video', 'voice')),
+  status TEXT DEFAULT 'calling',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -165,6 +149,7 @@ ALTER TABLE public.chats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.withdrawals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.calls ENABLE ROW LEVEL SECURITY;
 
 -- 4. CREATE POLICIES
 DROP POLICY IF EXISTS "Public profiles viewable" ON public.users;
