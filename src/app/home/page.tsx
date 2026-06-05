@@ -12,10 +12,26 @@ import { useUser } from "@/firebase/auth/use-user"
 import { Button } from "@/components/ui/button"
 
 interface UserProfile {
-  uid: string; name: string; photo_url: string; country: string; dob: string; is_verified?: boolean; updated_at: string;
+  uid: string; 
+  name: string; 
+  photo_url: string; 
+  country: string; 
+  dob: string; 
+  is_verified?: boolean; 
+  updated_at: string;
 }
 
 let cachedUsers: UserProfile[] = [];
+
+// Helper to shuffle array
+function shuffleArray<T>(array: T[]): T[] {
+  const newArr = [...array];
+  for (let i = newArr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+  }
+  return newArr;
+}
 
 export default function HomePage() {
   const router = useRouter()
@@ -43,18 +59,25 @@ export default function HomePage() {
 
     if (activeTab === 'nearby') query = query.eq('country', myProfile.country);
     
-    // STRICT PRIORITY: Active Now (updated_at)
-    const { data } = await query.order('updated_at', { ascending: false }).limit(40);
+    // Fetch a healthy pool to allow for reshuffling
+    const { data } = await query.order('updated_at', { ascending: false }).limit(60);
 
     if (data) {
-      let final = data as any[];
-      if (reshuffle && final.length > 5) {
-        // Cyclic shuffle within presence priority
-        const top = final[0];
-        const rest = final.slice(1);
-        const mid = Math.floor(rest.length / 2);
-        final = [...rest.slice(0, mid), top, ...rest.slice(mid)];
+      const allUsers = data as UserProfile[];
+      
+      // Define "Online" as updated within last 5 minutes
+      const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const onlineUsers = allUsers.filter(u => u.updated_at >= fiveMinsAgo);
+      const offlineUsers = allUsers.filter(u => u.updated_at < fiveMinsAgo);
+
+      let final: UserProfile[] = [];
+      if (reshuffle) {
+        // Shuffle both groups independently to keep online on top but in different positions
+        final = [...shuffleArray(onlineUsers), ...shuffleArray(offlineUsers)];
+      } else {
+        final = [...onlineUsers, ...offlineUsers];
       }
+
       setUsers(final);
       cachedUsers = final;
     }
@@ -73,23 +96,26 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col w-full bg-white select-none">
-      {/* COMPACT BLUE HEADER */}
-      <div className="bg-[#00A2FF] pt-4 pb-2 shadow-xl">
+      {/* REFINED COMPACT HEADER */}
+      <div className="bg-[#00A2FF] pt-1 pb-2 shadow-xl">
         <div className="px-4 grid grid-cols-2 gap-3 py-4">
           <button 
             onClick={() => router.push('/mystery-note')} 
-            className="h-24 bg-orange-500 rounded-[2rem] p-5 flex flex-col items-start justify-center text-white shadow-lg active:scale-95 transition-all"
+            className="h-32 bg-orange-500 rounded-[2.5rem] p-6 flex flex-col items-start justify-center text-white shadow-lg active:scale-95 transition-all"
           >
-            <FileText className="w-5 h-5 mb-1" />
-            <p className="text-xs font-black uppercase tracking-widest leading-tight">Message<br/>Blast</p>
+            <FileText className="w-6 h-6 mb-2" />
+            <p className="text-[13px] font-black uppercase tracking-widest leading-tight">Message<br/>Blast</p>
           </button>
-          <button onClick={() => router.push('/tasks')} className="h-24 bg-white/10 backdrop-blur-md rounded-[2rem] p-5 flex flex-col items-start justify-center text-white border border-white/20 active:scale-95 transition-all">
-            <Target className="w-5 h-5 mb-1" />
-            <p className="text-xs font-black uppercase tracking-widest leading-tight">Task<br/>Center</p>
+          <button 
+            onClick={() => router.push('/tasks')} 
+            className="h-32 bg-white/10 backdrop-blur-md rounded-[2.5rem] p-6 flex flex-col items-start justify-center text-white border border-white/20 active:scale-95 transition-all"
+          >
+            <Target className="w-6 h-6 mb-2" />
+            <p className="text-[13px] font-black uppercase tracking-widest leading-tight">Task<br/>Center</p>
           </button>
         </div>
 
-        <div className="px-5 py-2 flex items-center justify-between h-12">
+        <div className="px-5 py-2 flex items-center justify-between h-10">
           <div className="flex items-center gap-6">
             {['recommend', 'nearby'].map((t) => (
               <button 
@@ -117,29 +143,40 @@ export default function HomePage() {
           <div className="py-40 text-center opacity-40 uppercase font-black text-xs">No profiles found</div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            {users.map((u) => (
-              <Card key={u.uid} className="relative overflow-hidden border-none aspect-[1/1.3] rounded-[2rem] shadow-xl active:scale-[0.98] transition-all" onClick={() => router.push(`/users/${u.uid}`)}>
-                <Image src={u.photo_url} alt={u.name} fill className="object-cover" sizes="50vw" priority />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                <div className="absolute bottom-4 left-4 right-4 text-white">
-                  <div className="flex items-center gap-1 mb-1">
-                    <h4 className="font-black text-sm truncate">{u.name}</h4>
-                    {u.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-[#00A2FF] fill-white" />}
+            {users.map((u) => {
+              const isOnline = new Date(u.updated_at).getTime() > Date.now() - 5 * 60 * 1000;
+              return (
+                <Card key={u.uid} className="relative overflow-hidden border-none aspect-[1/1.3] rounded-[2rem] shadow-xl active:scale-[0.98] transition-all" onClick={() => router.push(`/users/${u.uid}`)}>
+                  <Image src={u.photo_url} alt={u.name} fill className="object-cover" sizes="50vw" priority />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                  
+                  {isOnline && (
+                    <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-black/20 backdrop-blur-md px-2 py-1 rounded-full border border-white/10">
+                       <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                       <span className="text-[7px] font-black text-white uppercase tracking-widest">Active</span>
+                    </div>
+                  )}
+
+                  <div className="absolute bottom-4 left-4 right-4 text-white">
+                    <div className="flex items-center gap-1 mb-1">
+                      <h4 className="font-black text-sm truncate">{u.name}</h4>
+                      {u.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-[#00A2FF] fill-white" />}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="bg-[#006400] text-[9px] font-black px-1.5 py-0.5 rounded-md">{calculateAge(u.dob)}</span>
+                      <span className="text-[9px] font-bold opacity-60 uppercase truncate">{u.country}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="bg-[#006400] text-[9px] font-black px-1.5 py-0.5 rounded-md">{calculateAge(u.dob)}</span>
-                    <span className="text-[9px] font-bold opacity-60 uppercase truncate">{u.country}</span>
-                  </div>
-                </div>
-                {/* UPDATED BUTTON: CHAT TEXT */}
-                <button 
-                  onClick={(e) => { e.stopPropagation(); router.push(`/chats?startWith=${u.uid}`); }} 
-                  className="absolute top-4 right-4 h-8 px-4 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white text-[9px] font-black uppercase tracking-widest shadow-xl"
-                >
-                  CHAT
-                </button>
-              </Card>
-            ))}
+                  
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); router.push(`/chats?startWith=${u.uid}`); }} 
+                    className="absolute top-4 right-4 h-8 px-4 rounded-full bg-[#00A2FF] flex items-center justify-center text-white text-[9px] font-black uppercase tracking-widest shadow-xl border-none active:scale-90 transition-transform"
+                  >
+                    CHAT
+                  </button>
+                </Card>
+              )
+            })}
           </div>
         )}
       </main>

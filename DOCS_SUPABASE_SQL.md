@@ -1,12 +1,12 @@
 
-# QIVO FINAL HARDENED PRODUCTION SQL
+# QIVO FINAL HARDENED PRODUCTION SQL (v5)
 
-Run this entire script in the **Supabase SQL Editor** to initialize all tables, functions, and security policies.
+Run this entire script in the **Supabase SQL Editor** to initialize all tables, roles, and atomic economic functions. This version enforces **Admin**, **Coin Seller**, and **Agent** roles with strictly non-negative balances.
 
 ```sql
 -- 1. SETUP ATOMIC ECONOMY HELPERS
 -- These functions handle balance shifts securely via SECURITY DEFINER
--- UPDATED: Enforces non-negative balances using GREATEST(0, ...)
+-- Enforces non-negative balances using GREATEST(0, ...)
 CREATE OR REPLACE FUNCTION public.increment_diamonds(p_user_id UUID, p_amount NUMERIC)
 RETURNS VOID AS $$
 BEGIN
@@ -42,9 +42,9 @@ CREATE TABLE IF NOT EXISTS public.users (
   match_flow_id TEXT UNIQUE,
   education_level TEXT,
   onboarding_complete BOOLEAN DEFAULT FALSE,
-  is_admin BOOLEAN DEFAULT FALSE,
-  is_coin_seller BOOLEAN DEFAULT FALSE,
-  is_agent BOOLEAN DEFAULT FALSE,
+  is_admin BOOLEAN DEFAULT FALSE, -- Unlimited Coin Authority
+  is_coin_seller BOOLEAN DEFAULT FALSE, -- Certified Merchant (Deducts from own balance)
+  is_agent BOOLEAN DEFAULT FALSE, -- Agency Leader
   is_verified BOOLEAN DEFAULT FALSE,
   is_deleted BOOLEAN DEFAULT FALSE,
   agency_id TEXT,
