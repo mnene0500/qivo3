@@ -86,8 +86,6 @@ function ChatsContent() {
 
     const filtered = chats.filter(c => (c.last_message_at || 0) > ((c.cleared_at as any)?.[currentUser.id] || 0));
     
-    if (filtered.length === 0) { setSummaries([]); setLoading(false); return; }
-
     const partnerIds = filtered.map(c => c.participant_ids.find((id: string) => id !== currentUser.id));
     const { data: profiles } = await supabase.from('users').select('uid, name, photo_url, is_verified').in('uid', partnerIds);
     const pMap = new Map(profiles?.map(p => [p.uid, p]));
@@ -304,17 +302,40 @@ function ChatsContent() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-6 flex flex-col-reverse gap-4 bg-gray-50 no-scrollbar pb-10">
-        {messages.map(m => (
-          <div key={m.id} className={cn(
-            "max-w-[85%] p-4 rounded-2xl text-sm font-medium shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300", 
-            m.sender_id === currentUser?.id ? "bg-[#00A2FF] text-white self-end rounded-br-none" : "bg-white text-black self-start rounded-bl-none border border-black/5"
-          )}>
-            {m.text}
-          </div>
-        ))}
+        {messages.map((m, idx) => {
+          const isGiftMsg = m.is_gift || m.text?.startsWith('[Gift:');
+          const giftName = m.text?.match(/\[Gift: (.*)\]/)?.[1];
+          const giftEmoji = GIFTS.find(g => g.name === giftName)?.icon || '🎁';
+          const isLatestMsg = idx === 0;
+
+          return (
+            <div key={m.id} className={cn(
+              "max-w-[85%] p-4 rounded-2xl text-sm font-medium shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col gap-2", 
+              m.sender_id === currentUser?.id ? "bg-[#00A2FF] text-white self-end rounded-br-none" : "bg-white text-black self-start rounded-bl-none border border-black/5"
+            )}>
+              <div className="flex items-center gap-2">
+                {isGiftMsg && <span className="text-xl">{giftEmoji}</span>}
+                <span>{m.text}</span>
+              </div>
+              
+              {isGiftMsg && m.sender_id === currentUser?.id && isLatestMsg && (
+                <Button 
+                  onClick={() => {
+                    const g = GIFTS.find(gf => gf.name === giftName);
+                    if (g) handleSendGift(g);
+                  }}
+                  disabled={isSending}
+                  variant="ghost" 
+                  className="h-8 rounded-xl bg-white/20 hover:bg-white/30 text-white text-[9px] font-black uppercase tracking-widest border border-white/20 self-start"
+                >
+                  {isSending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Send One More"}
+                </Button>
+              )}
+            </div>
+          )
+        })}
       </main>
 
-      {/* FOOTER: ADDED TINY SPACE AT BOTTOM */}
       <footer className="p-4 border-t bg-white shrink-0 pb-[calc(env(safe-area-inset-bottom,20px)+8px)]">
         <div className="flex items-center gap-2 max-w-5xl mx-auto w-full mb-2">
           <Sheet onOpenChange={(open) => !open && setLastGiftSent(null)}>

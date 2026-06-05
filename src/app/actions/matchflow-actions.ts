@@ -67,13 +67,15 @@ export async function sendMessageAction(payload: { chatId: string; senderId: str
   const safeText = filterSensitiveContent(payload.text);
 
   try {
-    const { data: sender } = await supabase.from('users').select('gender, is_owner, is_coin_seller, is_special_user').eq('uid', payload.senderId).single();
-    const { data: balance } = await supabase.from('balances').select('coins').eq('user_id', payload.senderId).maybeSingle();
+    const { data: sender, error: senderErr } = await supabase.from('users').select('gender, is_owner, is_coin_seller, is_special_user').eq('uid', payload.senderId).maybeSingle();
+    if (senderErr) throw senderErr;
+    
+    const { data: balance, error: balErr } = await supabase.from('balances').select('coins').eq('user_id', payload.senderId).maybeSingle();
+    if (balErr) throw balErr;
     
     const cost = 15;
-    const isFree = sender?.is_owner || sender?.is_special_user || sender?.is_coin_seller;
+    const isFree = !!(sender?.is_owner || sender?.is_special_user || sender?.is_coin_seller);
 
-    // PRE-CHECK BALANCE TO PREVENT NEGATIVE
     if (sender?.gender === 'male' && !isFree) {
       if ((Number(balance?.coins) || 0) < cost) {
         return { success: false, error: "insufficient_funds" };
@@ -108,7 +110,7 @@ export async function sendMessageAction(payload: { chatId: string; senderId: str
 
     return { success: true };
   } catch (err: any) {
-    console.error("[SendMessage Error]:", err.message);
+    console.error("[SendMessage Action Error]:", err.message);
     return { success: false, error: "system_error" };
   }
 }
@@ -157,7 +159,11 @@ export async function awardCoinsAction(ownerUid: string, targetUid: string, amou
     const { data: owner } = await supabase.from('users').select('is_owner, is_coin_seller, is_special_user').eq('uid', ownerUid).single();
     if (!owner?.is_owner && !owner?.is_coin_seller && !owner?.is_special_user) throw new Error("Unauthorized");
     
+    // Merchant (Coinseller) must pay from their balance. Owner/Special are unlimited.
     if (!owner.is_owner && !owner.is_special_user) {
+      const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', ownerUid).single();
+      if ((Number(bal?.coins) || 0) < amount) throw new Error("Insufficient merchant balance");
+
       const { error: dErr } = await supabase.rpc("increment_coins", { p_user_id: ownerUid, p_amount: -amount });
       if (dErr) throw new Error("Insufficient merchant balance");
     }
@@ -176,7 +182,7 @@ export async function toggleUserRoleAction(ownerUid: string, targetMatchFlowId: 
     const { data: owner } = await supabase.from('users').select('is_owner').eq('uid', ownerUid).single();
     if (!owner?.is_owner) throw new Error("Unauthorized");
 
-    const { error } = await supabase.from('users').update({ [role]: value }).eq('match_flow_id', targetMatchMatchFlowId);
+    const { error } = await supabase.from('users').update({ [role]: value }).eq('match_flow_id', targetMatchFlowId);
     if (error) throw error;
     
     return { success: true };
