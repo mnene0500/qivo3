@@ -11,6 +11,12 @@ import { ChevronLeft, Gem, Banknote, History, Wallet, ArrowRightLeft, Loader2, I
 import { useToast } from "@/hooks/use-toast"
 import { requestWithdrawalAction } from "@/app/actions/matchflow-actions"
 
+/**
+ * @fileOverview Agency Member Payout Portal.
+ * Economic Protocol: 1 Diamond = 0.08 KES Cash.
+ * Payouts limited to Saturdays.
+ */
+
 export default function AgencyMemberPage() {
   const router = useRouter()
   const { user } = useUser()
@@ -37,8 +43,10 @@ export default function AgencyMemberPage() {
 
   const isSaturday = useMemo(() => new Date().getDay() === 6, []);
   const diamondBalance = balances.diamonds
+  
+  // Economic Lock: 1 Diamond = 0.08 KES
   const cashRate = 0.08 
-  const minDiamondsForCash = 12500
+  const minDiamondsForCash = 12500 // = 1,000 KES
   const expectedKes = (Number(diamondsToUse) * cashRate).toFixed(0)
 
   const handleWithdraw = async () => {

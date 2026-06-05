@@ -5,7 +5,8 @@ import { RtcTokenBuilder, RtcRole } from 'agora-token';
 
 /**
  * @fileOverview Hardened Agora Token Generation and Billing Engine.
- * Fixed: Shortened error messages for better UI presentation.
+ * Economic Protocol: 40% Diamond Reward to Female Recipients.
+ * Platform Margin: ~60% per call minute.
  */
 
 export async function generateAgoraTokenAction(chatId: string, uid: string) {
@@ -173,6 +174,7 @@ export async function deductCallCoinsAction(uid: string, type: 'video' | 'voice'
     const { data: recipient } = await supabase.from('users').select('gender').eq('uid', partnerId).single();
     let diamondReward = 0;
     if (user?.gender === 'male' && recipient?.gender === 'female') {
+      // Economic Lock: 40% of coin value converted to Diamonds
       diamondReward = Math.floor(cost * 0.4); 
       await supabase.rpc("increment_diamonds", { p_user_id: partnerId, p_amount: diamondReward });
     }
