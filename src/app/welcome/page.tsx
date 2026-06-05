@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -29,7 +28,7 @@ export default function WelcomePage() {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.origin }
+        options: { redirectTo: "https://qivo10.vercel.app" }
       })
       if (error) throw error
     } catch (error: any) {

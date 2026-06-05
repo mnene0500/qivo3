@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from "react"
@@ -61,7 +60,7 @@ export default function UnifiedAuthPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: "https://qivo10.vercel.app",
         }
       })
       if (error) throw error
