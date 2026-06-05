@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -37,26 +38,26 @@ interface SettingItemProps {
 function SettingItem({ label, onClick, href, icon, variant = 'default', hideBorder, children }: SettingItemProps) {
   const content = (
     <div className={cn(
-      "flex items-center justify-between py-5 px-6 active:bg-gray-50 transition-colors cursor-pointer bg-white group",
+      "flex items-center justify-between py-4 px-5 active:bg-gray-50 transition-colors cursor-pointer bg-white group",
       !hideBorder && "border-b border-gray-50"
     )}>
       <div className="flex items-center gap-4">
         <div className={cn(
-          "w-11 h-11 rounded-2xl flex items-center justify-center group-active:scale-90 transition-transform",
+          "w-10 h-10 rounded-xl flex items-center justify-center group-active:scale-90 transition-transform",
           variant === 'destructive' ? 'bg-red-50 text-red-500' : 'bg-gray-50 text-black'
         )}>
           {icon}
         </div>
         <span className={cn(
-          "text-[15px] font-black tracking-tight",
+          "text-sm font-black tracking-tight",
           variant === 'destructive' ? 'text-red-500' : 'text-slate-900'
         )}>{label}</span>
       </div>
       <div className="flex items-center gap-2">
          {children}
          {!children && (
-           <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center border border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity">
-              <ChevronRight className="w-4 h-4 text-gray-300" />
+           <div className="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <ChevronRight className="w-3.5 h-3.5 text-gray-300" />
            </div>
          )}
       </div>
@@ -188,182 +189,157 @@ export default function SettingsPage() {
         <div className="w-10" />
       </header>
 
-      <main className="flex-1 p-6 space-y-8 overflow-y-auto no-scrollbar pb-12">
-        <div className="space-y-4">
-          <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-2">Communication</h2>
-          <div className="bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-sm">
-            <SettingItem label="Do Not Disturb" icon={<Moon className="w-5 h-5" />}>
-              <Switch checked={isDnd} onCheckedChange={toggleDnd} />
+      <main className="flex-1 p-6 space-y-6 overflow-y-auto no-scrollbar pb-12">
+        <div className="space-y-3">
+          <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] ml-2">Communication</h2>
+          <div className="bg-white rounded-[1.5rem] overflow-hidden border border-gray-100 shadow-sm">
+            <SettingItem label="Do Not Disturb" icon={<Moon className="w-4 h-4" />}>
+              <Switch checked={isDnd} onCheckedChange={toggleDnd} className="scale-75" />
             </SettingItem>
             {profile && !profile.has_read_receipts ? (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <div className="flex items-center justify-between py-5 px-6 active:bg-gray-50 transition-colors cursor-pointer bg-white group hideBorder">
+                  <div className="flex items-center justify-between py-4 px-5 active:bg-gray-50 transition-colors cursor-pointer bg-white group hideBorder">
                     <div className="flex items-center gap-4">
-                      <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-blue-50 text-blue-500">
-                        <Eye className="w-5 h-5" />
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-50 text-blue-500">
+                        <Eye className="w-4 h-4" />
                       </div>
-                      <span className="text-[15px] font-black tracking-tight text-slate-900">Read Receipts</span>
+                      <span className="text-sm font-black tracking-tight text-slate-900">Read Receipts</span>
                     </div>
-                    <span className="px-3 py-1 bg-[#00A2FF] text-white text-[8px] font-black uppercase rounded-full">Unlock</span>
+                    <span className="px-2.5 py-0.5 bg-[#00A2FF] text-white text-[7px] font-black uppercase rounded-full">Unlock</span>
                   </div>
                 </AlertDialogTrigger>
-                <AlertDialogContent className="rounded-[3rem] p-10 border-none shadow-2xl">
+                <AlertDialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl w-[85vw] max-w-sm">
                   <AlertDialogHeader className="items-center text-center">
-                    <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6">
-                      <Eye className="w-10 h-10 text-[#00A2FF]" />
+                    <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
+                      <Eye className="w-8 h-8 text-[#00A2FF]" />
                     </div>
-                    <AlertDialogTitle className="text-2xl font-black tracking-tight uppercase">Sent & Seen</AlertDialogTitle>
-                    <AlertDialogDescription className="text-sm font-medium text-gray-400 pt-2">Enable real-time message status updates. Pay once and see when your messages are delivered and read.</AlertDialogDescription>
+                    <AlertDialogTitle className="text-xl font-black tracking-tight uppercase">Sent & Seen</AlertDialogTitle>
+                    <AlertDialogDescription className="text-xs font-medium text-gray-400 pt-1">Enable real-time message status updates. Pay once and see when your messages are read.</AlertDialogDescription>
                   </AlertDialogHeader>
-                  <div className="flex flex-col gap-4 mt-10">
-                    <Button onClick={handleActivateReadReceipts} disabled={isActivating} className="w-full h-16 rounded-2xl bg-[#00A2FF] text-white font-black uppercase tracking-widest text-sm shadow-xl">
-                      {isActivating ? <Loader2 className="animate-spin" /> : <><Coins className="w-4 h-4 mr-2" /> Pay 200 Coins</>}
+                  <div className="flex flex-col gap-3 mt-6">
+                    <Button onClick={handleActivateReadReceipts} disabled={isActivating} className="w-full h-14 rounded-xl bg-[#00A2FF] text-white font-black uppercase text-xs">
+                      {isActivating ? <Loader2 className="animate-spin" /> : <><Coins className="w-3.5 h-3.5 mr-2" /> Pay 200 Coins</>}
                     </Button>
-                    <AlertDialogCancel className="w-full h-14 rounded-2xl border-none bg-gray-50 text-gray-400 font-black uppercase tracking-widest text-xs">Maybe Later</AlertDialogCancel>
+                    <AlertDialogCancel className="w-full h-12 rounded-xl border-none bg-gray-50 text-gray-400 font-black uppercase text-[10px]">Maybe Later</AlertDialogCancel>
                   </div>
                 </AlertDialogContent>
               </AlertDialog>
             ) : (
-              <div className="flex items-center justify-between py-5 px-6 bg-white group hideBorder">
+              <div className="flex items-center justify-between py-4 px-5 bg-white group hideBorder">
                 <div className="flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-green-50 text-green-500">
-                    <CheckCircle2 className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-green-50 text-green-500">
+                    <CheckCircle2 className="w-4 h-4" />
                   </div>
-                  <span className="text-[15px] font-black tracking-tight text-slate-900">Read Receipts</span>
+                  <span className="text-sm font-black tracking-tight text-slate-900">Read Receipts</span>
                 </div>
-                <span className="text-[9px] font-black text-green-500 uppercase tracking-widest">Active</span>
+                <span className="text-[8px] font-black text-green-500 uppercase tracking-widest">Active</span>
               </div>
             )}
           </div>
         </div>
 
-        <div className="space-y-4">
-          <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-2">Premium Features</h2>
-          <div className="bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-sm">
+        <div className="space-y-3">
+          <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] ml-2">Premium Features</h2>
+          <div className="bg-white rounded-[1.5rem] overflow-hidden border border-gray-100 shadow-sm">
             {profile && !profile.has_visitor_tracking ? (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <div className="flex items-center justify-between py-5 px-6 active:bg-gray-50 transition-colors cursor-pointer bg-white group hideBorder">
+                  <div className="flex items-center justify-between py-4 px-5 active:bg-gray-50 transition-colors cursor-pointer bg-white group hideBorder">
                     <div className="flex items-center gap-4">
-                      <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-purple-50 text-purple-500">
-                        <Zap className="w-5 h-5" />
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-purple-50 text-purple-500">
+                        <Zap className="w-4 h-4" />
                       </div>
-                      <span className="text-[15px] font-black tracking-tight text-slate-900">Profile Visitors</span>
+                      <span className="text-sm font-black tracking-tight text-slate-900">Profile Visitors</span>
                     </div>
-                    <span className="px-3 py-1 bg-purple-500 text-white text-[8px] font-black uppercase rounded-full">Unlock</span>
+                    <span className="px-2.5 py-0.5 bg-purple-500 text-white text-[7px] font-black uppercase rounded-full">Unlock</span>
                   </div>
                 </AlertDialogTrigger>
-                <AlertDialogContent className="rounded-[3rem] p-10 border-none shadow-2xl">
+                <AlertDialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl w-[85vw] max-w-sm">
                   <AlertDialogHeader className="items-center text-center">
-                    <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center mb-6">
-                      <Zap className="w-10 h-10 text-purple-500" />
+                    <div className="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center mb-4">
+                      <Zap className="w-8 h-8 text-purple-500" />
                     </div>
-                    <AlertDialogTitle className="text-2xl font-black tracking-tight uppercase">Who Visited?</AlertDialogTitle>
-                    <AlertDialogDescription className="text-sm font-medium text-gray-400 pt-2">See exactly who has been checking out your profile. Get notified about your admirers with a one-time activation.</AlertDialogDescription>
+                    <AlertDialogTitle className="text-xl font-black tracking-tight uppercase">Who Visited?</AlertDialogTitle>
+                    <AlertDialogDescription className="text-xs font-medium text-gray-400 pt-1">See exactly who has been checking out your profile with a one-time activation.</AlertDialogDescription>
                   </AlertDialogHeader>
-                  <div className="flex flex-col gap-4 mt-10">
-                    <Button onClick={handleActivateVisitors} disabled={isActivating} className="w-full h-16 rounded-2xl bg-purple-600 text-white font-black uppercase tracking-widest text-sm shadow-xl">
-                      {isActivating ? <Loader2 className="animate-spin" /> : <><Coins className="w-4 h-4 mr-2" /> Pay 400 Coins</>}
+                  <div className="flex flex-col gap-3 mt-6">
+                    <Button onClick={handleActivateVisitors} disabled={isActivating} className="w-full h-14 rounded-xl bg-purple-600 text-white font-black uppercase text-xs">
+                      {isActivating ? <Loader2 className="animate-spin" /> : <><Coins className="w-3.5 h-3.5 mr-2" /> Pay 400 Coins</>}
                     </Button>
-                    <AlertDialogCancel className="w-full h-14 rounded-2xl border-none bg-gray-50 text-gray-400 font-black uppercase tracking-widest text-xs">Maybe Later</AlertDialogCancel>
+                    <AlertDialogCancel className="w-full h-12 rounded-xl border-none bg-gray-50 text-gray-400 font-black uppercase text-[10px]">Maybe Later</AlertDialogCancel>
                   </div>
                 </AlertDialogContent>
               </AlertDialog>
             ) : (
-              <div className="flex items-center justify-between py-5 px-6 bg-white group hideBorder">
+              <div className="flex items-center justify-between py-4 px-5 bg-white group hideBorder">
                 <div className="flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-green-50 text-green-500">
-                    <CheckCircle2 className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-green-50 text-green-500">
+                    <CheckCircle2 className="w-4 h-4" />
                   </div>
-                  <span className="text-[15px] font-black tracking-tight text-slate-900">Visitor Tracking</span>
+                  <span className="text-sm font-black tracking-tight text-slate-900">Visitor Tracking</span>
                 </div>
-                <span className="text-[9px] font-black text-green-500 uppercase tracking-widest">Active</span>
+                <span className="text-[8px] font-black text-green-500 uppercase tracking-widest">Active</span>
               </div>
             )}
           </div>
         </div>
 
-        <div className="space-y-4">
-          <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-2">Account Management</h2>
-          <div className="bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-sm">
+        <div className="space-y-3">
+          <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] ml-2">Account</h2>
+          <div className="bg-white rounded-[1.5rem] overflow-hidden border border-gray-100 shadow-sm">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <div className="flex items-center justify-between py-5 px-6 active:bg-gray-50 transition-colors cursor-pointer bg-white group border-b border-gray-50">
+                <div className="flex items-center justify-between py-4 px-5 active:bg-gray-50 transition-colors cursor-pointer bg-white group border-b border-gray-50">
                   <div className="flex items-center gap-4">
-                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-gray-50 text-blue-500 group-active:scale-90 transition-transform">
-                      <LinkIcon className="w-5 h-5" />
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gray-50 text-blue-500">
+                      <LinkIcon className="w-4 h-4" />
                     </div>
-                    <span className="text-[15px] font-black tracking-tight text-slate-900">Bind Account</span>
+                    <span className="text-sm font-black tracking-tight text-slate-900">Bind Account</span>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-gray-300" />
+                  <ChevronRight className="w-3 h-3 text-gray-300" />
                 </div>
               </AlertDialogTrigger>
-              <AlertDialogContent className="rounded-[3rem] p-10 border-none shadow-2xl">
+              <AlertDialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl w-[85vw] max-w-sm">
                 <AlertDialogHeader className="items-center text-center">
-                  <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6">
-                    <User className="w-10 h-10 text-[#00A2FF]" />
-                  </div>
-                  <AlertDialogTitle className="text-2xl font-black tracking-tight uppercase">Linked Account</AlertDialogTitle>
-                  <AlertDialogDescription className="text-sm font-medium text-gray-400 pt-2 space-y-4">
-                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col items-center">
-                      <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-1">Authenticated via</span>
-                      <span className="text-black font-black break-all">{user?.email}</span>
-                      <div className="mt-2 px-3 py-1 bg-[#00A2FF]/10 text-[#00A2FF] text-[9px] font-black uppercase rounded-full border border-[#00A2FF]/20">
-                        {user?.app_metadata?.provider === 'google' ? 'Google Social' : 'Secure Email'}
-                      </div>
+                  <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4"><User className="w-8 h-8 text-[#00A2FF]" /></div>
+                  <AlertDialogTitle className="text-xl font-black tracking-tight uppercase">Linked Account</AlertDialogTitle>
+                  <AlertDialogDescription className="text-xs font-medium text-gray-400 pt-1 space-y-3">
+                    <div className="p-3 bg-gray-50 rounded-xl border border-gray-100 flex flex-col items-center">
+                      <span className="text-[8px] font-black uppercase text-gray-400 mb-1">Authenticated via</span>
+                      <span className="text-black font-black text-[11px] break-all">{user?.email}</span>
                     </div>
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter className="mt-8">
-                  <AlertDialogCancel className="w-full h-16 rounded-2xl border-none bg-gray-50 text-black font-black uppercase tracking-widest text-sm">Close</AlertDialogCancel>
-                </AlertDialogFooter>
+                <AlertDialogFooter className="mt-6"><AlertDialogCancel className="w-full h-12 rounded-xl border-none bg-gray-50 text-black font-black uppercase text-[10px]">Close</AlertDialogCancel></AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            <SettingItem label="Charge Settings" href="/pricing" icon={<CreditCard className="w-5 h-5" />} hideBorder />
+            <SettingItem label="Charge Settings" href="/pricing" icon={<CreditCard className="w-4 h-4" />} hideBorder />
           </div>
         </div>
 
-        <div className="space-y-4">
-          <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-2">Privacy & Security</h2>
-          <div className="bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-sm">
-            <SettingItem label="Blocked Users" href="/blocked-list" icon={<Ban className="w-5 h-5" />} />
-            <SettingItem label="Clear Local Cache" onClick={handleClearCache} icon={<RefreshCw className="w-5 h-5" />} hideBorder />
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-2">Information</h2>
-          <div className="bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-sm">
-            <SettingItem label="About Qivo" href="/about" icon={<Info className="w-5 h-5" />} />
-            <SettingItem label="Safety Center" href="/support" icon={<ShieldCheck className="w-5 h-5" />} hideBorder />
-          </div>
-        </div>
-
-        <div className="space-y-4 pt-4">
-          <div className="bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-sm">
+        <div className="space-y-3 pt-4">
+          <div className="bg-white rounded-[1.5rem] overflow-hidden border border-gray-100 shadow-sm">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <div className="flex items-center justify-between py-5 px-6 active:bg-gray-50 transition-colors cursor-pointer bg-white group border-b border-gray-50">
+                <div className="flex items-center justify-between py-4 px-5 active:bg-gray-50 transition-colors cursor-pointer bg-white group border-b border-gray-50">
                   <div className="flex items-center gap-4">
-                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-gray-50 text-slate-500 group-active:scale-90 transition-transform">
-                      <LogOut className="w-5 h-5" />
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gray-50 text-slate-500">
+                      <LogOut className="w-4 h-4" />
                     </div>
-                    <span className="text-[15px] font-black tracking-tight text-slate-900">Sign Out</span>
+                    <span className="text-sm font-black tracking-tight text-slate-900">Sign Out</span>
                   </div>
                 </div>
               </AlertDialogTrigger>
-              <AlertDialogContent className="rounded-[3rem] p-10 border-none shadow-2xl">
+              <AlertDialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl w-[85vw] max-w-sm">
                 <AlertDialogHeader className="items-center text-center">
-                  <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6">
-                    <LogOut className="w-10 h-10 text-[#00A2FF]" />
-                  </div>
-                  <AlertDialogTitle className="text-2xl font-black tracking-tight uppercase">Sign Out?</AlertDialogTitle>
-                  <AlertDialogDescription className="text-sm font-medium text-gray-400 pt-2">You will need to re-authenticate to access your profile.</AlertDialogDescription>
+                  <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4"><LogOut className="w-8 h-8 text-[#00A2FF]" /></div>
+                  <AlertDialogTitle className="text-xl font-black tracking-tight uppercase">Sign Out?</AlertDialogTitle>
+                  <AlertDialogDescription className="text-xs font-medium text-gray-400 pt-1">You will need to re-authenticate to access your profile.</AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter className="flex flex-col gap-4 mt-10">
-                  <AlertDialogAction onClick={handleSignOut} className="w-full h-16 rounded-2xl bg-black text-white font-black uppercase tracking-widest text-sm shadow-xl">Yes, Sign Out</AlertDialogAction>
-                  <AlertDialogCancel className="w-full h-16 rounded-2xl border-none bg-gray-50 text-gray-400 font-black uppercase tracking-widest text-sm">Cancel</AlertDialogCancel>
+                <AlertDialogFooter className="flex flex-col gap-3 mt-6">
+                  <AlertDialogAction onClick={handleSignOut} className="w-full h-14 rounded-xl bg-black text-white font-black uppercase text-xs">Yes, Sign Out</AlertDialogAction>
+                  <AlertDialogCancel className="w-full h-12 rounded-xl border-none bg-gray-50 text-gray-400 font-black uppercase text-[10px]">Cancel</AlertDialogCancel>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -371,33 +347,25 @@ export default function SettingsPage() {
             {!loading && !profile?.is_admin && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <div className="flex items-center justify-between py-5 px-6 active:bg-red-50/10 transition-colors cursor-pointer bg-white group">
+                  <div className="flex items-center justify-between py-4 px-5 active:bg-red-50/10 transition-colors cursor-pointer bg-white group">
                     <div className="flex items-center gap-4">
-                      <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-red-50 text-red-500 group-active:scale-90 transition-transform">
-                        <Trash2 className="w-5 h-5" />
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-red-50 text-red-500">
+                        <Trash2 className="w-4 h-4" />
                       </div>
-                      <span className="text-[15px] font-black tracking-tight text-red-500">Delete Account</span>
+                      <span className="text-sm font-black tracking-tight text-red-500">Delete Account</span>
                     </div>
                   </div>
                 </AlertDialogTrigger>
-                <AlertDialogContent className="rounded-[3rem] p-10 border-none shadow-2xl">
+                <AlertDialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl w-[85vw] max-w-sm">
                   <AlertDialogHeader className="items-center text-center">
-                    <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6">
-                      <ShieldAlert className="w-10 h-10 text-red-500" />
-                    </div>
-                    <AlertDialogTitle className="text-2xl font-black tracking-tight uppercase">Permanently Delete?</AlertDialogTitle>
-                    <AlertDialogDescription className="text-[11px] font-black text-gray-400 pt-2 uppercase tracking-[0.2em] leading-relaxed">
-                      All coins, diamonds, and history will be lost forever. Type <span className="text-red-600">DELETE</span> to confirm.
-                    </AlertDialogDescription>
+                    <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4"><ShieldAlert className="w-8 h-8 text-red-500" /></div>
+                    <AlertDialogTitle className="text-xl font-black tracking-tight uppercase">Permanently Delete?</AlertDialogTitle>
+                    <AlertDialogDescription className="text-[10px] font-black text-gray-400 pt-1 uppercase tracking-widest">Type <span className="text-red-600">DELETE</span> to confirm.</AlertDialogDescription>
                   </AlertDialogHeader>
-                  <div className="py-8">
-                    <Input placeholder="Type DELETE" value={deleteConfirmText} onChange={(e) => setDeleteConfirmText(e.target.value)} className="rounded-2xl h-16 text-center font-black bg-gray-50 border-gray-100 text-xl tracking-[0.3em] uppercase" />
-                  </div>
-                  <AlertDialogFooter className="flex flex-col gap-4">
-                    <AlertDialogAction disabled={deleteConfirmText.toUpperCase() !== "DELETE" || isDeleting} className="w-full h-16 rounded-2xl bg-red-500 text-white font-black uppercase tracking-widest text-sm shadow-xl shadow-red-100" onClick={handleDeleteAccount}>
-                      {isDeleting ? <Loader2 className="animate-spin w-5 h-5" /> : "Delete Everything"}
-                    </AlertDialogAction>
-                    <AlertDialogCancel className="w-full h-16 rounded-2xl border-none bg-gray-50 text-gray-400 font-black uppercase tracking-widest text-sm">Cancel</AlertDialogCancel>
+                  <div className="py-4"><Input placeholder="Type DELETE" value={deleteConfirmText} onChange={(e) => setDeleteConfirmText(e.target.value)} className="rounded-xl h-14 text-center font-black bg-gray-50 border-gray-100 text-lg uppercase" /></div>
+                  <AlertDialogFooter className="flex flex-col gap-3">
+                    <AlertDialogAction disabled={deleteConfirmText.toUpperCase() !== "DELETE" || isDeleting} className="w-full h-14 rounded-xl bg-red-500 text-white font-black uppercase text-xs" onClick={handleDeleteAccount}>{isDeleting ? <Loader2 className="animate-spin w-4 h-4" /> : "Delete Everything"}</AlertDialogAction>
+                    <AlertDialogCancel className="w-full h-12 rounded-xl border-none bg-gray-50 text-gray-400 font-black uppercase text-[10px]">Cancel</AlertDialogCancel>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
@@ -405,9 +373,8 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="pt-10 text-center space-y-2 opacity-30">
-           <p className="text-[9px] font-black uppercase tracking-[0.5em] text-slate-400">Qivo Native v1.2.6</p>
-           <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-300">Nairobi, Kenya</p>
+        <div className="pt-10 text-center space-y-1 opacity-20">
+           <p className="text-[8px] font-black uppercase tracking-[0.4em] text-slate-400">Qivo Native v1.2.6</p>
         </div>
       </main>
     </div>
