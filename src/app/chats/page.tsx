@@ -53,6 +53,7 @@ function ChatsContent() {
   const [chatInfo, setChatInfo] = useState<any>(null)
   
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchSummaries = useCallback(async () => {
@@ -234,7 +235,10 @@ function ChatsContent() {
             <div key={m.id} className={cn("max-w-[85%] flex flex-col gap-1", isMe ? "self-end items-end" : "self-start items-start")}>
               <div className={cn("p-4 rounded-2xl text-sm font-medium shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col gap-2", isMe ? "bg-[#00A2FF] text-white rounded-br-none" : "bg-white text-black rounded-bl-none border border-black/5")}>
                 {m.image_url && (
-                  <div className="relative aspect-square w-full min-w-[200px] rounded-xl overflow-hidden mb-2">
+                  <div 
+                    className="relative aspect-square w-full min-w-[200px] rounded-xl overflow-hidden mb-2 cursor-pointer active:scale-95 transition-transform"
+                    onClick={() => setPreviewImage(m.image_url)}
+                  >
                     <Image src={m.image_url} alt="Shared Photo" fill className="object-cover" sizes="250px" />
                   </div>
                 )}
@@ -285,6 +289,13 @@ function ChatsContent() {
           <Button onClick={handleSend} size="icon" disabled={(!newMessage.trim() && !selectedImage) || isSending} className="rounded-full h-12 w-12 bg-[#00A2FF] text-white shrink-0 shadow-lg active:scale-90 transition-all">{isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}</Button>
         </div>
       </footer>
+
+      {previewImage && (
+        <div className="fixed inset-0 z-[200] bg-black/95 flex flex-col items-center justify-center animate-in fade-in" onClick={() => setPreviewImage(null)}>
+          <button className="absolute top-12 right-6 w-10 h-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/20"><X className="w-6 h-6" /></button>
+          <div className="relative w-full h-[80vh]"><Image src={previewImage} alt="Full" fill className="object-contain" sizes="100vw" /></div>
+        </div>
+      )}
     </div>
   );
 }
