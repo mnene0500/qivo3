@@ -6,9 +6,10 @@ import { BottomNav } from "./BottomNav"
 import { Suspense, useRef, useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/firebase/auth/use-user"
+import { GlobalCallOverlay } from "../GlobalCallOverlay"
 
 /**
- * @fileOverview Viewport-Centric App Shell with Scroll Persistence.
+ * @fileOverview Viewport-Centric App Shell with Global Call Support.
  */
 
 function ShellContent({ children }: { children: React.ReactNode }) {
@@ -21,7 +22,8 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   useEffect(() => { setMounted(true) }, [])
 
   const isChatDetail = pathname === '/chats' && searchParams.has('startWith')
-  const showNav = user && ['/home', '/chats', '/profile'].includes(pathname || "") && !isChatDetail;
+  const isCallScreen = pathname?.startsWith('/call/');
+  const showNav = user && ['/home', '/chats', '/profile'].includes(pathname || "") && !isChatDetail && !isCallScreen;
 
   useEffect(() => {
     if (mainRef.current && mounted && pathname) {
@@ -33,14 +35,6 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       }
     }
   }, [pathname, mounted])
-
-  useEffect(() => {
-    const current = mainRef.current;
-    if (!current || !pathname) return;
-    const handleScroll = () => sessionStorage.setItem(`scroll_${pathname}`, current.scrollTop.toString());
-    current.addEventListener('scroll', handleScroll, { passive: true });
-    return () => current.removeEventListener('scroll', handleScroll);
-  }, [pathname])
 
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-white relative">
@@ -54,6 +48,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
         <div className={cn("flex-1 flex flex-col", !mounted && "invisible")}>{children}</div>
       </main>
       {mounted && showNav && <BottomNav />}
+      {mounted && user && <GlobalCallOverlay />}
     </div>
   )
 }

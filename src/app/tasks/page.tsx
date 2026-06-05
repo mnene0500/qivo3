@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { useUser } from "@/firebase/auth/use-user"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, Coins, Trophy, CheckCircle2, Loader2 } from "lucide-react"
+import { ChevronLeft, Coins, Trophy, CheckCircle2, Loader2, Target, Zap, Gift, ShieldCheck } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { dailyCheckInAction } from "@/app/actions/matchflow-actions"
@@ -21,146 +21,96 @@ export default function TaskCenterPage() {
   const [isProcessing, setIsProcessing] = useState(false)
 
   const days = [
-    { day: "1st", reward: 2 },
-    { day: "2nd", reward: 2 },
-    { day: "3rd", reward: 5 },
-    { day: "4th", reward: 2 },
-    { day: "5th", reward: 2 },
-    { day: "6th", reward: 2 },
-    { day: "7th", reward: 10 },
+    { day: "Day 1", reward: 2 }, { day: "Day 2", reward: 2 }, { day: "Day 3", reward: 5 }, { day: "Day 4", reward: 2 }, { day: "Day 5", reward: 2 }, { day: "Day 6", reward: 2 }, { day: "Day 7", reward: 10 },
   ]
 
   useEffect(() => {
     if (!user?.id) return
-    
-    const fetchProfile = async () => {
-      const { data } = await supabase.from('users').select('*').eq('uid', user.id).single()
-      if (data) setProfile(data)
-      setLoading(false)
-    }
-    fetchProfile()
-
-    const channel = supabase.channel(`task-user-live:${user.id}`)
-      .on('postgres_changes', { event: 'UPDATE', table: 'users', filter: `uid=eq.${user.id}` }, (payload) => {
-        setProfile(payload.new)
-      })
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
+    supabase.from('users').select('*').eq('uid', user.id).single().then(({ data }) => {
+      setProfile(data); setLoading(false);
+    })
   }, [user?.id])
 
   const hasCheckedInToday = useMemo(() => {
     if (!profile?.last_check_in_date) return false
-    const lastDate = new Date(profile.last_check_in_date).toDateString();
-    const today = new Date().toDateString();
-    return lastDate === today;
+    return new Date(profile.last_check_in_date).toDateString() === new Date().toDateString();
   }, [profile?.last_check_in_date])
-
-  const currentStreak = profile?.check_in_streak || 0
 
   const handleCheckIn = async () => {
     if (!user || hasCheckedInToday || isProcessing) return
     setIsProcessing(true)
-    
     try {
       const res = await dailyCheckInAction(user.id);
       if (res.success) {
-        toast({ 
-          title: "Check-in Successful!", 
-          description: `You earned ${res.amount} coins. Streak updated!` 
-        })
-      } else {
-        toast({ variant: "destructive", title: "Claim Error", description: res.error || "Please try again later." })
+        toast({ title: "Daily Bonus Received!" })
+        const { data } = await supabase.from('users').select('*').eq('uid', user.id).single();
+        setProfile(data);
       }
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Task Failed", description: "Connection interrupted." })
-    } finally {
-      setIsProcessing(false)
-    }
+    } finally { setIsProcessing(false) }
   }
 
   return (
-    <div className="flex-1 bg-[#F8F9FA] min-h-screen pb-10 select-none animate-in fade-in duration-300">
-      <header className="bg-blue-900 h-32 relative px-4 pt-12">
-        <div className="flex items-center">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-white rounded-full hover:bg-white/10">
-            <ChevronLeft className="w-6 h-6" />
-          </Button>
-          <h1 className="text-xl font-bold text-white tracking-tight ml-2">Task Center</h1>
-        </div>
+    <div className="flex-1 bg-white min-h-screen flex flex-col select-none animate-in fade-in duration-500">
+      <header className="px-4 h-16 flex items-center justify-between border-b bg-white sticky top-0 z-50">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full text-black"><ChevronLeft className="w-6 h-6" /></Button>
+        <h1 className="text-sm font-black text-black uppercase tracking-widest">Task Center</h1>
+        <div className="w-10" />
       </header>
 
-      <main className="mt-8 px-4 space-y-6">
-        {loading ? (
-          <div className="flex justify-center py-20"><Loader2 className="animate-spin text-[#00A2FF]" /></div>
-        ) : (
-          <section className="bg-white p-6 rounded-2xl shadow-xl border border-black/5">
-            <div className="flex items-center justify-between mb-6 px-1">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-yellow-50 rounded-lg flex items-center justify-center">
-                  <Trophy className="w-4 h-4 text-yellow-500" />
-                </div>
-                <h2 className="text-xs font-black text-black tracking-widest">Daily Rewards</h2>
-              </div>
-              <span className="text-[10px] font-black text-blue-600 tracking-widest bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
-                Streak: {currentStreak}
-              </span>
-            </div>
-            
-            <div className="grid grid-cols-4 gap-3">
-              {days.map((d, i) => {
-                const dayNumber = i + 1
-                const currentCycleDay = (currentStreak % 7) || (currentStreak > 0 ? 7 : 0);
-                const isCollected = hasCheckedInToday 
-                  ? dayNumber <= currentCycleDay
-                  : dayNumber <= (currentStreak % 7);
-                
-                return (
-                  <div 
-                    key={i} 
-                    className={cn(
-                      "aspect-square rounded-xl flex flex-col items-center justify-center border-2 transition-all duration-500", 
-                      isCollected ? "bg-green-50 border-green-200" : "bg-gray-50 border-transparent shadow-inner"
-                    )}
-                  >
-                    {isCollected ? (
-                      <CheckCircle2 className="w-6 h-6 text-green-500 animate-in zoom-in" />
-                    ) : (
-                      <>
-                        <Coins className="w-5 h-5 text-yellow-500 mb-1" />
-                        <span className="text-[10px] font-black text-gray-500">+{d.reward}</span>
-                      </>
-                    )}
-                    <span className="text-[8px] font-black text-gray-400 mt-1 tracking-tighter">{d.day}</span>
-                  </div>
-                )
-              })}
-            </div>
-            
-            <Button 
-              onClick={handleCheckIn} 
-              disabled={hasCheckedInToday || isProcessing}
-              className={cn(
-                "w-full mt-8 h-16 rounded-full text-white font-black tracking-widest text-sm shadow-xl active:scale-95 transition-all", 
-                hasCheckedInToday ? "bg-gray-100 text-gray-300 shadow-none cursor-default" : "bg-blue-900 shadow-blue-100"
-              )}
-            >
-              {isProcessing ? <Loader2 className="animate-spin" /> : hasCheckedInToday ? "Already Claimed" : "Collect Reward"}
-            </Button>
-          </section>
-        )}
+      <main className="flex-1 p-6 space-y-8 overflow-y-auto no-scrollbar pb-32">
+        <div className="p-8 bg-[#00A2FF] rounded-[3rem] text-white shadow-2xl relative overflow-hidden">
+          <Target className="absolute -right-4 -top-4 w-32 h-32 text-white/10" />
+          <div className="relative z-10 space-y-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-60">Quest Progress</p>
+            <h2 className="text-4xl font-black tracking-tight">{profile?.check_in_streak || 0} <span className="text-xs uppercase opacity-80 tracking-widest font-bold">Day Streak</span></h2>
+          </div>
+        </div>
 
-        <section className="bg-white p-6 rounded-2xl shadow-sm border border-black/5 space-y-4">
-          <h2 className="text-[10px] font-black tracking-widest text-gray-400 ml-1">Identity Bonus</h2>
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-black/5">
-             <div className="flex items-center gap-3">
-               <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-blue-500 shadow-sm"><Trophy className="w-5 h-5" /></div>
-               <div><p className="text-xs font-black tracking-tight">Trust Badge</p><p className="text-[9px] text-gray-400 font-medium">Verify your face for extra trust</p></div>
-             </div>
-             <Button size="sm" onClick={() => router.push('/verify-identity')} className="rounded-full bg-blue-900 text-[9px] font-black h-8 shadow-lg shadow-blue-100 px-4">Go</Button>
+        <section className="space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Daily Attendance</h3>
+            {hasCheckedInToday && <span className="text-[9px] font-black text-green-500 uppercase tracking-widest">Completed</span>}
+          </div>
+          
+          <div className="grid grid-cols-4 gap-3">
+            {days.map((d, i) => {
+              const currentCycleDay = (profile?.check_in_streak % 7) || (profile?.check_in_streak > 0 ? 7 : 0);
+              const isCollected = hasCheckedInToday ? (i + 1) <= currentCycleDay : (i + 1) <= (profile?.check_in_streak % 7);
+              
+              return (
+                <div key={i} className={cn("aspect-square rounded-3xl flex flex-col items-center justify-center border-2 transition-all", isCollected ? "bg-green-50 border-green-200" : "bg-gray-50 border-gray-100")}>
+                  {isCollected ? <CheckCircle2 className="w-6 h-6 text-green-500" /> : <><Coins className="w-5 h-5 text-yellow-500 mb-1" /><span className="text-[10px] font-black text-gray-400">+{d.reward}</span></>}
+                  <span className="text-[7px] font-black text-gray-400 mt-1 uppercase">{d.day}</span>
+                </div>
+              )
+            })}
+          </div>
+
+          <Button onClick={handleCheckIn} disabled={hasCheckedInToday || isProcessing} className="w-full h-18 py-6 rounded-[2rem] bg-black text-white font-black uppercase tracking-[0.2em] text-sm shadow-xl active:scale-95 transition-all">
+            {isProcessing ? <Loader2 className="animate-spin" /> : hasCheckedInToday ? "Collected Today" : "Claim Reward"}
+          </Button>
+        </section>
+
+        <section className="space-y-4">
+          <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-widest px-2">One-Time Missions</h3>
+          <div className="space-y-3">
+            <TaskItem icon={ShieldCheck} title="Identity Check" reward="Trust Badge" desc="Verify your face with AI" onClick={() => router.push('/verify-identity')} color="text-[#00A2FF]" />
+            <TaskItem icon={Gift} title="First Recharge" reward="Bonus Coins" desc="Make any purchase" onClick={() => router.push('/recharge')} color="text-pink-500" />
           </div>
         </section>
       </main>
+    </div>
+  )
+}
+
+function TaskItem({ icon: Icon, title, reward, desc, onClick, color }: any) {
+  return (
+    <div onClick={onClick} className="p-5 bg-gray-50 rounded-[2.5rem] border border-gray-100 flex items-center justify-between active:bg-gray-100 transition-colors">
+      <div className="flex items-center gap-4">
+        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm"><Icon className={cn("w-6 h-6", color)} /></div>
+        <div className="space-y-0.5"><p className="text-sm font-black text-black">{title}</p><p className="text-[10px] font-medium text-gray-400">{desc}</p></div>
+      </div>
+      <div className="text-right"><p className="text-[9px] font-black text-blue-500 uppercase tracking-tighter">{reward}</p></div>
     </div>
   )
 }

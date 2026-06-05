@@ -3,16 +3,16 @@
 
 import { useEffect, useState, useRef, use } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { PhoneOff, Mic, MicOff, Video, VideoOff, User, Loader2, AlertCircle, SwitchCamera } from "lucide-react"
+import { PhoneOff, Mic, MicOff, Video, VideoOff, User, Loader2, AlertCircle, SwitchCamera, Minimize2, Maximize2 } from "lucide-react"
 import { useUser } from "@/firebase/auth/use-user"
 import { supabase } from "@/lib/supabase"
 import { generateAgoraTokenAction, deductCallCoinsAction, endCallAction } from "@/app/actions/call-actions"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 
 /**
- * @fileOverview Overhauled Agora Call Page for reliable Real-time AV communication.
- * Fixed: Remote user visibility, audio connectivity, and UI cleanup on exit.
+ * @fileOverview Overhauled Agora Call Page with PIP and 10s Free Logic.
  */
 
 export default function CallPage({ params }: { params: Promise<{ chatId: string }> }) {
@@ -29,11 +29,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
     client: any, 
     localAudioTrack: any, 
     localVideoTrack: any 
-  }>({ 
-    client: null, 
-    localAudioTrack: null, 
-    localVideoTrack: null 
-  })
+  }>({ client: null, localAudioTrack: null, localVideoTrack: null })
   
   const [joined, setJoined] = useState(false)
   const [muted, setMuted] = useState(false)
@@ -43,12 +39,11 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
   const [duration, setDuration] = useState(0)
   const [isRinging, setIsRinging] = useState(true)
   const [permissionError, setPermissionError] = useState<string | null>(null)
-  const [isSwitching, setIsSwitching] = useState(false)
+  const [isMinimized, setIsMinimized] = useState(false)
 
   const localVideoRef = useRef<HTMLDivElement>(null)
   const remoteVideoRef = useRef<HTMLDivElement>(null)
   const billingTimer = useRef<NodeJS.Timeout | null>(null)
-  const joining = useRef(false)
   const mounted = useRef(true)
 
   useEffect(() => {
@@ -59,32 +54,23 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
     return () => { mounted.current = false }
   }, [partnerId])
 
-  // CALL STATUS MONITORING
   useEffect(() => {
     if (!callId) return
-    const channel = supabase.channel(`call-status-monitor-${callId}`)
-      .on('postgres_changes', { 
-        event: 'UPDATE', 
-        schema: 'public',
-        table: 'calls', 
-        filter: `id=eq.${callId}` 
-      }, (payload) => {
-        if (payload.new.status === 'ended' && mounted.current) {
-          handleEndCall(false)
-        }
-      })
-      .subscribe()
+    const channel = supabase.channel(`call-mon-${callId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'calls', filter: `id=eq.${callId}` }, (payload) => {
+        if (payload.new.status === 'ended' && mounted.current) handleEndCall(false)
+      }).subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [callId])
 
-  // BILLING TIMER
   useEffect(() => {
     if (joined && remoteUser && user?.id && partnerId) {
       billingTimer.current = setInterval(async () => {
         if (!mounted.current) return;
         setDuration(prev => {
           const next = prev + 1
-          const isDeductionPoint = next === 11 || (next > 11 && (next - 11) % 60 === 0);
+          // Logic: 11th second of first minute, then start of every next minute
+          const isDeductionPoint = next === 11 || (next > 60 && (next - 11) % 60 === 0);
           if (isDeductionPoint) {
             deductCallCoinsAction(user.id, type, partnerId).then(res => {
               if (!res.success && mounted.current) handleEndCall(true)
@@ -99,30 +85,19 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
 
   useEffect(() => {
     const init = async () => {
-      if (typeof window === 'undefined' || !user?.id || !chatId || joining.current) return
-      joining.current = true
-      
+      if (typeof window === 'undefined' || !user?.id) return
       try {
         const AgoraRTC = (await import('agora-rtc-sdk-ng')).default
         const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" })
         rtc.current.client = client
 
-        // Handle remote users joining/publishing
         client.on("user-published", async (remote, mediaType) => {
           await client.subscribe(remote, mediaType)
-          
           if (mediaType === "video") {
             setRemoteUser(remote)
             setIsRinging(false)
-            if (mounted.current) {
-              setTimeout(() => {
-                if (remoteVideoRef.current && remote.videoTrack) {
-                  remote.videoTrack.play(remoteVideoRef.current)
-                }
-              }, 300)
-            }
+            setTimeout(() => { if (remoteVideoRef.current) remote.videoTrack?.play(remoteVideoRef.current) }, 300)
           }
-          
           if (mediaType === "audio") {
             remote.audioTrack?.play()
             setIsRinging(false)
@@ -130,209 +105,95 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
           }
         })
 
-        client.on("user-left", () => {
-          if (mounted.current) handleEndCall(false)
-        })
+        client.on("user-left", () => { if (mounted.current) handleEndCall(false) })
 
-        // PRE-JOIN MEDIA (Camera Preview)
         if (type === 'video') {
-          try {
-            const videoTrack = await AgoraRTC.createCameraVideoTrack({
-                encoderConfig: "720p_1",
-                facingMode: "user"
-            })
-            rtc.current.localVideoTrack = videoTrack
-            if (localVideoRef.current) {
-              videoTrack.play(localVideoRef.current)
-            }
-          } catch (vErr) {
-            console.error("Camera access denied:", vErr)
-            setPermissionError("Camera access required for video call.")
-            return
-          }
+          const videoTrack = await AgoraRTC.createCameraVideoTrack({ facingMode: "user" })
+          rtc.current.localVideoTrack = videoTrack
+          if (localVideoRef.current) videoTrack.play(localVideoRef.current)
         }
 
-        // JOIN AND PUBLISH
         const tokenData = await generateAgoraTokenAction(chatId, user.id)
         await client.join(tokenData.appId, tokenData.channelName, tokenData.token, tokenData.uid)
         
         const audioTrack = await AgoraRTC.createMicrophoneAudioTrack()
         rtc.current.localAudioTrack = audioTrack
         
-        const tracksToPublish = [audioTrack]
-        if (rtc.current.localVideoTrack) tracksToPublish.push(rtc.current.localVideoTrack)
-        
-        await client.publish(tracksToPublish)
+        const tracks = [audioTrack]
+        if (rtc.current.localVideoTrack) tracks.push(rtc.current.localVideoTrack)
+        await client.publish(tracks)
         setJoined(true)
-      } catch (err: any) {
-        console.error("Call Init Error:", err)
-        if (mounted.current) router.replace('/home')
-      } finally {
-        joining.current = false
+      } catch (err) {
+        setPermissionError("Permissions denied or setup failed.");
       }
     }
-
     init()
-    
-    return () => { 
-      mounted.current = false
-      shutdownAgora()
-    }
+    return () => { shutdownAgora() }
   }, [chatId, user?.id])
 
   const shutdownAgora = async () => {
-    if (rtc.current.localAudioTrack) { rtc.current.localAudioTrack.stop(); rtc.current.localAudioTrack.close(); rtc.current.localAudioTrack = null; }
-    if (rtc.current.localVideoTrack) { rtc.current.localVideoTrack.stop(); rtc.current.localVideoTrack.close(); rtc.current.localVideoTrack = null; }
-    if (rtc.current.client) {
-      try { await rtc.current.client.leave() } catch (e) {}
-      rtc.current.client = null
-    }
+    if (rtc.current.localAudioTrack) { rtc.current.localAudioTrack.stop(); rtc.current.localAudioTrack.close(); }
+    if (rtc.current.localVideoTrack) { rtc.current.localVideoTrack.stop(); rtc.current.localVideoTrack.close(); }
+    if (rtc.current.client) { await rtc.current.client.leave(); }
   }
 
   const handleEndCall = async (manual = true) => {
     await shutdownAgora()
-    if (manual && callId) { 
-      await endCallAction(callId) 
-    }
-    if (mounted.current) {
-      router.replace(`/chats?startWith=${partnerId}`)
-    }
-  }
-
-  const toggleMute = () => {
-    if (rtc.current.localAudioTrack) {
-      const newState = !muted
-      rtc.current.localAudioTrack.setEnabled(!newState)
-      setMuted(newState)
-    }
-  }
-
-  const toggleCamera = () => {
-    if (rtc.current.localVideoTrack) {
-      const newState = !cameraOff
-      rtc.current.localVideoTrack.setEnabled(!newState)
-      setCameraOff(newState)
-    }
-  }
-
-  const handleSwitchCamera = async () => {
-    if (!rtc.current.localVideoTrack || isSwitching) return;
-    setIsSwitching(true);
-    try {
-        const AgoraRTC = (await import('agora-rtc-sdk-ng')).default
-        const cameras = await AgoraRTC.getCameras();
-        if (cameras.length < 2) return;
-
-        const currentDeviceId = rtc.current.localVideoTrack.getMediaStreamTrack().getSettings().deviceId;
-        const nextDevice = cameras.find(c => c.deviceId !== currentDeviceId) || cameras[0];
-
-        if (rtc.current.client && joined) {
-            await rtc.current.client.unpublish(rtc.current.localVideoTrack);
-        }
-        rtc.current.localVideoTrack.stop();
-        rtc.current.localVideoTrack.close();
-
-        const newTrack = await AgoraRTC.createCameraVideoTrack({ cameraId: nextDevice.deviceId });
-        rtc.current.localVideoTrack = newTrack;
-        
-        if (localVideoRef.current) {
-            newTrack.play(localVideoRef.current);
-        }
-
-        if (rtc.current.client && joined) {
-            await rtc.current.client.publish(newTrack);
-        }
-    } catch (e) {
-        console.error("Camera Switch Error:", e);
-    } finally {
-        setIsSwitching(false);
-    }
+    if (manual && callId) await endCallAction(callId)
+    if (mounted.current) router.replace(`/chats?startWith=${partnerId}`)
   }
 
   const formatDuration = (s: number) => {
-    const mins = Math.floor(s / 60)
-    const secs = s % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
+    const m = Math.floor(s / 60)
+    const ss = s % 60
+    return `${m}:${ss.toString().padStart(2, '0')}`
   }
 
-  if (permissionError) {
-    return (
-      <div className="fixed inset-0 bg-zinc-900 z-[100] flex flex-col items-center justify-center p-10 text-center">
-        <AlertCircle className="w-16 h-16 text-red-500 mb-6" />
-        <h2 className="text-white text-xl font-bold mb-2">Permission Required</h2>
-        <p className="text-zinc-400 text-sm mb-8">{permissionError}</p>
-        <Button onClick={() => router.back()} className="w-full h-14 rounded-full bg-white text-black font-bold">Go Back</Button>
+  if (permissionError) return <div className="fixed inset-0 bg-black flex flex-col items-center justify-center p-10 text-center"><AlertCircle className="w-12 h-12 text-red-500 mb-4" /><h2 className="text-white font-bold">Hardware Error</h2><p className="text-gray-500 text-sm mb-8">{permissionError}</p><Button onClick={() => router.back()}>Go Back</Button></div>
+
+  if (isMinimized) return (
+    <div className="fixed bottom-24 right-4 z-[999] w-20 h-20 rounded-full bg-blue-500 shadow-2xl flex items-center justify-center border-4 border-white active:scale-95 transition-all cursor-pointer" onClick={() => setIsMinimized(false)}>
+      <div className="relative">
+        <Avatar className="w-16 h-16"><AvatarImage src={partnerProfile?.photo_url} /><AvatarFallback><User /></AvatarFallback></Avatar>
+        <div className="absolute -top-1 -right-1 bg-green-500 w-4 h-4 rounded-full border-2 border-white animate-pulse" />
       </div>
-    )
-  }
+    </div>
+  )
 
   return (
-    <div className="fixed inset-0 bg-black z-[100] flex flex-col items-center justify-center select-none overflow-hidden">
-      {/* REMOTE VIDEO / PLACEHOLDER */}
+    <div className="fixed inset-0 bg-black z-[100] flex flex-col overflow-hidden select-none">
       <div className="absolute inset-0 z-0">
-        {type === 'video' && remoteUser ? (
-          <div ref={remoteVideoRef} className="w-full h-full bg-black" />
-        ) : (
+        {type === 'video' && remoteUser ? <div ref={remoteVideoRef} className="w-full h-full" /> : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900">
              <div className="relative">
-               {isRinging && <div className="absolute inset-0 bg-[#00A2FF] rounded-full animate-ping opacity-20" />}
-               <Avatar className="w-32 h-32 border-4 border-white/10 shadow-2xl relative z-10">
+               {isRinging && <div className="absolute inset-0 bg-blue-500 rounded-full animate-ping opacity-20" />}
+               <Avatar className="w-40 h-40 border-4 border-white/10 shadow-2xl relative z-10">
                  <AvatarImage src={partnerProfile?.photo_url} className="object-cover" />
-                 <AvatarFallback className="bg-zinc-800 text-zinc-500"><User className="w-16 h-16" /></AvatarFallback>
+                 <AvatarFallback><User className="w-16 h-16" /></AvatarFallback>
                </Avatar>
              </div>
-             <h2 className="text-white text-2xl font-black mt-6 tracking-tight">{partnerProfile?.name || 'Connecting...'}</h2>
-             <div className="flex flex-col items-center gap-2 mt-4">
-                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.3em]">
-                  {joined ? (remoteUser ? formatDuration(duration) : 'Ringing...') : 'Connecting Media...'}
-                </p>
-                {remoteUser && duration < 11 && (
-                  <div className="px-4 py-1.5 bg-green-500/20 text-green-400 rounded-full border border-green-500/30">
-                    <p className="text-[10px] font-black uppercase tracking-widest">Free Preview: {10 - duration}s</p>
-                  </div>
-                )}
-             </div>
+             <h2 className="text-white text-2xl font-black mt-8">{partnerProfile?.name || 'Connecting...'}</h2>
+             <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.4em] mt-4">
+               {remoteUser ? formatDuration(duration) : 'Ringing...'}
+             </p>
           </div>
         )}
       </div>
 
-      {/* LOCAL VIDEO PREVIEW */}
+      <div className="absolute top-12 left-6 z-50">
+        <button onClick={() => setIsMinimized(true)} className="p-3 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10 text-white shadow-xl"><Minimize2 className="w-5 h-5" /></button>
+      </div>
+
       {type === 'video' && (
-        <div className={cn(
-          "absolute transition-all duration-500 overflow-hidden border-2 border-white/20 shadow-2xl z-20",
-          remoteUser 
-            ? "top-12 right-6 w-32 aspect-[3/4] rounded-3xl" 
-            : "inset-0 border-none rounded-none z-[5]"
-        )}>
+        <div className={cn("absolute transition-all duration-500 overflow-hidden border-2 border-white/20 shadow-2xl z-20", remoteUser ? "top-12 right-6 w-32 aspect-[3/4] rounded-3xl" : "inset-0 rounded-none z-[5]")}>
           <div ref={localVideoRef} className={cn("w-full h-full bg-zinc-800", cameraOff && "opacity-0")} />
-          {cameraOff && (
-            <div className="absolute inset-0 flex items-center justify-center bg-zinc-800">
-               <VideoOff className="w-8 h-8 text-zinc-600" />
-            </div>
-          )}
         </div>
       )}
 
-      {/* CONTROLS */}
       <div className="absolute bottom-12 inset-x-0 px-8 flex items-center justify-center gap-4 z-50">
-        <button onClick={toggleMute} className={cn("w-14 h-14 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl transition-all active:scale-90 flex items-center justify-center", muted ? "bg-red-500 text-white" : "bg-white/10 text-white")}>
-          {muted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-        </button>
-        
-        <button onClick={() => handleEndCall(true)} className="w-20 h-20 rounded-full bg-red-600 text-white shadow-2xl shadow-red-500/40 border-4 border-white/10 active:scale-95 transition-all flex items-center justify-center">
-          <PhoneOff className="w-8 h-8" />
-        </button>
-        
-        {type === 'video' && (
-          <>
-            <button onClick={toggleCamera} className={cn("w-14 h-14 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl transition-all active:scale-90 flex items-center justify-center", cameraOff ? "bg-red-500 text-white" : "bg-white/10 text-white")}>
-              {cameraOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
-            </button>
-            <button onClick={handleSwitchCamera} disabled={isSwitching} className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-xl border border-white/10 text-white shadow-2xl active:scale-90 transition-all flex items-center justify-center">
-              <SwitchCamera className={cn("w-5 h-5", isSwitching && "animate-spin")} />
-            </button>
-          </>
-        )}
+        <button onClick={() => { setMuted(!muted); rtc.current.localAudioTrack?.setEnabled(muted); }} className={cn("w-16 h-16 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl transition-all flex items-center justify-center", muted ? "bg-red-500 text-white" : "bg-white/10 text-white")}><Mic className="w-6 h-6" /></button>
+        <button onClick={() => handleEndCall(true)} className="w-20 h-20 rounded-full bg-red-600 text-white shadow-2xl shadow-red-500/40 border-4 border-white/10 flex items-center justify-center active:scale-95 transition-all"><PhoneOff className="w-8 h-8" /></button>
+        {type === 'video' && <button onClick={() => { setCameraOff(!cameraOff); rtc.current.localVideoTrack?.setEnabled(cameraOff); }} className={cn("w-16 h-16 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl transition-all flex items-center justify-center", cameraOff ? "bg-red-500 text-white" : "bg-white/10 text-white")}><Video className="w-6 h-6" /></button>}
       </div>
     </div>
   )
