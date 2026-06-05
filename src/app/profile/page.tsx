@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Settings, ChevronRight, Copy, Check, BadgeCheck, Headphones, Pencil, Gem, Award, Briefcase, UserPlus, Wallet, Shield, PlusCircle, UserCheck, Flag, Gamepad2, Coins, Users } from "lucide-react"
+import { Settings, ChevronRight, Copy, Check, BadgeCheck, Headphones, Pencil, Gem, Award, Briefcase, UserPlus, Wallet, Shield, PlusCircle, UserCheck, Flag, Gamepad2, Coins, Users, UserX } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
@@ -30,16 +30,22 @@ export default function MePage() {
   const [agencyCode, setAgencyCode] = useState("")
   const [agencyName, setAgencyName] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
+  const [visitCount, setVisitCount] = useState(0)
 
   const fetchProfile = useCallback(async () => {
     if (!user?.id) return
     
     try {
-      const { data } = await supabase.from('users').select('*').eq('uid', user.id).maybeSingle();
-      if (data) {
-        setProfile(data)
-        cachedProfile = data
+      const [profileRes, visitRes] = await Promise.all([
+        supabase.from('users').select('*').eq('uid', user.id).maybeSingle(),
+        supabase.from('profile_visits').select('count', { count: 'exact', head: true }).eq('visited_id', user.id)
+      ]);
+
+      if (profileRes.data) {
+        setProfile(profileRes.data)
+        cachedProfile = profileRes.data
       }
+      setVisitCount(visitRes.count || 0)
     } catch (e) {
       console.error("Profile load error")
     }
@@ -124,9 +130,14 @@ export default function MePage() {
           <div className="absolute top-10 right-6">
             <button 
               onClick={() => router.push('/visitors')}
-              className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center shadow-xl active:scale-90 transition-all text-white"
+              className="group relative w-12 h-12 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center shadow-xl active:scale-90 transition-all text-white"
             >
-              <Users className="w-4 h-4" />
+              <Users className="w-5 h-5" />
+              {visitCount > 0 && (
+                <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-black min-w-[18px] h-4.5 px-1 rounded-full flex items-center justify-center border-2 border-white shadow-lg animate-in zoom-in-95">
+                  {visitCount > 99 ? '99+' : visitCount}
+                </div>
+              )}
             </button>
           </div>
 
@@ -218,7 +229,8 @@ export default function MePage() {
                 {isAdmin && (
                   <>
                     <RoleAction icon={Shield} color="bg-indigo-50 text-indigo-600" label="Authority Manager" href="/manage-roles" />
-                    <RoleAction icon={Flag} color="bg-red-50 text-red-600" label="Report Queue" href="/manage-reports" />
+                    <RoleAction icon={UserX} color="bg-red-50 text-red-600" label="Account Control" href="/manage-roles?tab=search" />
+                    <RoleAction icon={Flag} color="bg-orange-50 text-orange-600" label="Report Queue" href="/manage-reports" />
                   </>
                 )}
                 {isMerchant && <RoleAction icon={Award} color="bg-yellow-50 text-yellow-600" label="Award Coins" href="/award-coins" />}

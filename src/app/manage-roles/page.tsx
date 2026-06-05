@@ -1,8 +1,8 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ChevronLeft, Users, Loader2, UserMinus, Search, ShieldCheck, Briefcase, Coins, AlertCircle, Trash2, Ban, ShieldAlert } from "lucide-react"
@@ -35,12 +35,14 @@ interface TargetUser {
   is_admin: boolean
 }
 
-export default function ManageRolesPage() {
+function ManageRolesContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user } = useUser()
   const { toast } = useToast()
   
-  const [activeTab, setActiveTab] = useState<'search' | 'merchants' | 'agents'>('search')
+  const initialTab = (searchParams.get('tab') as any) || 'search'
+  const [activeTab, setActiveTab] = useState<'search' | 'merchants' | 'agents'>(initialTab)
   const [targetId, setTargetId] = useState("")
   const [targetUser, setTargetUser] = useState<TargetUser | null>(null)
   const [roleUsers, setRoleUsers] = useState<TargetUser[]>([])
@@ -112,12 +114,12 @@ export default function ManageRolesPage() {
     <div className="flex-1 bg-white min-h-screen flex flex-col select-none">
       <header className="px-4 h-16 flex items-center justify-between border-b bg-white sticky top-0 z-50">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full"><ChevronLeft className="w-6 h-6 text-black" /></Button>
-        <h1 className="text-sm font-black text-black uppercase tracking-widest">Authority Control</h1>
+        <h1 className="text-sm font-black text-black uppercase tracking-widest">Control Center</h1>
         <div className="w-10" />
       </header>
 
       <div className="flex border-b sticky top-16 bg-white z-40">
-        {[{ id: 'search', label: 'Search & Ban' }, { id: 'merchants', label: 'Merchants' }, { id: 'agents', label: 'Agents' }].map((tab) => (
+        {[{ id: 'search', label: 'User Control' }, { id: 'merchants', label: 'Merchants' }, { id: 'agents', label: 'Agents' }].map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={cn("px-4 py-4 flex-1 flex flex-col items-center gap-1 border-b-2 transition-all", activeTab === tab.id ? "border-[#00A2FF] text-[#00A2FF]" : "border-transparent text-gray-400")}>
             <span className="text-[10px] font-black uppercase tracking-widest">{tab.label}</span>
           </button>
@@ -128,9 +130,9 @@ export default function ManageRolesPage() {
         {activeTab === 'search' ? (
           <div className="space-y-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Search User ID</label>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Enter Numeric ID</label>
               <div className="flex gap-2">
-                <Input placeholder="Numeric ID" value={targetId} onChange={(e) => setTargetId(e.target.value)} className="rounded-2xl h-14 border-gray-100 bg-gray-50 font-bold" />
+                <Input placeholder="e.g. 1234567" value={targetId} onChange={(e) => setTargetId(e.target.value)} className="rounded-2xl h-14 border-gray-100 bg-gray-50 font-bold" />
                 <Button onClick={handleSearch} disabled={searching} className="h-14 w-14 rounded-2xl bg-black">{searching ? <Loader2 className="animate-spin text-white" /> : <Search className="w-5 h-5 text-white" />}</Button>
               </div>
             </div>
@@ -198,5 +200,13 @@ function RoleToggle({ label, active, icon: Icon, color, onToggle, disabled }: an
       <div className="flex items-center gap-3"><div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", color.replace('text', 'bg').replace('600', '50'))}><Icon className={cn("w-5 h-5", color)} /></div><span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">{label}</span></div>
       <Button onClick={onToggle} disabled={disabled} variant={active ? "destructive" : "outline"} className="h-9 px-6 rounded-full text-[9px] font-black uppercase tracking-widest">{active ? "Revoke" : "Appoint"}</Button>
     </div>
+  )
+}
+
+export default function ManageRolesPage() {
+  return (
+    <Suspense fallback={null}>
+      <ManageRolesContent />
+    </Suspense>
   )
 }
