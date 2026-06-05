@@ -154,7 +154,24 @@ function ChatsContent() {
         filter: `chat_id=eq.${cid}` 
       }, (payload) => {
         setMessages(prev => {
+          // 1. Prevent exact ID duplicates
           if (prev.some(m => m.id === payload.new.id)) return prev;
+          
+          // 2. Reconcile Optimistic Updates (Check if this new DB message matches a temporary one from "me")
+          if (payload.new.sender_id === currentUser?.id) {
+            const optIdx = prev.findIndex(m => 
+              m.sender_id === payload.new.sender_id && 
+              m.text === payload.new.text && 
+              typeof m.id === 'number' && m.id > 1000000000 // Optimistic IDs use Date.now()
+            );
+            
+            if (optIdx !== -1) {
+              const reconciled = [...prev];
+              reconciled[optIdx] = payload.new;
+              return reconciled;
+            }
+          }
+
           return [payload.new, ...prev];
         });
         markChatAsReadAction(currentUser.id, cid);
@@ -176,7 +193,8 @@ function ChatsContent() {
       chat_id: chatId,
       sender_id: currentUser.id,
       text: text,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      isPending: true
     };
     setMessages(prev => [optimisticMsg, ...prev]);
 
@@ -201,6 +219,7 @@ function ChatsContent() {
       const res = await sendGiftAction(currentUser.id, startWithId, g.cost, g.name);
       if (res.success) {
         setLastGiftSent(g);
+        // Optimistic gift msg
         const giftMsg = {
           id: Date.now() + Math.random(),
           chat_id: chatId!,
@@ -315,7 +334,7 @@ function ChatsContent() {
             )}>
               <div className="flex items-center gap-2">
                 {isGiftMsg && <span className="text-xl">{giftEmoji}</span>}
-                <span>{m.text}</span>
+                <span className="break-words">{m.text}</span>
               </div>
               
               {isGiftMsg && m.sender_id === currentUser?.id && isLatestMsg && (
@@ -326,7 +345,7 @@ function ChatsContent() {
                   }}
                   disabled={isSending}
                   variant="ghost" 
-                  className="h-8 rounded-xl bg-white/20 hover:bg-white/30 text-white text-[9px] font-black uppercase tracking-widest border border-white/20 self-start"
+                  className="h-8 rounded-xl bg-white/20 hover:bg-white/30 text-white text-[9px] font-black uppercase tracking-widest border border-white/20 self-start mt-1"
                 >
                   {isSending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Send One More"}
                 </Button>
