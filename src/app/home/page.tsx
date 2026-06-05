@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import { Card } from "@/components/ui/card"
-import { RotateCw, BadgeCheck, FileText, Target, Loader2, Sparkles, MessageSquare } from "lucide-react"
+import { RotateCw, BadgeCheck, FileText, Target, Loader2, Sparkles } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/firebase/auth/use-user"
@@ -36,28 +36,41 @@ export default function HomePage() {
   
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const fetchUsers = useCallback(async (pageNum = 0, reshuffle = false) => {
+  const fetchUsers = useCallback(async (pageNum = 0) => {
     if (!currentUser?.id) return;
     if (pageNum === 0) setLoading(true);
     else setLoadingMore(true);
 
-    const { data: myProfile } = await supabase.from('users').select('*').eq('uid', currentUser.id).single();
+    // 1. Efficient single-row fetch for self
+    const { data: myProfile } = await supabase
+      .from('users')
+      .select('uid, gender, country, blocking, blocked_by')
+      .eq('uid', currentUser.id)
+      .single();
+
     if (!myProfile) return;
     setProfile(myProfile);
 
     const oppositeGender = myProfile.gender === 'male' ? 'female' : 'male';
     const from = pageNum * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
+    const blockedList = [...(myProfile.blocking || []), ...(myProfile.blocked_by || [])];
 
+    // 2. Select ONLY necessary columns to save bandwidth
     let query = supabase.from('users')
-      .select('*')
+      .select('uid, name, photo_url, country, dob, is_verified, updated_at')
       .eq('onboarding_complete', true)
       .eq('gender', oppositeGender)
       .is('is_deleted', false)
       .neq('uid', currentUser.id);
 
+    if (blockedList.length > 0) {
+       query = query.not('uid', 'in', `(${blockedList.join(',')})`);
+    }
+
     if (activeTab === 'nearby') query = query.eq('country', myProfile.country);
     
+    // 3. Apply Range Pagination
     const { data } = await query
       .order('updated_at', { ascending: false })
       .range(from, to);
@@ -78,7 +91,7 @@ export default function HomePage() {
     if (isInitialized) fetchUsers(0);
   }, [isInitialized, activeTab, fetchUsers]);
 
-  // SCROLL RESTORATION
+  // SCROLL RESTORATION & INFINITE LOAD
   useEffect(() => {
     const savedScroll = sessionStorage.getItem('home_scroll_pos');
     if (savedScroll && !loading) {
@@ -86,9 +99,14 @@ export default function HomePage() {
         window.scrollTo(0, parseInt(savedScroll));
       }, 100);
     }
+
     const handleScroll = () => {
       sessionStorage.setItem('home_scroll_pos', window.scrollY.toString());
-      if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500 && !loadingMore && hasMore) {
+      
+      const threshold = 500;
+      const isAtBottom = (window.innerHeight + window.scrollY) >= document.body.offsetHeight - threshold;
+      
+      if (isAtBottom && !loadingMore && hasMore && !loading) {
         setPage(p => {
           const next = p + 1;
           fetchUsers(next);
@@ -96,6 +114,7 @@ export default function HomePage() {
         });
       }
     };
+
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, [loading, loadingMore, hasMore, fetchUsers]);

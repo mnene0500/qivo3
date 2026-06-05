@@ -37,6 +37,7 @@ export default function CoinHistoryPage() {
     const from = pageNum * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
+    // Explicitly select columns to reduce payload size
     const { data, error } = await supabase
       .from('coin_history')
       .select('id, amount, type, description, timestamp')

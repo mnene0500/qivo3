@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils"
 import { useUser } from "@/firebase/auth/use-user"
 import { format } from "date-fns"
 import { clearChatAction, sendMessageAction, markChatAsReadAction, sendGiftAction } from "@/app/actions/matchflow-actions"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useBalance } from "@/lib/providers/BalanceProvider"
 import { startCallAction } from "@/app/actions/call-actions"
@@ -63,26 +63,53 @@ function ChatsContent() {
 
   const fetchSummaries = useCallback(async () => {
     if (!currentUser?.id) return;
-    const { data: chats } = await supabase.from('chats').select('*').contains('participant_ids', [currentUser.id]).order('last_message_at', { ascending: false }).limit(40);
+    
+    // Select ONLY necessary summary fields
+    const { data: chats } = await supabase
+      .from('chats')
+      .select('id, participant_ids, last_message, last_message_at, cleared_at, last_seen_at, last_sender_id')
+      .contains('participant_ids', [currentUser.id])
+      .order('last_message_at', { ascending: false })
+      .limit(40);
+
     if (!chats) { setSummaries([]); setLoading(false); return; }
+    
     const filtered = chats.filter(c => (c.last_message_at || 0) > ((c.cleared_at as any)?.[currentUser.id] || 0));
     const partnerIds = filtered.map(c => c.participant_ids.find((id: string) => id !== currentUser.id));
-    const { data: profiles } = await supabase.from('users').select('uid, name, photo_url, is_verified').in('uid', partnerIds);
+    
+    // Batch fetch partner profiles with explicit columns
+    const { data: profiles } = await supabase
+      .from('users')
+      .select('uid, name, photo_url, is_verified')
+      .in('uid', partnerIds);
+
     const pMap = new Map(profiles?.map(p => [p.uid, p]));
     const enhanced = filtered.map(c => {
       const pId = c.participant_ids.find((id: string) => id !== currentUser.id);
       const p = pMap.get(pId);
       const seenAt = (c.last_seen_at as any)?.[currentUser.id] || 0;
-      return { id: c.id, partner_id: pId!, partner_name: p?.name || 'User', partner_photo: p?.photo_url || '', partner_is_verified: p?.is_verified, last_message: c.last_message || "", last_message_at: c.last_message_at || 0, unread_count: (c.last_message_at > seenAt && c.last_sender_id !== currentUser.id) ? 1 : 0 };
+      return { 
+        id: c.id, 
+        partner_id: pId!, 
+        partner_name: p?.name || 'User', 
+        partner_photo: p?.photo_url || '', 
+        partner_is_verified: p?.is_verified, 
+        last_message: c.last_message || "", 
+        last_message_at: c.last_message_at || 0, 
+        unread_count: (c.last_message_at > seenAt && c.last_sender_id !== currentUser.id) ? 1 : 0 
+      };
     });
     setSummaries(enhanced); setLoading(false);
   }, [currentUser?.id]);
 
   useEffect(() => {
     if (!currentUser?.id) return;
-    supabase.from('users').select('*').eq('uid', currentUser.id).single().then(({ data }) => setMe(data))
+    supabase.from('users').select('uid, gender, is_admin, is_coin_seller, has_read_receipts').eq('uid', currentUser.id).single().then(({ data }) => setMe(data))
     fetchSummaries();
-    const channel = supabase.channel('chats-sync').on('postgres_changes', { event: '*', schema: 'public', table: 'chats' }, () => fetchSummaries()).subscribe();
+    
+    const channel = supabase.channel('chats-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chats' }, () => fetchSummaries())
+      .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [currentUser?.id, fetchSummaries]);
 
@@ -93,7 +120,7 @@ function ChatsContent() {
     const clearedAt = (chatInfo?.cleared_at as any)?.[currentUser.id] || 0;
     
     const { data: msgs } = await supabase.from('messages')
-      .select('*')
+      .select('id, chat_id, sender_id, text, timestamp, is_gift, image_url')
       .eq('chat_id', chatId)
       .gt('timestamp', clearedAt)
       .lt('timestamp', oldestTs)
@@ -113,13 +140,21 @@ function ChatsContent() {
     if (!startWithId || !currentUser?.id) return;
     const cid = `direct_${[currentUser.id, startWithId].sort()[0]}_${[currentUser.id, startWithId].sort()[1]}`;
     setChatId(cid);
-    supabase.from('users').select('*').eq('uid', startWithId).single().then(({ data }) => setPartner(data));
+    
+    supabase.from('users').select('uid, name, photo_url').eq('uid', startWithId).single().then(({ data }) => setPartner(data));
     
     const loadInitialMessages = async () => {
-      const { data: chatData } = await supabase.from('chats').select('*').eq('id', cid).maybeSingle();
+      const { data: chatData } = await supabase.from('chats').select('id, cleared_at, last_seen_at').eq('id', cid).maybeSingle();
       setChatInfo(chatData);
       const clearedAt = (chatData?.cleared_at as any)?.[currentUser.id] || 0;
-      const { data: msgs } = await supabase.from('messages').select('*').eq('chat_id', cid).gt('timestamp', clearedAt).order('timestamp', { ascending: false }).limit(MSG_PAGE_SIZE);
+      
+      const { data: msgs } = await supabase.from('messages')
+        .select('id, chat_id, sender_id, text, timestamp, is_gift, image_url')
+        .eq('chat_id', cid)
+        .gt('timestamp', clearedAt)
+        .order('timestamp', { ascending: false })
+        .limit(MSG_PAGE_SIZE);
+        
       setMessages(msgs || []);
       setHasMoreMsgs((msgs?.length || 0) === MSG_PAGE_SIZE);
     };
