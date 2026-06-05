@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -6,11 +7,12 @@ import { supabase } from "@/lib/supabase"
 import { useUser } from "@/firebase/auth/use-user"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { ChevronLeft, Coins, Users, Loader2, Send, Sparkles, MessageSquare } from "lucide-react"
+import { ChevronLeft, Coins, Users, Loader2, Send, Sparkles, MessageSquare, Zap, Target } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { sendMysteryNoteAction } from "@/app/actions/matchflow-actions"
+import { cn } from "@/lib/utils"
 
-const RECIPIENT_OPTIONS = [2, 5, 10, 20]
+const RECIPIENT_OPTIONS = [2, 5, 10, 20, 50]
 const COST_PER_PERSON = 10
 
 export default function MysteryNotePage() {
@@ -19,7 +21,7 @@ export default function MysteryNotePage() {
   const { toast } = useToast()
 
   const [message, setMessage] = useState("")
-  const [recipientCount, setRecipientCount] = useState(2)
+  const [recipientCount, setRecipientCount] = useState(10)
   const [isSending, setIsSending] = useState(false)
   const [userCoins, setUserCoins] = useState<number | null>(null)
 
@@ -59,7 +61,7 @@ export default function MysteryNotePage() {
       toast({ 
         variant: "destructive", 
         title: "Insufficient Coins", 
-        description: `You need ${requiredCoins} coins.` 
+        description: `You need ${requiredCoins} coins for this broadcast.` 
       })
       return
     }
@@ -68,84 +70,128 @@ export default function MysteryNotePage() {
     try {
       const res = await sendMysteryNoteAction(user.id, message, recipientCount)
       if (res.success) {
-        toast({ title: "Blast Sent!", description: "Check your chats to see the conversations." })
+        toast({ title: "Blast Dispatched!", description: "Conversations have been started with chosen recipients." })
         router.push("/chats")
       } else {
-        toast({ variant: "destructive", title: "Error", description: res.error })
+        toast({ variant: "destructive", title: "Deployment Error", description: res.error })
       }
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Connection Error" })
+      toast({ variant: "destructive", title: "Signal Lost", description: "Please check your connection." })
     } finally {
       setIsSending(false)
     }
   }
 
   return (
-    <div className="flex-1 bg-purple-600 min-h-screen flex flex-col select-none relative overflow-hidden animate-in fade-in duration-500">
-      <div className="absolute -top-10 -right-20 w-80 h-80 opacity-20 pointer-events-none rotate-12"><Sparkles className="w-full h-full text-white" /></div>
+    <div className="flex-1 bg-gradient-to-br from-indigo-700 via-purple-700 to-pink-600 min-h-screen flex flex-col select-none relative overflow-hidden animate-in fade-in duration-700">
+      {/* ANIMATED AMBIENCE */}
+      <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+        <div className="absolute -top-20 -right-20 w-96 h-96 bg-white/10 rounded-full blur-[100px] animate-pulse" />
+        <div className="absolute bottom-20 -left-20 w-80 h-80 bg-blue-400/10 rounded-full blur-[80px]" />
+        <Sparkles className="absolute top-1/4 left-10 w-8 h-8 text-white/20 animate-bounce duration-[3000ms]" />
+        <Sparkles className="absolute bottom-1/4 right-10 w-6 h-6 text-white/10 animate-bounce duration-[5000ms]" />
+      </div>
       
-      <header className="px-4 h-16 flex items-center bg-transparent z-50">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full text-white hover:bg-white/10"><ChevronLeft className="w-8 h-8" /></Button>
+      <header className="px-4 h-16 flex items-center justify-between bg-transparent z-50">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full text-white hover:bg-white/10">
+          <ChevronLeft className="w-8 h-8" />
+        </Button>
+        <div className="px-4 py-1.5 bg-black/20 backdrop-blur-xl rounded-full border border-white/10 flex items-center gap-2">
+           <Coins className="w-3.5 h-3.5 text-yellow-400 fill-current" />
+           <span className="text-xs font-black text-white tracking-tighter">{userCoins ?? '...'}</span>
+        </div>
       </header>
 
-      <main className="flex-1 px-6 pt-4 pb-10 space-y-12 overflow-y-auto no-scrollbar relative z-10">
-        <div className="space-y-2 px-2">
-          <h1 className="text-5xl font-black text-white tracking-tighter leading-tight">Message<br/>Blast</h1>
-          <p className="text-[10px] font-black text-white/60 tracking-[0.3em] ml-1">Send a message to multiple users instantly</p>
+      <main className="flex-1 px-6 pt-4 pb-12 space-y-10 overflow-y-auto no-scrollbar relative z-10">
+        <div className="space-y-2 px-2 text-center">
+          <div className="w-20 h-20 bg-white/10 backdrop-blur-3xl rounded-[2rem] border border-white/20 flex items-center justify-center mx-auto mb-6 shadow-2xl group active:scale-90 transition-transform">
+             <Zap className="w-10 h-10 text-white fill-current group-hover:animate-pulse" />
+          </div>
+          <h1 className="text-4xl font-black text-white tracking-tighter leading-none uppercase italic">Message <span className="text-yellow-400">Blast</span></h1>
+          <p className="text-[10px] font-black text-white/40 tracking-[0.4em] uppercase">Simultaneous Global Transmission</p>
         </div>
 
-        <div className="bg-white/15 backdrop-blur-3xl border border-white/20 rounded-[3rem] p-8 shadow-2xl space-y-8">
-          <div className="space-y-4">
-            <div className="flex justify-between items-start">
-               <h2 className="text-2xl font-black text-white leading-tight">What's on<br/>your mind?</h2>
-               <div className="flex flex-col items-end">
-                 <span className="text-[8px] font-black text-white/40 tracking-widest">My Balance</span>
-                 <span className="text-xs font-black text-white flex items-center gap-1.5 bg-black/20 px-3 py-1 rounded-full">
-                   <Coins className="w-3 h-3 text-yellow-400" />
-                   {userCoins === null ? "..." : userCoins}
-                 </span>
+        <div className="bg-white/10 backdrop-blur-3xl border border-white/20 rounded-[3.5rem] p-8 shadow-2xl space-y-10 relative overflow-hidden">
+          <div className="space-y-6">
+            <div className="flex justify-between items-end">
+               <div className="space-y-1">
+                 <h2 className="text-2xl font-black text-white leading-none">The Broadcast</h2>
+                 <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Type your transmission below</p>
+               </div>
+               <div className="px-3 py-1 bg-yellow-400 rounded-lg shadow-lg rotate-3">
+                 <span className="text-[10px] font-black text-black tracking-tight">{COST_PER_PERSON} <Coins className="inline w-3 h-3 mb-0.5" /> / User</span>
                </div>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-               <div className="flex items-center gap-2 px-4 py-1.5 bg-yellow-400 rounded-full shadow-lg border border-yellow-300"><Coins className="w-3.5 h-3.5 text-yellow-800" /><span className="text-[10px] font-black text-yellow-900 tracking-tighter">{COST_PER_PERSON} / user</span></div>
-               <div className="flex items-center gap-2 px-4 py-1.5 bg-white/10 rounded-full border border-white/20">
-                  <Users className="w-3.5 h-3.5 text-white/80" />
-                  <select 
-                    value={recipientCount} 
-                    onChange={(e) => setRecipientCount(Number(e.target.value))} 
-                    className="bg-transparent border-none text-[10px] font-black text-white outline-none cursor-pointer uppercase appearance-none"
-                  >
-                    {RECIPIENT_OPTIONS.map(n => <option key={n} value={n} className="text-black">{n} Recipients</option>)}
-                  </select>
-               </div>
+
+            <div className="relative group">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-[2rem] blur-xl opacity-0 group-focus-within:opacity-20 transition-opacity" />
+              <Textarea 
+                placeholder="Broadcast your mood, a question, or a greeting to the world..." 
+                value={message} 
+                onChange={(e) => setMessage(e.target.value)} 
+                className="bg-white rounded-[2.5rem] min-h-[180px] border-none text-slate-900 font-bold p-8 text-base shadow-inner focus-visible:ring-4 focus-visible:ring-white/20 transition-all placeholder:text-slate-300" 
+              />
             </div>
           </div>
 
-          <Textarea 
-            placeholder="Type your broadcast message..." 
-            value={message} 
-            onChange={(e) => setMessage(e.target.value)} 
-            className="bg-white rounded-[2rem] min-h-[200px] border-none text-black font-bold p-8 text-base shadow-inner focus-visible:ring-2 focus-visible:ring-white/20" 
-          />
-
-          <div className="space-y-4">
-            <div className="flex justify-between items-center px-6">
-              <span className="text-[10px] font-black text-white/60 tracking-widest">Total Cost</span>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-black text-white tracking-tighter">{totalCost}</span>
-                <Coins className="w-5 h-5 text-yellow-400" />
+          <div className="space-y-8">
+            <div className="space-y-4">
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] text-center">Transmission Reach</p>
+              <div className="flex flex-wrap justify-center gap-3">
+                {RECIPIENT_OPTIONS.map(n => (
+                  <button
+                    key={n}
+                    onClick={() => setRecipientCount(n)}
+                    className={cn(
+                      "px-6 py-3 rounded-2xl font-black text-xs transition-all border active:scale-90",
+                      recipientCount === n 
+                        ? "bg-white text-indigo-600 border-white shadow-xl shadow-white/10" 
+                        : "bg-white/5 text-white/40 border-white/10 hover:bg-white/10"
+                    )}
+                  >
+                    {n} PEERS
+                  </button>
+                ))}
               </div>
             </div>
-            <Button 
-              onClick={handleSend} 
-              disabled={isSending || !message.trim() || userCoins === null} 
-              className="w-full h-18 rounded-full bg-white text-purple-600 font-black tracking-[0.2em] text-sm shadow-2xl active:scale-95 transition-all py-8"
-            >
-              {isSending ? <Loader2 className="w-6 h-6 animate-spin" /> : <div className="flex items-center gap-3"><Send className="w-5 h-5" />Send Broadcast</div>}
-            </Button>
+
+            <div className="space-y-4 pt-4">
+              <div className="flex justify-between items-center px-6">
+                <div className="flex items-center gap-2">
+                  <Target className="w-4 h-4 text-white/40" />
+                  <span className="text-[10px] font-black text-white/40 tracking-widest uppercase">Required Power</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-3xl font-black text-white tracking-tighter">{totalCost}</span>
+                  <Coins className="w-6 h-6 text-yellow-400 fill-current" />
+                </div>
+              </div>
+              
+              <Button 
+                onClick={handleSend} 
+                disabled={isSending || !message.trim() || userCoins === null} 
+                className="w-full h-20 rounded-[2.5rem] bg-white text-indigo-700 font-black tracking-[0.2em] text-sm shadow-[0_20px_50px_rgba(0,0,0,0.3)] active:scale-95 transition-all py-8 group"
+              >
+                {isSending ? (
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                    DISPATCHING...
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <Send className="w-6 h-6 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    INITIATE BLAST
+                  </div>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </main>
+      
+      <footer className="p-8 text-center">
+        <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.5em]">QIVO Global Broadcast Engine v2.0</p>
+      </footer>
     </div>
   )
 }
