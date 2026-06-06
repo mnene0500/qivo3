@@ -3,6 +3,7 @@
 
 import { getSupabaseAdmin } from '@/lib/supabase';
 import webpush from 'web-push';
+import { headers } from 'next/headers';
 
 /**
  * @fileOverview Definitive Server Actions for QIVO Production.
@@ -61,8 +62,27 @@ export async function completeOnboardingAction(payload: {
 }) {
   const supabase = getSupabaseAdmin();
   const matchFlowId = Math.floor(1000000 + Math.random() * 9000000).toString();
+  
+  const headerList = await headers();
+  const forwarded = headerList.get('x-forwarded-for');
+  const clientIp = forwarded ? forwarded.split(',')[0] : '0.0.0.0';
 
   try {
+    // 1. SECURITY: Check IP Ban
+    const { data: ban } = await supabase.from('banned_ips').select('ip').eq('ip', clientIp).maybeSingle();
+    if (ban) throw new Error("This network access is restricted due to suspicious activity.");
+
+    // 2. SECURITY: Check Account Limit (Max 3 per IP)
+    const { count: ipAccCount } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+      .eq('registration_ip', clientIp);
+    
+    if (ipAccCount && ipAccCount >= 3) {
+      throw new Error("Maximum account limit reached for this device.");
+    }
+
+    // 3. ONBOARDING: Create/Update Profile
     const { error } = await supabase.from('users').upsert({
       uid: payload.uid,
       email: payload.email,
@@ -74,21 +94,37 @@ export async function completeOnboardingAction(payload: {
       photo_url: payload.photo_url,
       match_flow_id: matchFlowId,
       onboarding_complete: true,
+      registration_ip: clientIp,
       updated_at: new Date().toISOString(),
     });
 
     if (error) throw error;
 
-    // INCREASED REWARD: 300 COINS
-    const bonus = 300;
-    await supabase.rpc("increment_coins", { p_user_id: payload.uid, p_amount: bonus });
-    await supabase.from('coin_history').insert({
-      user_id: payload.uid,
-      amount: bonus,
-      type: 'reward',
-      description: 'Welcome Bonus',
-      timestamp: Date.now()
-    });
+    // 4. ECONOMY: Reward logic (Only for the first account on this IP)
+    const { data: existingReward } = await supabase
+      .from('ip_rewards')
+      .select('ip')
+      .eq('ip', clientIp)
+      .maybeSingle();
+
+    let bonus = 0;
+    if (!existingReward) {
+      bonus = 300;
+      // Mark IP as rewarded
+      await supabase.from('ip_rewards').insert({ ip: clientIp });
+      
+      // Award coins
+      await supabase.rpc("increment_coins", { p_user_id: payload.uid, p_amount: bonus });
+      await supabase.from('users').update({ claimed_welcome_reward: true }).eq('uid', payload.uid);
+      
+      await supabase.from('coin_history').insert({
+        user_id: payload.uid,
+        amount: bonus,
+        type: 'reward',
+        description: 'Welcome Bonus',
+        timestamp: Date.now()
+      });
+    }
 
     return { success: true, bonus };
   } catch (err: any) {
