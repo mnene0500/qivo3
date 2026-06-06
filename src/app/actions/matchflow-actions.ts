@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getSupabaseAdmin } from '@/lib/supabase';
@@ -68,9 +67,9 @@ export async function completeOnboardingAction(payload: {
   const clientIp = forwarded ? forwarded.split(',')[0] : '0.0.0.0';
 
   try {
-    // 1. SECURITY: Check IP Ban
+    // 1. SECURITY: Check IP Ban (Users on banned IPs cannot create ANY new accounts)
     const { data: ban } = await supabase.from('banned_ips').select('ip').eq('ip', clientIp).maybeSingle();
-    if (ban) throw new Error("This network access is restricted due to suspicious activity.");
+    if (ban) throw new Error("Access denied. Your network has been restricted due to policy violations.");
 
     // 2. SECURITY: Check Account Limit (Max 3 per IP)
     const { count: ipAccCount } = await supabase
@@ -78,8 +77,8 @@ export async function completeOnboardingAction(payload: {
       .select('*', { count: 'exact', head: true })
       .eq('registration_ip', clientIp);
     
-    if (ipAccCount && ipAccCount >= 3) {
-      throw new Error("Maximum account limit reached for this device.");
+    if (ipAccCount !== null && ipAccCount >= 3) {
+      throw new Error("Device limit reached. You cannot create more than 3 accounts.");
     }
 
     // 3. ONBOARDING: Create/Update Profile
@@ -100,7 +99,7 @@ export async function completeOnboardingAction(payload: {
 
     if (error) throw error;
 
-    // 4. ECONOMY: Reward logic (Only for the first account on this IP)
+    // 4. ECONOMY: Reward logic (Strictly ONLY for the first account ever created on this IP)
     const { data: existingReward } = await supabase
       .from('ip_rewards')
       .select('ip')
@@ -110,10 +109,10 @@ export async function completeOnboardingAction(payload: {
     let bonus = 0;
     if (!existingReward) {
       bonus = 300;
-      // Mark IP as rewarded
+      // Mark IP as rewarded immediately to prevent race conditions
       await supabase.from('ip_rewards').insert({ ip: clientIp });
       
-      // Award coins
+      // Award coins to the user
       await supabase.rpc("increment_coins", { p_user_id: payload.uid, p_amount: bonus });
       await supabase.from('users').update({ claimed_welcome_reward: true }).eq('uid', payload.uid);
       
