@@ -195,6 +195,10 @@ export async function endCallAction(payload: {
   }
 }
 
+/**
+ * Hardened Coin Deduction for Active Calls.
+ * Proactively checks balance before attempting atomic transaction.
+ */
 export async function deductCallCoinsAction(uid: string, type: 'video' | 'voice', partnerId: string) {
   const supabase = getSupabaseAdmin();
   try {
@@ -203,6 +207,13 @@ export async function deductCallCoinsAction(uid: string, type: 'video' | 'voice'
 
     const cost = type === 'video' ? 150 : 70;
     
+    // 1. Proactive Balance Check
+    const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', uid).single();
+    if ((Number(bal?.coins) || 0) < cost) {
+      return { success: false, error: "Insufficient Coins" };
+    }
+
+    // 2. Atomic Transaction
     const { error: deductError } = await supabase.rpc("increment_coins", { p_user_id: uid, p_amount: -cost });
     if (deductError) return { success: false, error: "Insufficient Coins" };
 

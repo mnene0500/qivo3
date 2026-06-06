@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState, useRef, use } from "react"
@@ -43,6 +44,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
   
   const totalCostRef = useRef(0)
   const totalDiamondsRef = useRef(0)
+  const durationRef = useRef(0)
 
   const localVideoRef = useRef<HTMLDivElement>(null)
   const remoteVideoRef = useRef<HTMLDivElement>(null)
@@ -80,29 +82,38 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
     return () => { if (ringingTimeoutRef.current) clearTimeout(ringingTimeoutRef.current) }
   }, [isRinging, !!remoteUser])
 
-  // HARDENED BILLING ENGINE (Voice + Video)
+  /**
+   * PROACTIVE BILLING ENGINE.
+   * Deducts coins at the START of each minute (Pay-Before-You-Play).
+   * If deduction fails, call is terminated immediately.
+   */
   useEffect(() => {
     if (joined && remoteUser && user?.id && partnerId) {
       billingTimer.current = setInterval(async () => {
-        if (!mounted.current) return;
+        if (!mounted.current) {
+          if (billingTimer.current) clearInterval(billingTimer.current);
+          return;
+        }
         
-        setDuration(prev => {
-          const next = prev + 1
-          // Deduction points: 11 seconds (first minute) then every 60 seconds
-          const isDeductionPoint = next === 11 || (next > 60 && (next - 1) % 60 === 0);
-          
-          if (isDeductionPoint) {
-            deductCallCoinsAction(user.id, type, partnerId).then(res => {
-              if (res.success) {
-                totalCostRef.current += (res.cost || 0);
-                totalDiamondsRef.current += (res.diamondReward || 0);
-              } else if (mounted.current) {
-                handleEndCall(true, 'Insufficient Coins');
-              }
-            })
+        const next = durationRef.current + 1;
+        // Pay for the minute before using it: 1s, 61s, 121s, etc.
+        const isDeductionPoint = (next === 1) || (next > 60 && (next - 1) % 60 === 0);
+        
+        if (isDeductionPoint) {
+          const res = await deductCallCoinsAction(user.id, type, partnerId);
+          if (!res.success) {
+            if (billingTimer.current) clearInterval(billingTimer.current);
+            if (mounted.current) {
+              handleEndCall(true, 'Insufficient Coins');
+            }
+            return;
           }
-          return next
-        })
+          totalCostRef.current += (res.cost || 0);
+          totalDiamondsRef.current += (res.diamondReward || 0);
+        }
+
+        durationRef.current = next;
+        setDuration(next);
       }, 1000)
     }
     return () => { if (billingTimer.current) clearInterval(billingTimer.current) }
@@ -198,6 +209,8 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
 
   const handleEndCall = async (manual = true, overrideReason?: string) => {
     mounted.current = false;
+    if (billingTimer.current) clearInterval(billingTimer.current);
+    
     router.replace(`/chats?startWith=${partnerId}`);
 
     await shutdownAgora();
@@ -207,8 +220,8 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
       if (!remoteUser && isRinging) {
         reason = overrideReason === 'No Answer' ? 'No Answer' : 'Cancelled';
       } else if (remoteUser) {
-        const m = Math.floor(duration / 60);
-        const s = duration % 60;
+        const m = Math.floor(durationRef.current / 60);
+        const s = durationRef.current % 60;
         reason = `Duration: ${m}:${s.toString().padStart(2, '0')}`;
       }
       
@@ -296,7 +309,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
             <button onClick={() => { setCameraOff(!cameraOff); rtc.current.localVideoTrack?.setEnabled(cameraOff); }} className={cn("w-14 h-14 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl flex items-center justify-center", cameraOff ? "bg-red-500" : "bg-white/10 text-white")}>
               {cameraOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
             </button>
-            <button onClick={switchCamera} className="w-14 h-14 rounded-full backdrop-blur-xl bg-white/10 border border-white/10 text-white shadow-2xl flex items-center justify-center active:rotate-180 transition-transform duration-500">
+            <button switchCamera={switchCamera} className="w-14 h-14 rounded-full backdrop-blur-xl bg-white/10 border border-white/10 text-white shadow-2xl flex items-center justify-center active:rotate-180 transition-transform duration-500">
                <RefreshCw className="w-5 h-5" />
             </button>
           </>
