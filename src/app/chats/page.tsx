@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
 import { useUser } from "@/firebase/auth/use-user"
 import { format } from "date-fns"
 import { clearChatAction, sendMessageAction, markChatAsReadAction, sendGiftAction } from "@/app/actions/matchflow-actions"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useBalance } from "@/lib/providers/BalanceProvider"
 import { startCallAction } from "@/app/actions/call-actions"
@@ -185,7 +185,6 @@ function ChatsContent() {
     const text = newMessage.trim();
     if (!text && !selectedImage) return;
 
-    // Proactive Economic Lock
     const cost = selectedImage ? 30 : 15;
     const isFree = !!(me?.is_admin || me?.is_coin_seller);
     if (me?.gender === 'male' && !isFree && coins < cost) {
@@ -228,7 +227,6 @@ function ChatsContent() {
   const handleCall = async (type: 'video' | 'voice') => {
     if (!currentUser?.id || !startWithId || !chatId || isBlocked) return;
     
-    // Proactive call cost check
     const cost = type === 'video' ? 150 : 70;
     const isFree = !!(me?.is_admin || me?.is_coin_seller);
     if (!isFree && coins < cost) {

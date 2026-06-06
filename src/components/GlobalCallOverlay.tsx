@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,13 +5,12 @@ import { supabase } from '@/lib/supabase';
 import { useUser } from '@/firebase/auth/use-user';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Phone, PhoneOff, User, Maximize2 } from 'lucide-react';
+import { Phone, PhoneOff, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { endCallAction } from '@/app/actions/call-actions';
-import { cn } from '@/lib/utils';
 
 /**
- * @fileOverview Global Ringing Listener and Active Call PIP UI.
+ * @fileOverview Global Ringing Listener and Active Call UI.
  */
 export function GlobalCallOverlay() {
   const { user } = useUser();
@@ -23,7 +21,6 @@ export function GlobalCallOverlay() {
   useEffect(() => {
     if (!user?.id) return;
 
-    // Listen for incoming calls
     const channel = supabase.channel(`incoming-calls-${user.id}`)
       .on('postgres_changes', { 
         event: 'INSERT', 
@@ -60,7 +57,7 @@ export function GlobalCallOverlay() {
 
   const handleDecline = async () => {
     if (!incomingCall) return;
-    await endCallAction(incomingCall.id, 'Rejected');
+    await endCallAction({ callId: incomingCall.id, logReason: 'Rejected' });
     setIncomingCall(null);
   };
 
