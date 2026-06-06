@@ -13,7 +13,7 @@ import { requestWithdrawalAction } from "@/app/actions/matchflow-actions"
 
 /**
  * @fileOverview Agency Member Payout Portal.
- * Economic Protocol: 1 Diamond = 0.08 KES Cash.
+ * Economic Protocol: 1 Diamond = 0.10 KES Cash (Raised from 0.08).
  * Payouts limited to Saturdays.
  */
 
@@ -44,9 +44,9 @@ export default function AgencyMemberPage() {
   const isSaturday = useMemo(() => new Date().getDay() === 6, []);
   const diamondBalance = balances.diamonds
   
-  // Economic Lock: 1 Diamond = 0.08 KES
-  const cashRate = 0.08 
-  const minDiamondsForCash = 12500 // = 1,000 KES
+  // Economic Lock: 1 Diamond = 0.10 KES (Updated Rate)
+  const cashRate = 0.10 
+  const minDiamondsForCash = 10000 // = 1,000 KES
   const expectedKes = (Number(diamondsToUse) * cashRate).toFixed(0)
 
   const handleWithdraw = async () => {
@@ -87,7 +87,7 @@ export default function AgencyMemberPage() {
           {!isSaturday && <div className="p-6 bg-red-50 rounded-[2rem] border border-red-100 flex items-start gap-4"><Calendar className="w-6 h-6 text-red-600 mt-1" /><div className="space-y-1"><p className="text-xs font-black text-red-900 uppercase">Payouts Closed</p><p className="text-[11px] font-bold text-red-700/70 leading-relaxed">System withdrawals are strictly limited to Saturdays. Please return on the weekend.</p></div></div>}
 
           <div className="space-y-6">
-            <div className="space-y-3"><Label className="text-[10px] font-black uppercase text-gray-400 ml-2 tracking-widest">Diamonds to Cash (Min 12.5k)</Label><div className="relative"><Input disabled={!isSaturday} type="number" placeholder="0" value={diamondsToUse} onChange={(e) => setDiamondsToUse(e.target.value)} className="rounded-3xl h-20 pl-16 border-gray-100 bg-gray-50 text-2xl font-black" /><Gem className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-purple-500" /></div></div>
+            <div className="space-y-3"><Label className="text-[10px] font-black uppercase text-gray-400 ml-2 tracking-widest">Diamonds to Cash (Min 10k)</Label><div className="relative"><Input disabled={!isSaturday} type="number" placeholder="0" value={diamondsToUse} onChange={(e) => setDiamondsToUse(e.target.value)} className="rounded-3xl h-20 pl-16 border-gray-100 bg-gray-50 text-2xl font-black" /><Gem className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-purple-500" /></div></div>
             <div className="space-y-3"><Label className="text-[10px] font-black uppercase text-gray-400 ml-2 tracking-widest">Destination M-Pesa</Label><div className="relative"><Input disabled={!isSaturday} type="tel" placeholder="07XX XXX XXX" value={mpesaNumber} onChange={(e) => setMpesaNumber(e.target.value)} className="rounded-3xl h-20 pl-16 border-gray-100 bg-gray-50 text-2xl font-black tracking-widest" /><Smartphone className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-blue-500" /></div></div>
           </div>
 

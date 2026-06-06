@@ -108,7 +108,8 @@ export default function MePage() {
   const isAgent = !!profile?.is_agent
   const isVerified = !!profile?.is_verified
   
-  const isKenyanFemale = profile?.gender === 'female' && profile?.country === 'Kenya'
+  // Verification Lock: Agency features only for verified Kenyan females
+  const isEligibleForAgency = profile?.gender === 'female' && profile?.country === 'Kenya' && isVerified
   const isAgencyMember = profile?.agency_status === 'approved'
   
   const displayPhoto = profile?.photo_url || "https://picsum.photos/seed/qivo/400/400"
@@ -219,7 +220,7 @@ export default function MePage() {
             </section>
           )}
 
-          {isKenyanFemale && (
+          {isEligibleForAgency && (
             <section className="space-y-3">
               <h3 className="text-[10px] font-black text-slate-400 tracking-[0.2em] ml-2 uppercase">Agency</h3>
               <div className="bg-white rounded-[1.5rem] p-1.5 shadow-sm border border-slate-200/60 flex flex-col overflow-hidden">
