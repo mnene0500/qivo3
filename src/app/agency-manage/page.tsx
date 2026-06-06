@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
@@ -61,7 +62,13 @@ export default function AgencyManagePage() {
           const { data } = await supabase.from('users').select('*').eq('agency_id', aid).eq('agency_status', 'approved').limit(100)
           setMembers(data || [])
         } else if (activeTab === 'withdrawals') {
-          const { data } = await supabase.from('withdrawals').select('*').eq('agency_id', aid).eq('status', 'pending').order('timestamp', { ascending: false }).limit(50)
+          // ENSURE FETCHING ALL PENDING WITHDRAWALS FOR THIS AGENCY
+          const { data } = await supabase.from('withdrawals')
+            .select('*')
+            .eq('agency_id', aid)
+            .eq('status', 'pending')
+            .order('timestamp', { ascending: false })
+            .limit(50)
           setWithdrawals(data as any || [])
         }
       }

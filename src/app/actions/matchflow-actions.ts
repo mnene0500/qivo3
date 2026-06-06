@@ -445,6 +445,7 @@ export async function leaveAgencyAction(uid: string) {
 export async function convertDiamondsToCoinsAction(uid: string, diamondAmount: number, coinAmount: number) {
   const supabase = getSupabaseAdmin();
   try {
+    // PASSING NEGATIVE diamondAmount to subtract from current balance
     const { error: dErr } = await supabase.rpc("increment_diamonds", { p_user_id: uid, p_amount: -diamondAmount });
     if (dErr) throw dErr;
     const { error: cErr } = await supabase.rpc("increment_coins", { p_user_id: uid, p_amount: coinAmount });
