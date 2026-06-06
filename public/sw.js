@@ -1,48 +1,51 @@
 /**
- * QIVO Service Worker for Web Push Notifications.
- * Listens for 'push' events and displays system alerts.
+ * QIVO Production Service Worker
+ * Handles background push notifications and deep-linking.
  */
 
 self.addEventListener('push', function(event) {
-  if (event.data) {
-    const payload = event.data.json();
-    
+  if (!event.data) return;
+
+  try {
+    const data = event.data.json();
     const options = {
-      body: payload.body,
+      body: data.body || 'New interaction on QIVO',
       icon: '/icon-192.png',
       badge: '/notification.png',
       vibrate: [100, 50, 100],
       data: {
-        url: payload.url || '/'
+        url: data.url || '/'
       },
       actions: [
-        { action: 'open', title: 'View' }
+        { action: 'open', title: 'View Now' }
       ]
     };
 
     event.waitUntil(
-      self.registration.showNotification(payload.title, options)
+      self.registration.showNotification(data.title || 'QIVO', options)
     );
+  } catch (err) {
+    console.error('Push handling error:', err);
   }
 });
 
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
-  
-  const urlToOpen = event.notification.data.url;
+
+  const targetUrl = event.notification.data.url;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
-      if (clientList.length > 0) {
-        let client = clientList[0];
-        for (let i = 0; i < clientList.length; i++) {
-          if (clientList[i].focused) {
-            client = clientList[i];
-          }
+      // If a window is already open, focus it and navigate
+      for (const client of clientList) {
+        if (client.url === targetUrl && 'focus' in client) {
+          return client.focus();
         }
-        return client.focus().then(() => client.navigate(urlToOpen));
       }
-      return clients.openWindow(urlToOpen);
+      // Otherwise open a new window
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
     })
   );
 });

@@ -12,48 +12,48 @@ export function PushNotificationManager() {
   const { user } = useUser()
 
   useEffect(() => {
+    // Only run if user is logged in and browser supports push
     if (!user?.id || typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
       return
     }
 
     const initPush = async () => {
       try {
-        // 1. Check/Request Permission
-        let permission = Notification.permission;
-        if (permission === 'default') {
-          permission = await Notification.requestPermission();
-        }
-
+        // 1. Request Permission explicitly
+        const permission = await Notification.requestPermission();
+        
         if (permission !== 'granted') {
-          console.warn("[Push Manager]: Notification permission denied.");
+          console.warn("[Push Manager]: Permission denied by user.");
           return;
         }
 
-        // 2. Wait for service worker to be ready
+        // 2. Wait for Service Worker registration (from layout.tsx)
         const registration = await navigator.serviceWorker.ready;
         
-        // 3. Check for existing subscription
+        // 3. Get/Create Subscription
+        const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!vapidPublicKey) {
+          console.error("[Push Manager]: Missing NEXT_PUBLIC_VAPID_PUBLIC_KEY");
+          return;
+        }
+
         let subscription = await registration.pushManager.getSubscription();
 
-        // 4. Subscribe if not already subscribed
-        const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-        
-        if (!subscription && vapidPublicKey) {
+        if (!subscription) {
           subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
           });
         }
 
-        // 5. Save to database
-        if (subscription) {
-          const subJson = subscription.toJSON();
-          if (subJson.endpoint) {
-            await savePushSubscriptionAction(user.id, subJson.endpoint, subJson);
-          }
+        // 4. Update Server
+        const subJson = subscription.toJSON();
+        if (subJson.endpoint) {
+          await savePushSubscriptionAction(user.id, subJson.endpoint, subJson);
+          console.log("[Push Manager]: Subscription synced with server.");
         }
       } catch (err) {
-        console.error("[Push Subscription Error]:", err);
+        console.error("[Push Manager]: Initialization failed:", err);
       }
     }
 
