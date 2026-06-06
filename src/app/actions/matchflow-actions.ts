@@ -254,7 +254,7 @@ export async function sendMysteryNoteAction(userId: string, text: string, recipi
     const { data: recipients } = await query.limit(finalCount);
 
     if (!recipients || recipients.length < finalCount) {
-      return { success: false, error: "Not enough users of the opposite gender available at this moment." };
+      return { success: false, error: "Not enough users." };
     }
 
     await supabase.rpc("increment_coins", { p_user_id: userId, p_amount: -cost });
