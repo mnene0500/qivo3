@@ -6,12 +6,24 @@ import { supabase } from "@/lib/supabase"
 import { useUser } from "@/firebase/auth/use-user"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, Check, X, Loader2, User, Users, Briefcase, Banknote, MessageSquare, Copy, Smartphone } from "lucide-react"
+import { ChevronLeft, Check, X, Loader2, User, Users, Briefcase, Banknote, MessageSquare, Copy, Smartphone, Trash2, Settings, ShieldAlert } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
-import { reviewRecruitmentAction, updateWithdrawalStatusAction } from "@/app/actions/matchflow-actions"
+import { reviewRecruitmentAction, updateWithdrawalStatusAction, deleteAgencyAction } from "@/app/actions/matchflow-actions"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
+import { Input } from "@/components/ui/input"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface UserProfile {
   uid: string
@@ -32,19 +44,27 @@ interface WithdrawalRequest {
   timestamp: number
 }
 
+interface Agency {
+  code: string
+  name: string
+  agent_uid: string
+}
+
 export default function AgencyManagePage() {
   const router = useRouter()
   const { user, isInitialized } = useUser()
   const { toast } = useToast()
   
-  const [activeTab, setActiveTab] = useState<'members' | 'withdrawals' | 'recruitment'>('members')
+  const [activeTab, setActiveTab] = useState<'members' | 'withdrawals' | 'recruitment' | 'settings'>('members')
   const [isProcessing, setIsProcessing] = useState(false)
   const [loading, setLoading] = useState(true)
   
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [agency, setAgency] = useState<Agency | null>(null)
   const [applicants, setApplicants] = useState<UserProfile[]>([])
   const [members, setMembers] = useState<UserProfile[]>([])
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([])
+  const [deleteConfirmName, setDeleteConfirmName] = useState("")
 
   const fetchData = useCallback(async () => {
     if (!user?.id) return
@@ -55,6 +75,9 @@ export default function AgencyManagePage() {
       setProfile(p)
       const aid = p.agency_id
       if (aid) {
+        const { data: a } = await supabase.from('agencies').select('*').eq('code', aid).single()
+        setAgency(a)
+
         if (activeTab === 'recruitment') {
           const { data } = await supabase.from('users').select('*').eq('agency_id', aid).eq('agency_status', 'pending')
           setApplicants(data || [])
@@ -62,7 +85,6 @@ export default function AgencyManagePage() {
           const { data } = await supabase.from('users').select('*').eq('agency_id', aid).eq('agency_status', 'approved').limit(100)
           setMembers(data || [])
         } else if (activeTab === 'withdrawals') {
-          // ENSURE FETCHING ALL PENDING WITHDRAWALS FOR THIS AGENCY
           const { data } = await supabase.from('withdrawals')
             .select('*')
             .eq('agency_id', aid)
@@ -123,6 +145,24 @@ export default function AgencyManagePage() {
     }
   }
 
+  const handleDeleteAgency = async () => {
+    if (!user || !agency || deleteConfirmName !== agency.name) return
+    setIsProcessing(true)
+    try {
+      const res = await deleteAgencyAction(user.id, agency.code)
+      if (res.success) {
+        toast({ title: "Agency Dissolved" })
+        router.replace('/profile')
+      } else {
+        toast({ variant: "destructive", title: "Action Failed", description: res.error })
+      }
+    } catch (e) {
+      toast({ variant: "destructive", title: "System Error" })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   if (loading) return <div className="flex-1 flex items-center justify-center min-h-screen bg-white"><Loader2 className="animate-spin text-[#00A2FF] w-8 h-8" /></div>
 
   return (
@@ -137,7 +177,8 @@ export default function AgencyManagePage() {
         {[
           { id: 'members', label: 'Members', icon: Users }, 
           { id: 'withdrawals', label: 'Payouts', icon: Banknote }, 
-          { id: 'recruitment', label: 'Requests', icon: Briefcase }
+          { id: 'recruitment', label: 'Requests', icon: Briefcase },
+          { id: 'settings', label: 'Settings', icon: Settings }
         ].map((tab) => (
           <button 
             key={tab.id} 
@@ -253,6 +294,67 @@ export default function AgencyManagePage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="space-y-8 animate-in fade-in">
+             <div className="p-8 bg-white border border-black/5 rounded-[3rem] shadow-sm space-y-4">
+                <div className="flex items-center gap-4">
+                   <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-inner">
+                      <Briefcase className="w-7 h-7" />
+                   </div>
+                   <div>
+                     <h3 className="font-black text-lg text-black uppercase tracking-tight">{agency?.name}</h3>
+                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Invite Code: {agency?.code}</p>
+                   </div>
+                </div>
+             </div>
+
+             <div className="p-8 bg-red-50 rounded-[3rem] border border-red-100 space-y-6">
+                <div className="flex items-center gap-3 text-red-600">
+                   <Trash2 className="w-5 h-5" />
+                   <h4 className="text-xs font-black uppercase tracking-widest">Danger Zone</h4>
+                </div>
+                <p className="text-[11px] font-medium text-red-800/60 leading-relaxed">
+                  Deleting your agency will instantly release all members and cancel all pending payout requests. This action is permanent.
+                </p>
+
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" className="w-full h-16 rounded-2xl bg-white text-red-600 font-black uppercase tracking-widest text-[10px] border border-red-100 shadow-sm active:scale-95 transition-all">
+                      Dissolve Agency
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="rounded-[2.5rem] p-10 border-none shadow-2xl">
+                    <AlertDialogHeader className="items-center text-center">
+                       <ShieldAlert className="w-16 h-16 text-red-500 mb-4" />
+                       <AlertDialogTitle className="text-xl font-black uppercase tracking-tight">Confirm Dissolution</AlertDialogTitle>
+                       <AlertDialogDescription className="text-xs font-medium text-gray-400 pt-1">
+                         To proceed, please type your agency name: <span className="text-red-600 font-black">"{agency?.name}"</span>
+                       </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="py-6">
+                       <Input 
+                         placeholder="Enter Agency Name" 
+                         value={deleteConfirmName} 
+                         onChange={(e) => setDeleteConfirmName(e.target.value)}
+                         className="rounded-2xl h-16 text-center font-black bg-gray-50 border-gray-100 text-lg uppercase tracking-widest"
+                       />
+                    </div>
+                    <AlertDialogFooter className="flex flex-col gap-3">
+                       <AlertDialogAction 
+                         onClick={handleDeleteAgency} 
+                         disabled={deleteConfirmName !== agency?.name || isProcessing}
+                         className="h-16 rounded-2xl bg-red-600 text-white font-black uppercase text-xs tracking-widest shadow-xl shadow-red-100"
+                       >
+                         {isProcessing ? <Loader2 className="animate-spin" /> : "Confirm Deletion"}
+                       </AlertDialogAction>
+                       <AlertDialogCancel className="h-14 rounded-2xl border-none bg-gray-50 font-black uppercase text-[10px]">Cancel</AlertDialogCancel>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+             </div>
           </div>
         )}
       </main>

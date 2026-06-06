@@ -367,7 +367,10 @@ export async function toggleUserRoleAction(adminUid: string, targetMatchFlowId: 
   try {
     const { data: admin } = await supabase.from('users').select('is_admin').eq('uid', adminUid).single();
     if (!admin?.is_admin) throw new Error("Unauthorized");
-    await supabase.from('users').update({ [role]: value }).eq('match_flow_id', targetMatchFlowId);
+    
+    const { error } = await supabase.from('users').update({ [role]: value }).eq('match_flow_id', targetMatchFlowId);
+    if (error) throw error;
+    
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message };
@@ -414,6 +417,22 @@ export async function createAgencyAction(uid: string, name: string) {
     const code = Math.floor(10000 + Math.random() * 90000).toString();
     await supabase.from('agencies').insert({ code, agent_uid: uid, name });
     await supabase.from('users').update({ is_agent: true, agency_id: code, agency_status: 'approved' }).eq('uid', uid);
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteAgencyAction(uid: string, agencyCode: string) {
+  const supabase = getSupabaseAdmin();
+  try {
+    // This will trigger tr_sync_agent_status and tr_on_agency_delete SQL firewalls
+    const { error } = await supabase.from('agencies').delete().eq('code', agencyCode).eq('agent_uid', uid);
+    if (error) throw error;
+    
+    // Also remove the agent role from the user
+    await supabase.from('users').update({ is_agent: false, agency_id: null, agency_status: null }).eq('uid', uid);
+    
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message };
