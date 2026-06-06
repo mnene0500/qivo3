@@ -50,6 +50,8 @@ interface Agency {
   agent_uid: string
 }
 
+const PAGE_SIZE = 20;
+
 export default function AgencyManagePage() {
   const router = useRouter()
   const { user, isInitialized } = useUser()
@@ -58,44 +60,105 @@ export default function AgencyManagePage() {
   const [activeTab, setActiveTab] = useState<'members' | 'withdrawals' | 'recruitment' | 'settings'>('members')
   const [isProcessing, setIsProcessing] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [agency, setAgency] = useState<Agency | null>(null)
   const [applicants, setApplicants] = useState<UserProfile[]>([])
+  
   const [members, setMembers] = useState<UserProfile[]>([])
+  const [membersPage, setMembersPage] = useState(0)
+  const [hasMoreMembers, setHasMoreMembers] = useState(true)
+
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([])
+  const [withdrawalsPage, setWithdrawalsPage] = useState(0)
+  const [hasMoreWithdrawals, setHasMoreWithdrawals] = useState(true)
+
   const [deleteConfirmName, setDeleteConfirmName] = useState("")
+
+  const fetchMembers = async (pageNum = 0, aid: string) => {
+    if (pageNum === 0) setLoading(true)
+    else setLoadingMore(true)
+
+    const from = pageNum * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    const { data } = await supabase
+      .from('users')
+      .select('*')
+      .eq('agency_id', aid)
+      .eq('agency_status', 'approved')
+      .order('name', { ascending: true })
+      .range(from, to)
+
+    if (data) {
+      if (pageNum === 0) setMembers(data)
+      else setMembers(prev => [...prev, ...data])
+      setHasMoreMembers(data.length === PAGE_SIZE)
+    }
+    setLoading(false)
+    setLoadingMore(false)
+  }
+
+  const fetchWithdrawals = async (pageNum = 0, aid: string) => {
+    if (pageNum === 0) setLoading(true)
+    else setLoadingMore(true)
+
+    const from = pageNum * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    const { data } = await supabase
+      .from('withdrawals')
+      .select('*')
+      .eq('agency_id', aid)
+      .eq('status', 'pending')
+      .order('timestamp', { ascending: false })
+      .range(from, to)
+
+    if (data) {
+      if (pageNum === 0) setWithdrawals(data as any)
+      else setWithdrawals(prev => [...prev, ...(data as any)])
+      setHasMoreWithdrawals(data.length === PAGE_SIZE)
+    }
+    setLoading(false)
+    setLoadingMore(false)
+  }
+
+  const fetchApplicants = async (aid: string) => {
+    setLoading(true)
+    const { data } = await supabase.from('users').select('*').eq('agency_id', aid).eq('agency_status', 'pending')
+    setApplicants(data || [])
+    setLoading(false)
+  }
 
   const fetchData = useCallback(async () => {
     if (!user?.id) return
-    setLoading(true)
-
+    
+    // 1. Resolve Profile & Agency first
     const { data: p } = await supabase.from('users').select('*').eq('uid', user.id).single()
-    if (p) {
-      setProfile(p)
-      const aid = p.agency_id
-      if (aid) {
-        const { data: a } = await supabase.from('agencies').select('*').eq('code', aid).single()
-        setAgency(a)
-
-        if (activeTab === 'recruitment') {
-          const { data } = await supabase.from('users').select('*').eq('agency_id', aid).eq('agency_status', 'pending')
-          setApplicants(data || [])
-        } else if (activeTab === 'members') {
-          const { data } = await supabase.from('users').select('*').eq('agency_id', aid).eq('agency_status', 'approved').limit(100)
-          setMembers(data || [])
-        } else if (activeTab === 'withdrawals') {
-          const { data } = await supabase.from('withdrawals')
-            .select('*')
-            .eq('agency_id', aid)
-            .eq('status', 'pending')
-            .order('timestamp', { ascending: false })
-            .limit(50)
-          setWithdrawals(data as any || [])
-        }
-      }
+    if (!p || !p.agency_id) {
+        setLoading(false)
+        return
     }
-    setLoading(false)
+
+    setProfile(p)
+    const aid = p.agency_id
+    
+    const { data: a } = await supabase.from('agencies').select('*').eq('code', aid).single()
+    setAgency(a)
+
+    // 2. Initial load for the active tab
+    if (activeTab === 'recruitment') {
+        fetchApplicants(aid)
+    } else if (activeTab === 'members') {
+        setMembersPage(0)
+        fetchMembers(0, aid)
+    } else if (activeTab === 'withdrawals') {
+        setWithdrawalsPage(0)
+        fetchWithdrawals(0, aid)
+    } else {
+        setLoading(false)
+    }
   }, [user?.id, activeTab])
 
   useEffect(() => {
@@ -103,6 +166,20 @@ export default function AgencyManagePage() {
       fetchData()
     }
   }, [activeTab, isInitialized, user?.id, fetchData])
+
+  const handleLoadMoreMembers = () => {
+    if (!profile?.agency_id) return
+    const nextPage = membersPage + 1
+    setMembersPage(nextPage)
+    fetchMembers(nextPage, profile.agency_id)
+  }
+
+  const handleLoadMoreWithdrawals = () => {
+    if (!profile?.agency_id) return
+    const nextPage = withdrawalsPage + 1
+    setWithdrawalsPage(nextPage)
+    fetchWithdrawals(nextPage, profile.agency_id)
+  }
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text)
@@ -117,6 +194,7 @@ export default function AgencyManagePage() {
       if (res.success) {
         toast({ title: status === 'approved' ? "Member Approved" : "Applicant Rejected" })
         setApplicants(prev => prev.filter(a => a.uid !== applicantUid))
+        if (status === 'approved') fetchData() // Refresh members list if on that tab
       } else {
         toast({ variant: "destructive", title: "Error", description: res.error })
       }
@@ -163,7 +241,7 @@ export default function AgencyManagePage() {
     }
   }
 
-  if (loading) return <div className="flex-1 flex items-center justify-center min-h-screen bg-white"><Loader2 className="animate-spin text-[#00A2FF] w-8 h-8" /></div>
+  if (loading && members.length === 0 && withdrawals.length === 0 && applicants.length === 0) return <div className="flex-1 flex items-center justify-center min-h-screen bg-white"><Loader2 className="animate-spin text-[#00A2FF] w-8 h-8" /></div>
 
   return (
     <div className="flex-1 bg-white min-h-screen flex flex-col select-none animate-in fade-in duration-300">
@@ -234,25 +312,43 @@ export default function AgencyManagePage() {
             </div>
             
             <div className="space-y-3">
-              <h2 className="text-[9px] font-black uppercase text-gray-400 tracking-[0.3em] ml-2">Active Team</h2>
+              <div className="flex items-center justify-between px-2">
+                 <h2 className="text-[9px] font-black uppercase text-gray-400 tracking-[0.3em]">Active Team</h2>
+                 <span className="text-[8px] font-black text-gray-300 uppercase">{members.length} / 500</span>
+              </div>
               <div className="space-y-3">
-                {members.length === 0 ? (
+                {members.length === 0 && !loading ? (
                   <div className="py-20 text-center opacity-30 text-[10px] font-black uppercase tracking-widest">No active members</div>
                 ) : (
-                  members.map(member => (
-                    <div key={member.uid} className="flex items-center justify-between p-5 bg-white border rounded-[2rem] shadow-sm">
-                      <div className="flex items-center gap-4">
-                        <Avatar className="w-12 h-12 border border-slate-100 shadow-sm">
-                          <AvatarImage src={member.photo_url} className="object-cover" />
-                          <AvatarFallback><User /></AvatarFallback>
-                        </Avatar>
-                        <span className="font-black text-sm text-slate-900 tracking-tight">{member.name}</span>
+                  <>
+                    {members.map(member => (
+                      <div key={member.uid} className="flex items-center justify-between p-5 bg-white border rounded-[2rem] shadow-sm">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="w-12 h-12 border border-slate-100 shadow-sm">
+                            <AvatarImage src={member.photo_url} className="object-cover" />
+                            <AvatarFallback><User /></AvatarFallback>
+                          </Avatar>
+                          <span className="font-black text-sm text-slate-900 tracking-tight">{member.name}</span>
+                        </div>
+                        <Button size="icon" variant="ghost" onClick={() => router.push(`/chats?startWith=${member.uid}`)} className="rounded-full bg-slate-50 text-[#00A2FF] h-10 w-10 active:scale-90 transition-transform">
+                          <MessageSquare className="w-4 h-4" />
+                        </Button>
                       </div>
-                      <Button size="icon" variant="ghost" onClick={() => router.push(`/chats?startWith=${member.uid}`)} className="rounded-full bg-slate-50 text-[#00A2FF] h-10 w-10 active:scale-90 transition-transform">
-                        <MessageSquare className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))
+                    ))}
+                    {hasMoreMembers && (
+                      <div className="pt-4 flex justify-center">
+                        <Button 
+                          onClick={handleLoadMoreMembers} 
+                          disabled={loadingMore} 
+                          variant="ghost" 
+                          className="h-12 px-8 rounded-full border border-gray-100 text-[10px] font-black uppercase tracking-widest text-gray-400"
+                        >
+                          {loadingMore ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                          Load More Members
+                        </Button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -261,39 +357,56 @@ export default function AgencyManagePage() {
 
         {activeTab === 'withdrawals' && (
           <div className="space-y-4">
-            {withdrawals.length === 0 ? (
+            {withdrawals.length === 0 && !loading ? (
               <div className="py-32 text-center opacity-30 px-12 text-center space-y-4">
                  <Banknote className="w-12 h-12 mx-auto text-gray-300" />
                  <p className="font-black text-[10px] uppercase tracking-widest">No Pending Payouts</p>
               </div>
-            ) : withdrawals.map(req => (
-              <div key={req.id} className="p-6 bg-white border rounded-[2.5rem] shadow-xl space-y-6 animate-in slide-in-from-bottom-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-black text-xs uppercase tracking-widest text-slate-400 mb-1">Requester UID</h4>
-                    <p className="font-black text-sm text-black font-mono tracking-tighter">#{req.user_id.slice(0, 8).toUpperCase()}</p>
-                    <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mt-2">{format(new Date(Number(req.timestamp)), "MMM d, HH:mm")}</p>
-                  </div>
-                  <div className="text-right cursor-pointer" onClick={() => handleCopy(req.amount_kes.toString(), "Amount")}>
-                    <p className="text-2xl font-black text-green-600 tracking-tighter">Ksh {req.amount_kes}</p>
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">{req.diamonds} Diamonds</p>
-                  </div>
-                </div>
-                
-                <div className="p-5 bg-gray-50 rounded-2xl border border-black/[0.03] flex items-center justify-between cursor-pointer active:bg-gray-100 transition-colors" onClick={() => handleCopy(req.mpesa_number, "M-Pesa Number")}>
-                  <div>
-                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><Smartphone className="w-2.5 h-2.5" /> Destination M-Pesa</p>
-                    <p className="text-lg font-black text-black tracking-[0.1em]">{req.mpesa_number || "---"}</p>
-                  </div>
-                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-[#00A2FF] shadow-sm"><Copy className="w-4 h-4" /></div>
-                </div>
+            ) : (
+              <>
+                {withdrawals.map(req => (
+                  <div key={req.id} className="p-6 bg-white border rounded-[2.5rem] shadow-xl space-y-6 animate-in slide-in-from-bottom-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-black text-xs uppercase tracking-widest text-slate-400 mb-1">Requester UID</h4>
+                        <p className="font-black text-sm text-black font-mono tracking-tighter">#{req.user_id.slice(0, 8).toUpperCase()}</p>
+                        <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mt-2">{format(new Date(Number(req.timestamp)), "MMM d, HH:mm")}</p>
+                      </div>
+                      <div className="text-right cursor-pointer" onClick={() => handleCopy(req.amount_kes.toString(), "Amount")}>
+                        <p className="text-2xl font-black text-green-600 tracking-tighter">Ksh {req.amount_kes}</p>
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">{req.diamonds} Diamonds</p>
+                      </div>
+                    </div>
+                    
+                    <div className="p-5 bg-gray-50 rounded-2xl border border-black/[0.03] flex items-center justify-between cursor-pointer active:bg-gray-100 transition-colors" onClick={() => handleCopy(req.mpesa_number, "M-Pesa Number")}>
+                      <div>
+                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><Smartphone className="w-2.5 h-2.5" /> Destination M-Pesa</p>
+                        <p className="text-lg font-black text-black tracking-[0.1em]">{req.mpesa_number || "---"}</p>
+                      </div>
+                      <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-[#00A2FF] shadow-sm"><Copy className="w-4 h-4" /></div>
+                    </div>
 
-                <div className="flex gap-3 pt-2">
-                  <Button disabled={isProcessing} onClick={() => handleWithdrawalReview(req.id, 'paid')} className="flex-1 bg-black text-white font-black h-14 rounded-2xl uppercase tracking-widest text-[10px] shadow-lg active:scale-95 transition-all">Confirm Payment</Button>
-                  <Button disabled={isProcessing} onClick={() => handleWithdrawalReview(req.id, 'rejected')} variant="ghost" className="flex-1 text-red-500 font-black h-14 rounded-2xl uppercase tracking-widest text-[10px] hover:bg-red-50 active:scale-95 transition-all">Reject</Button>
-                </div>
-              </div>
-            ))}
+                    <div className="flex gap-3 pt-2">
+                      <Button disabled={isProcessing} onClick={() => handleWithdrawalReview(req.id, 'paid')} className="flex-1 bg-black text-white font-black h-14 rounded-2xl uppercase tracking-widest text-[10px] shadow-lg active:scale-95 transition-all">Confirm Payment</Button>
+                      <Button disabled={isProcessing} onClick={() => handleWithdrawalReview(req.id, 'rejected')} variant="ghost" className="flex-1 text-red-500 font-black h-14 rounded-2xl uppercase tracking-widest text-[10px] hover:bg-red-50 active:scale-95 transition-all">Reject</Button>
+                    </div>
+                  </div>
+                ))}
+                {hasMoreWithdrawals && (
+                  <div className="pt-4 flex justify-center">
+                    <Button 
+                      onClick={handleLoadMoreWithdrawals} 
+                      disabled={loadingMore} 
+                      variant="ghost" 
+                      className="h-12 px-8 rounded-full border border-gray-100 text-[10px] font-black uppercase tracking-widest text-gray-400"
+                    >
+                      {loadingMore ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                      Load More Payouts
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 

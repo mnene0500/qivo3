@@ -444,6 +444,18 @@ export async function joinAgencyAction(uid: string, code: string) {
   try {
     const { data: agency } = await supabase.from('agencies').select('code').eq('code', code).maybeSingle();
     if (!agency) throw new Error("Invalid Agency Code");
+
+    // ENFORCE 500 MEMBER LIMIT (Approved members only)
+    const { count, error: countErr } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+      .eq('agency_id', code)
+      .eq('agency_status', 'approved');
+    
+    if (count !== null && count >= 500) {
+      throw new Error("This agency has reached its maximum capacity of 500 members.");
+    }
+
     await supabase.from('users').update({ agency_id: code, agency_status: 'pending' }).eq('uid', uid);
     return { success: true };
   } catch (err: any) {
