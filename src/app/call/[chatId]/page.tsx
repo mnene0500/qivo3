@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState, useRef, use } from "react"
@@ -9,16 +10,18 @@ import { generateAgoraTokenAction, deductCallCoinsAction, endCallAction } from "
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/hooks/use-toast"
 
 /**
  * @fileOverview Hardened Video/Voice Call Screen.
- * Optimized: Timer visibility, per-minute billing, and optimized audio track for voice calls.
+ * Optimized: Timer visibility, proactive billing, and earpiece audio routing for voice.
  */
 export default function CallPage({ params }: { params: Promise<{ chatId: string }> }) {
   const { chatId } = use(params)
   const searchParams = useSearchParams()
   const router = useRouter()
   const { user } = useUser()
+  const { toast } = useToast()
 
   const type = searchParams.get("type") as 'video' | 'voice'
   const partnerId = searchParams.get("partnerId")
@@ -84,7 +87,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
   /**
    * PROACTIVE BILLING ENGINE.
    * Deducts coins at the START of each minute (Pay-Before-You-Play).
-   * If deduction fails, call is terminated immediately.
+   * If deduction fails (Insufficient Coins), call is terminated immediately.
    */
   useEffect(() => {
     if (joined && remoteUser && user?.id && partnerId) {
@@ -103,6 +106,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
           if (!res.success) {
             if (billingTimer.current) clearInterval(billingTimer.current);
             if (mounted.current) {
+              toast({ variant: "destructive", title: "Insufficient Coins", description: "Recharge to continue the conversation." });
               handleEndCall(true, 'Insufficient Coins');
             }
             return;
@@ -116,7 +120,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
       }, 1000)
     }
     return () => { if (billingTimer.current) clearInterval(billingTimer.current) }
-  }, [joined, !!remoteUser, user?.id, partnerId, type])
+  }, [joined, !!remoteUser, user?.id, partnerId, type, toast])
 
   useEffect(() => {
     const init = async () => {
@@ -144,7 +148,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
 
         client.on("user-left", () => { if (mounted.current) handleEndCall(false) })
 
-        // Audio Track Optimization for Voice Calls (Signaling to OS for Earpiece)
+        // Audio Track Optimization for Voice Calls (Signals OS for Earpiece)
         const audioTrack = await AgoraRTC.createMicrophoneAudioTrack({
           encoderConfig: type === 'voice' ? "speech_standard" : "music_standard"
         }).catch(e => {
@@ -250,7 +254,6 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
 
   return (
     <div className="fixed inset-0 bg-black z-[100] flex flex-col overflow-hidden select-none">
-      {/* REMOTE FEED / BACKGROUND */}
       <div className="absolute inset-0 z-0">
         {type === 'video' && remoteUser ? <div ref={remoteVideoRef} className="w-full h-full bg-black" /> : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900">
@@ -269,7 +272,6 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
         )}
       </div>
 
-      {/* FLOATING STATUS BADGE (Top Center) */}
       {remoteUser && (
         <div className="absolute top-12 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4">
           <div className="px-6 py-2.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full flex items-center gap-3 shadow-2xl">
@@ -279,7 +281,6 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
         </div>
       )}
 
-      {/* LOCAL VIDEO (PIP) - MIRRORED */}
       {type === 'video' && (
         <div className={cn(
           "absolute transition-all duration-500 overflow-hidden border-2 border-white/20 shadow-2xl z-20", 
@@ -294,7 +295,6 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
         </div>
       )}
 
-      {/* CONTROLS */}
       <div className="absolute bottom-12 inset-x-0 px-6 flex flex-wrap items-center justify-center gap-3 z-50">
         <button onClick={() => { setMuted(!muted); rtc.current.localAudioTrack?.setEnabled(muted); }} className={cn("w-14 h-14 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl flex items-center justify-center", muted ? "bg-red-500" : "bg-white/10 text-white")}>
           {muted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}

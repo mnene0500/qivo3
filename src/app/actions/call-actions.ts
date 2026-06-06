@@ -7,6 +7,7 @@ import webpush from 'web-push';
 
 /**
  * @fileOverview Hardened Agora Token Generation and Billing Engine.
+ * Optimized: Proactive balance checks and atomic per-minute deductions.
  */
 
 if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
@@ -120,7 +121,6 @@ export async function startCallAction(chatId: string, callerId: string, receiver
 
     if (error) throw error;
 
-    // Send Push Notification for Incoming Call
     sendPushToUser(receiverId, {
       title: `Incoming ${type === 'video' ? 'Video' : 'Voice'} Call`,
       body: `${caller?.name || 'Someone'} is calling you on QIVO...`,
@@ -197,7 +197,8 @@ export async function endCallAction(payload: {
 
 /**
  * Hardened Coin Deduction for Active Calls.
- * Proactively checks balance before attempting atomic transaction.
+ * Proactively checks balance BEFORE attempting atomic transaction.
+ * If balance is even 1 coin less than required, it returns an error.
  */
 export async function deductCallCoinsAction(uid: string, type: 'video' | 'voice', partnerId: string) {
   const supabase = getSupabaseAdmin();
@@ -207,13 +208,15 @@ export async function deductCallCoinsAction(uid: string, type: 'video' | 'voice'
 
     const cost = type === 'video' ? 150 : 70;
     
-    // 1. Proactive Balance Check
+    // 1. Proactive Strict Balance Check
     const { data: bal } = await supabase.from('balances').select('coins').eq('user_id', uid).single();
-    if ((Number(bal?.coins) || 0) < cost) {
+    const currentCoins = Number(bal?.coins) || 0;
+    
+    if (currentCoins < cost) {
       return { success: false, error: "Insufficient Coins" };
     }
 
-    // 2. Atomic Transaction
+    // 2. Atomic Transaction (Locked to fail if balance constraint is hit)
     const { error: deductError } = await supabase.rpc("increment_coins", { p_user_id: uid, p_amount: -cost });
     if (deductError) return { success: false, error: "Insufficient Coins" };
 

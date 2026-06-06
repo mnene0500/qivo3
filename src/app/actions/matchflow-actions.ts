@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getSupabaseAdmin } from '@/lib/supabase';
@@ -6,11 +7,9 @@ import { headers } from 'next/headers';
 
 /**
  * @fileOverview Definitive Server Actions for QIVO Production.
- * Optimized atomic operations for Messaging, Economy, Gaming, and Social.
- * All sensitive operations now use the Admin Client (Service Role) to bypass RLS and triggers.
+ * Optimized atomic operations with strict economic locks.
  */
 
-// Configure Web Push with Vercel Variables
 if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
     'mailto:support@qivo.com',
@@ -28,7 +27,6 @@ async function sendPushToUser(userId: string, payload: { title: string; body: st
   const pushPromises = subs.map(sub => 
     webpush.sendNotification(sub.subscription_json as any, JSON.stringify(payload)).catch(err => {
       if (err.statusCode === 410 || err.statusCode === 404) {
-        // Remove expired subscription
         return supabase.from('push_subscriptions').delete().eq('endpoint', (sub.subscription_json as any).endpoint);
       }
     })
@@ -39,7 +37,7 @@ async function sendPushToUser(userId: string, payload: { title: string; body: st
 
 function filterSensitiveContent(text: string): string {
   const sensitivePatterns = [
-    /\d{3,}/g, // Strictly block sequences of 3+ digits (Phone numbers/Scams)
+    /\d{3,}/g, 
     /\b(fuck|bitch|idiot|stupid|scam|fraud|malaya|pumbavu|nguruwe)\b/gi 
   ];
   let filtered = text;
@@ -67,21 +65,18 @@ export async function completeOnboardingAction(payload: {
   const clientIp = forwarded ? forwarded.split(',')[0] : '0.0.0.0';
 
   try {
-    // 1. SECURITY: Check IP Ban (Users on banned IPs cannot create ANY new accounts)
     const { data: ban } = await supabase.from('banned_ips').select('ip').eq('ip', clientIp).maybeSingle();
-    if (ban) throw new Error("Access denied. Your network has been restricted due to policy violations.");
+    if (ban) throw new Error("Access denied. Network restricted.");
 
-    // 2. SECURITY: Check Account Limit (Max 3 per IP)
     const { count: ipAccCount } = await supabase
       .from('users')
       .select('*', { count: 'exact', head: true })
       .eq('registration_ip', clientIp);
     
     if (ipAccCount !== null && ipAccCount >= 3) {
-      throw new Error("Device limit reached. You cannot create more than 3 accounts.");
+      throw new Error("Device limit reached.");
     }
 
-    // 3. ONBOARDING: Create/Update Profile
     const { error } = await supabase.from('users').upsert({
       uid: payload.uid,
       email: payload.email,
@@ -99,7 +94,6 @@ export async function completeOnboardingAction(payload: {
 
     if (error) throw error;
 
-    // 4. ECONOMY: Reward logic (Strictly ONLY for the first account ever created on this IP)
     const { data: existingReward } = await supabase
       .from('ip_rewards')
       .select('ip')
@@ -109,10 +103,7 @@ export async function completeOnboardingAction(payload: {
     let bonus = 0;
     if (!existingReward) {
       bonus = 300;
-      // Mark IP as rewarded immediately to prevent race conditions
       await supabase.from('ip_rewards').insert({ ip: clientIp });
-      
-      // Award coins to the user
       await supabase.rpc("increment_coins", { p_user_id: payload.uid, p_amount: bonus });
       await supabase.from('users').update({ claimed_welcome_reward: true }).eq('uid', payload.uid);
       
@@ -168,7 +159,6 @@ export async function sendMessageAction(payload: { chatId: string; senderId: str
     }
 
     const { data: balance } = await supabase.from('balances').select('coins').eq('user_id', payload.senderId).maybeSingle();
-    
     const cost = isImage ? 30 : 15;
     const isFree = !!(sender?.is_admin || sender?.is_coin_seller);
 
@@ -183,7 +173,6 @@ export async function sendMessageAction(payload: { chatId: string; senderId: str
     await supabase.from('chats').upsert({ id: payload.chatId, last_message: safeText.slice(0, 100), last_message_at: timestamp, participant_ids: [payload.senderId, payload.recipientId], last_sender_id: payload.senderId, updated_at: new Date().toISOString() });
     await supabase.from('messages').insert({ chat_id: payload.chatId, text: safeText, sender_id: payload.senderId, timestamp, image_url: payload.imageUrl || null });
 
-    // Send Push Notification
     sendPushToUser(payload.recipientId, {
       title: sender?.name || "New Message",
       body: safeText,
@@ -205,9 +194,9 @@ export async function sendGiftAction(senderUid: string, recipientUid: string, co
 
     if (!isFree) {
       const { data: balance } = await supabase.from('balances').select('coins').eq('user_id', senderUid).maybeSingle();
-      if ((Number(balance?.coins) || 0) < coinAmount) throw new Error("insufficient_funds");
+      if ((Number(balance?.coins) || 0) < coinAmount) return { success: false, error: "insufficient_funds" };
       const { error: deductErr } = await supabase.rpc("increment_coins", { p_user_id: senderUid, p_amount: -coinAmount });
-      if (deductErr) throw new Error("insufficient_funds");
+      if (deductErr) return { success: false, error: "insufficient_funds" };
       await supabase.from('coin_history').insert({ user_id: senderUid, amount: -coinAmount, type: 'gift', description: `Sent ${giftName}`, timestamp: ts });
     }
 
@@ -229,7 +218,6 @@ export async function sendGiftAction(senderUid: string, recipientUid: string, co
     await supabase.from('chats').upsert({ id: chatId, last_message: text, last_message_at: ts, participant_ids: [senderUid, recipientUid], last_sender_id: senderUid, updated_at: new Date().toISOString() });
     await supabase.from('messages').insert({ chat_id: chatId, sender_id: senderUid, text: text, is_gift: true, timestamp: ts });
 
-    // Send Push Notification
     sendPushToUser(recipientUid, {
       title: "New Gift! 🎁",
       body: `${sender?.name || 'Someone'} sent you a ${giftName}`,
@@ -259,7 +247,6 @@ export async function awardCoinsAction(userUid: string, targetUid: string, amoun
     await supabase.rpc("increment_coins", { p_user_id: targetUid, p_amount: amount });
     await supabase.from('coin_history').insert({ user_id: targetUid, amount, type: 'awarded', description: historyDesc, timestamp: Date.now() });
     
-    // Notify Recipient
     sendPushToUser(targetUid, {
       title: "Coins Received! 🪙",
       body: `Your wallet was credited with ${amount} coins.`,
@@ -359,7 +346,6 @@ export async function sendMysteryNoteAction(userId: string, text: string, recipi
       });
       await supabase.from('messages').insert({ chat_id: chatId, sender_id: userId, text: safeText, timestamp: Date.now() });
       
-      // Notify Recipients
       sendPushToUser(r.uid, {
         title: "Mystery Note! ✨",
         body: safeText,
@@ -536,8 +522,7 @@ export async function joinAgencyAction(uid: string, code: string) {
     const { data: agency } = await supabase.from('agencies').select('code').eq('code', code).maybeSingle();
     if (!agency) throw new Error("Invalid Agency Code");
 
-    // ENFORCE 500 MEMBER LIMIT (Approved members only)
-    const { count, error: countErr } = await supabase
+    const { count } = await supabase
       .from('users')
       .select('*', { count: 'exact', head: true })
       .eq('agency_id', code)
@@ -639,7 +624,6 @@ export async function requestWithdrawalAction(uid: string, diamonds: number, amo
 
     if (error) throw error;
 
-    // Prune old records: Keep only the 2 most recent for this user
     const { data: toPrune } = await supabase
       .from('withdrawals')
       .select('id')
