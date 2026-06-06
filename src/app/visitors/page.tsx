@@ -1,12 +1,11 @@
-
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { useUser } from "@/firebase/auth/use-user"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, Users, Loader2, Zap, Coins, Heart, Star, Clock } from "lucide-react"
+import { ChevronLeft, Users, Loader2, Zap, Clock } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
@@ -18,6 +17,8 @@ interface Visitor {
   profile?: any
 }
 
+const PAGE_SIZE = 20;
+
 export default function VisitorsPage() {
   const router = useRouter()
   const { user } = useUser()
@@ -25,37 +26,55 @@ export default function VisitorsPage() {
   const [visitors, setVisitors] = useState<Visitor[]>([])
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+
+  const fetchData = useCallback(async (pageNum = 0) => {
+    if (!user?.id) return
+    if (pageNum === 0) setLoading(true)
+
+    const { data: p } = await supabase.from('users').select('*').eq('uid', user.id).single()
+    setProfile(p)
+
+    if (p?.has_visitor_tracking) {
+      const from = pageNum * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      const { data: vists } = await supabase
+        .from('profile_visits')
+        .select('*')
+        .eq('visited_id', user.id)
+        .order('last_visit_at', { ascending: false })
+        .range(from, to)
+      
+      if (vists && vists.length > 0) {
+        const enriched = await Promise.all(vists.map(async (v) => {
+          const { data: prof } = await supabase.from('users').select('name, photo_url').eq('uid', v.visitor_id).maybeSingle()
+          return { ...v, profile: prof }
+        }))
+        const validVisitors = enriched.filter(v => !!v.profile);
+        
+        if (pageNum === 0) setVisitors(validVisitors);
+        else setVisitors(prev => [...prev, ...validVisitors]);
+        
+        setHasMore(vists.length === PAGE_SIZE);
+      } else {
+        if (pageNum === 0) setVisitors([]);
+        setHasMore(false);
+      }
+    }
+    setLoading(false)
+  }, [user?.id])
 
   useEffect(() => {
-    if (!user?.id) return
-    
-    const fetchData = async () => {
-      const { data: p } = await supabase.from('users').select('*').eq('uid', user.id).single()
-      setProfile(p)
+    fetchData(0)
+  }, [fetchData])
 
-      if (p?.has_visitor_tracking) {
-        const { data: vists } = await supabase
-          .from('profile_visits')
-          .select('*')
-          .eq('visited_id', user.id)
-          .order('last_visit_at', { ascending: false })
-          .limit(50)
-        
-        if (vists && vists.length > 0) {
-          const enriched = await Promise.all(vists.map(async (v) => {
-            const { data: prof } = await supabase.from('users').select('name, photo_url').eq('uid', v.visitor_id).maybeSingle()
-            return { ...v, profile: prof }
-          }))
-          setVisitors(enriched.filter(v => !!v.profile))
-        } else {
-          setVisitors([])
-        }
-      }
-      setLoading(false)
-    }
-
-    fetchData()
-  }, [user?.id])
+  const loadMore = () => {
+    const next = page + 1;
+    setPage(next);
+    fetchData(next);
+  }
 
   if (loading) return <div className="h-screen flex items-center justify-center bg-white"><Loader2 className="animate-spin text-[#00A2FF] w-8 h-8" /></div>
 
@@ -136,6 +155,13 @@ export default function VisitorsPage() {
                 </div>
               </div>
             ))}
+            {hasMore && (
+              <div className="p-8 flex justify-center">
+                <Button onClick={loadMore} variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-[#00A2FF]">
+                  Load more visitors
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </main>

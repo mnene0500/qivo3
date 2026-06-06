@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, use } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { PhoneOff, Mic, MicOff, Video, VideoOff, User, Loader2, AlertCircle, Volume2, VolumeX, RefreshCw } from "lucide-react"
+import { PhoneOff, Mic, MicOff, Video, VideoOff, User, Loader2, AlertCircle, Volume2, VolumeX, RefreshCw, Clock } from "lucide-react"
 import { useUser } from "@/firebase/auth/use-user"
 import { supabase } from "@/lib/supabase"
 import { generateAgoraTokenAction, deductCallCoinsAction, endCallAction } from "@/app/actions/call-actions"
@@ -10,6 +10,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
+/**
+ * @fileOverview Hardened Video/Voice Call Screen.
+ * Fixed: Timer visibility, per-minute billing for all types, and camera switching.
+ */
 export default function CallPage({ params }: { params: Promise<{ chatId: string }> }) {
   const { chatId } = use(params)
   const searchParams = useSearchParams()
@@ -71,11 +75,12 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
         if (mounted.current && isRinging && !remoteUser) {
           handleEndCall(true, 'No Answer');
         }
-      }, 40000);
+      }, 45000);
     }
     return () => { if (ringingTimeoutRef.current) clearTimeout(ringingTimeoutRef.current) }
   }, [isRinging, !!remoteUser])
 
+  // HARDENED BILLING ENGINE (Voice + Video)
   useEffect(() => {
     if (joined && remoteUser && user?.id && partnerId) {
       billingTimer.current = setInterval(async () => {
@@ -83,6 +88,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
         
         setDuration(prev => {
           const next = prev + 1
+          // Deduction points: 11 seconds (first minute) then every 60 seconds
           const isDeductionPoint = next === 11 || (next > 60 && (next - 1) % 60 === 0);
           
           if (isDeductionPoint) {
@@ -229,6 +235,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
 
   return (
     <div className="fixed inset-0 bg-black z-[100] flex flex-col overflow-hidden select-none">
+      {/* REMOTE FEED / BACKGROUND */}
       <div className="absolute inset-0 z-0">
         {type === 'video' && remoteUser ? <div ref={remoteVideoRef} className="w-full h-full bg-black" /> : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900">
@@ -241,12 +248,23 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
              </div>
              <h2 className="text-white text-2xl font-black mt-8 tracking-tight">{partnerProfile?.name || 'Connecting...'}</h2>
              <p className={cn("text-[10px] font-black uppercase tracking-[0.4em] mt-4 transition-colors", remoteUser ? "text-green-500" : "text-zinc-500")}>
-               {remoteUser ? `Connected • ${formattedTime}` : 'Ringing...'}
+               {remoteUser ? 'Connected' : 'Ringing...'}
              </p>
           </div>
         )}
       </div>
 
+      {/* FLOATING STATUS BADGE (Top Center) */}
+      {remoteUser && (
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4">
+          <div className="px-6 py-2.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full flex items-center gap-3 shadow-2xl">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+            <span className="text-xs font-black text-white font-mono tracking-widest">{formattedTime}</span>
+          </div>
+        </div>
+      )}
+
+      {/* LOCAL VIDEO (PIP) - MIRRORED */}
       {type === 'video' && (
         <div className={cn(
           "absolute transition-all duration-500 overflow-hidden border-2 border-white/20 shadow-2xl z-20", 
@@ -261,6 +279,7 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
         </div>
       )}
 
+      {/* CONTROLS */}
       <div className="absolute bottom-12 inset-x-0 px-6 flex flex-wrap items-center justify-center gap-3 z-50">
         <button onClick={() => { setMuted(!muted); rtc.current.localAudioTrack?.setEnabled(muted); }} className={cn("w-14 h-14 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl flex items-center justify-center", muted ? "bg-red-500" : "bg-white/10 text-white")}>
           {muted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
