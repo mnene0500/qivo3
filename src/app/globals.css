@@ -34,8 +34,10 @@
 
   html, body {
     height: 100%;
-    overflow: hidden; /* Prevents global page scroll */
+    min-height: 100dvh;
     background-color: white;
+    margin: 0;
+    padding: 0;
   }
 
   body {
@@ -45,9 +47,9 @@
     -webkit-tap-highlight-color: transparent;
     display: flex;
     flex-direction: column;
-    position: fixed; /* Extra lock for mobile viewports */
     width: 100%;
     overscroll-behavior: none;
+    overflow: hidden; /* App shell handles the scroll */
   }
 
   input, textarea {
@@ -59,7 +61,6 @@
 /* 
   Native-tier transitions: 
   Applied to the scrolling content container only.
-  Note: transform is removed to prevent fixed positioning breakage.
 */
 .native-page-transition {
   animation: pageEnter 0.2s ease-out forwards;

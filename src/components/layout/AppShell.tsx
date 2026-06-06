@@ -1,4 +1,3 @@
-
 "use client"
 
 import { usePathname, useSearchParams } from "next/navigation"
@@ -10,6 +9,7 @@ import { GlobalCallOverlay } from "../GlobalCallOverlay"
 
 /**
  * @fileOverview Viewport-Centric App Shell with Hardware Navigation Stability.
+ * Optimized for mobile history pops and scroll restoration.
  */
 
 function ShellContent({ children }: { children: React.ReactNode }) {
@@ -27,29 +27,37 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   const isCallScreen = pathname?.startsWith('/call/');
   const showNav = user && ['/home', '/chats', '/profile'].includes(pathname || "") && !isChatDetail && !isCallScreen;
 
-  // Restore scroll position reliably without blocking hardware navigation
+  // RECOVERY: Reliably restore scroll on history pop (back button)
   useEffect(() => {
     if (mainRef.current && mounted && pathname) {
-      const saved = sessionStorage.getItem(`scroll_${pathname}`);
-      if (saved) {
-        requestAnimationFrame(() => {
-          if (mainRef.current) mainRef.current.scrollTop = parseInt(saved);
-        });
-      } else {
-        mainRef.current.scrollTop = 0;
-      }
-    }
-  }, [pathname, mounted])
+      const storageKey = `scroll_${pathname}${searchParams.toString()}`;
+      const saved = sessionStorage.getItem(storageKey);
+      
+      // Delay slightly to allow Next.js to finish DOM swap
+      const timer = setTimeout(() => {
+        if (mainRef.current) {
+          if (saved) {
+            mainRef.current.scrollTo({ top: parseInt(saved), behavior: 'instant' });
+          } else {
+            mainRef.current.scrollTo({ top: 0, behavior: 'instant' });
+          }
+        }
+      }, 0);
 
-  // Capture scroll for restoration
+      return () => clearTimeout(timer);
+    }
+  }, [pathname, searchParams, mounted])
+
+  // PERSIST: Capture scroll before navigating away
   const handleScroll = (e: React.UIEvent<HTMLElement>) => {
     if (pathname) {
-      sessionStorage.setItem(`scroll_${pathname}`, e.currentTarget.scrollTop.toString());
+      const storageKey = `scroll_${pathname}${searchParams.toString()}`;
+      sessionStorage.setItem(storageKey, e.currentTarget.scrollTop.toString());
     }
   };
 
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden bg-white relative">
+    <div className="flex flex-col h-full w-full overflow-hidden bg-white relative">
       <main 
         ref={mainRef}
         onScroll={handleScroll}
@@ -58,7 +66,9 @@ function ShellContent({ children }: { children: React.ReactNode }) {
           mounted && showNav ? "pb-16" : "pb-0"
         )}
       >
-        <div className={cn("flex-1 flex flex-col", !mounted && "invisible")}>{children}</div>
+        <div className={cn("flex-1 flex flex-col", !mounted && "invisible")}>
+          {children}
+        </div>
       </main>
       {mounted && showNav && <BottomNav />}
       {mounted && user && <GlobalCallOverlay />}
@@ -67,5 +77,9 @@ function ShellContent({ children }: { children: React.ReactNode }) {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  return <Suspense fallback={null}><ShellContent>{children}</ShellContent></Suspense>
+  return (
+    <Suspense fallback={null}>
+      <ShellContent>{children}</ShellContent>
+    </Suspense>
+  )
 }
