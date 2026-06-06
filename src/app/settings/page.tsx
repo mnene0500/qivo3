@@ -55,12 +55,12 @@ interface SettingItemProps {
 function SettingItem({ label, onClick, href, icon, variant = 'default', hideBorder, children }: SettingItemProps) {
   const content = (
     <div className={cn(
-      "flex items-center justify-between py-4 px-5 active:bg-gray-50 transition-colors cursor-pointer bg-white group",
+      "flex items-center justify-between py-5 px-6 active:bg-gray-50 transition-colors cursor-pointer bg-white group",
       !hideBorder && "border-b border-gray-50"
     )}>
       <div className="flex items-center gap-4">
         <div className={cn(
-          "w-10 h-10 rounded-xl flex items-center justify-center group-active:scale-90 transition-transform",
+          "w-11 h-11 rounded-2xl flex items-center justify-center group-active:scale-90 transition-transform",
           variant === 'destructive' ? 'bg-red-50 text-red-500' : 'bg-gray-50 text-black'
         )}>
           {icon}
@@ -180,21 +180,21 @@ export default function SettingsPage() {
       <main className="flex-1 p-6 space-y-6 overflow-y-auto no-scrollbar pb-40">
         <div className="space-y-3">
           <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] ml-2">Communication</h2>
-          <div className="bg-white rounded-[1.5rem] overflow-hidden border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-sm">
             <SettingItem label="Do Not Disturb" icon={<Moon className="w-4 h-4" />}>
               <Switch checked={isDnd} onCheckedChange={toggleDnd} className="scale-75" />
             </SettingItem>
             {profile && !profile.has_read_receipts ? (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <div className="flex items-center justify-between py-4 px-5 active:bg-gray-50 transition-colors cursor-pointer bg-white group hideBorder">
+                  <div className="flex items-center justify-between py-5 px-6 active:bg-gray-50 transition-colors cursor-pointer bg-white group hideBorder">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-50 text-blue-500">
+                      <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-blue-50 text-blue-500">
                         <Eye className="w-4 h-4" />
                       </div>
                       <span className="text-sm font-black tracking-tight text-slate-900">Read Receipts</span>
                     </div>
-                    <span className="px-2.5 py-0.5 bg-[#00A2FF] text-white text-[7px] font-black uppercase rounded-full">Unlock</span>
+                    <span className="px-3 py-1 bg-[#00A2FF] text-white text-[8px] font-black uppercase rounded-full shadow-lg shadow-blue-200">Unlock</span>
                   </div>
                 </AlertDialogTrigger>
                 <AlertDialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl w-[85vw] max-w-sm">
@@ -206,7 +206,7 @@ export default function SettingsPage() {
                     <AlertDialogDescription className="text-xs font-medium text-gray-400 pt-1">Enable real-time message status updates. Pay once and see when your messages are read.</AlertDialogDescription>
                   </AlertDialogHeader>
                   <div className="flex flex-col gap-3 mt-6">
-                    <Button onClick={handleActivateReadReceipts} disabled={isActivating} className="w-full h-14 rounded-xl bg-[#00A2FF] text-white font-black uppercase text-xs">
+                    <Button onClick={handleActivateReadReceipts} disabled={isActivating} className="w-full h-14 rounded-xl bg-[#00A2FF] text-white font-black uppercase text-xs shadow-xl">
                       {isActivating ? <Loader2 className="animate-spin" /> : <><Coins className="w-3.5 h-3.5 mr-2" /> Pay 200 Coins</>}
                     </Button>
                     <AlertDialogCancel className="w-full h-12 rounded-xl border-none bg-gray-50 text-gray-400 font-black uppercase text-[10px]">Maybe Later</AlertDialogCancel>
@@ -214,14 +214,14 @@ export default function SettingsPage() {
                 </AlertDialogContent>
               </AlertDialog>
             ) : (
-              <div className="flex items-center justify-between py-4 px-5 bg-white group hideBorder">
+              <div className="flex items-center justify-between py-5 px-6 bg-white group hideBorder">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-green-50 text-green-500">
+                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-green-50 text-green-500">
                     <CheckCircle2 className="w-4 h-4" />
                   </div>
                   <span className="text-sm font-black tracking-tight text-slate-900">Read Receipts</span>
                 </div>
-                <span className="text-[8px] font-black text-green-500 uppercase tracking-widest">Active</span>
+                <span className="text-[8px] font-black text-green-500 uppercase tracking-widest bg-green-50 px-3 py-1 rounded-full">Active</span>
               </div>
             )}
           </div>
@@ -229,19 +229,19 @@ export default function SettingsPage() {
 
         <div className="space-y-3">
           <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] ml-2">Privacy & Safety</h2>
-          <div className="bg-white rounded-[1.5rem] overflow-hidden border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-sm">
             <SettingItem label="Blocked List" href="/blocked-list" icon={<ShieldX className="w-4 h-4" />} hideBorder />
           </div>
         </div>
 
         <div className="space-y-3">
           <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] ml-2">Account</h2>
-          <div className="bg-white rounded-[1.5rem] overflow-hidden border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-sm">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <div className="flex items-center justify-between py-4 px-5 active:bg-gray-50 transition-colors cursor-pointer bg-white group border-b border-gray-50">
+                <div className="flex items-center justify-between py-5 px-6 active:bg-gray-50 transition-colors cursor-pointer bg-white group border-b border-gray-50">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gray-50 text-blue-500">
+                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-gray-50 text-blue-500">
                       <LinkIcon className="w-4 h-4" />
                     </div>
                     <span className="text-sm font-black tracking-tight text-slate-900">Bind Account</span>
@@ -269,18 +269,18 @@ export default function SettingsPage() {
 
         <div className="space-y-3">
           <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] ml-2">Information</h2>
-          <div className="bg-white rounded-[1.5rem] overflow-hidden border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-sm">
             <SettingItem label="About QIVO" href="/about" icon={<Info className="w-4 h-4" />} hideBorder />
           </div>
         </div>
 
-        <div className="space-y-3 pt-4">
-          <div className="bg-white rounded-[1.5rem] overflow-hidden border border-gray-100 shadow-sm">
+        <div className="space-y-3 pt-6">
+          <div className="bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-sm">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <div className="flex items-center justify-between py-4 px-5 active:bg-gray-50 transition-colors cursor-pointer bg-white group border-b border-gray-50">
+                <div className="flex items-center justify-between py-5 px-6 active:bg-gray-50 transition-colors cursor-pointer bg-white group border-b border-gray-50">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gray-50 text-slate-500">
+                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-gray-50 text-slate-500">
                       <LogOut className="w-4 h-4" />
                     </div>
                     <span className="text-sm font-black tracking-tight text-slate-900">Sign Out</span>
@@ -294,7 +294,7 @@ export default function SettingsPage() {
                   <AlertDialogDescription className="text-xs font-medium text-gray-400 pt-1">You will need to re-authenticate to access your profile.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter className="flex flex-col gap-3 mt-6">
-                  <AlertDialogAction onClick={handleSignOut} className="w-full h-14 rounded-xl bg-black text-white font-black uppercase text-xs">Yes, Sign Out</AlertDialogAction>
+                  <AlertDialogAction onClick={handleSignOut} className="w-full h-14 rounded-xl bg-black text-white font-black uppercase text-xs shadow-xl">Yes, Sign Out</AlertDialogAction>
                   <AlertDialogCancel className="w-full h-12 rounded-xl border-none bg-gray-50 text-gray-400 font-black uppercase text-[10px]">Cancel</AlertDialogCancel>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -303,9 +303,9 @@ export default function SettingsPage() {
             {!loading && !profile?.is_admin && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <div className="flex items-center justify-between py-4 px-5 active:bg-red-50/10 transition-colors cursor-pointer bg-white group">
+                  <div className="flex items-center justify-between py-5 px-6 active:bg-red-50/10 transition-colors cursor-pointer bg-white group">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-red-50 text-red-500">
+                      <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-red-50 text-red-500">
                         <Trash2 className="w-4 h-4" />
                       </div>
                       <span className="text-sm font-black tracking-tight text-red-500">Delete Account</span>
@@ -320,7 +320,7 @@ export default function SettingsPage() {
                   </AlertDialogHeader>
                   <div className="py-4"><Input placeholder="Type DELETE" value={deleteConfirmText} onChange={(e) => setDeleteConfirmText(e.target.value)} className="rounded-xl h-14 text-center font-black bg-gray-50 border-gray-100 text-lg uppercase" /></div>
                   <AlertDialogFooter className="flex flex-col gap-3">
-                    <AlertDialogAction disabled={deleteConfirmText.toUpperCase() !== "DELETE" || isDeleting} className="w-full h-14 rounded-xl bg-red-500 text-white font-black uppercase text-xs" onClick={handleDeleteAccount}>{isDeleting ? <Loader2 className="animate-spin w-4 h-4" /> : "Delete Everything"}</AlertDialogAction>
+                    <AlertDialogAction disabled={deleteConfirmText.toUpperCase() !== "DELETE" || isDeleting} className="w-full h-14 rounded-xl bg-red-500 text-white font-black uppercase text-xs shadow-xl shadow-red-100" onClick={handleDeleteAccount}>{isDeleting ? <Loader2 className="animate-spin w-4 h-4" /> : "Delete Everything"}</AlertDialogAction>
                     <AlertDialogCancel className="w-full h-12 rounded-xl border-none bg-gray-50 text-gray-400 font-black uppercase text-[10px]">Cancel</AlertDialogCancel>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -328,6 +328,7 @@ export default function SettingsPage() {
             )}
           </div>
         </div>
+        <div className="h-20" />
       </main>
     </div>
   )

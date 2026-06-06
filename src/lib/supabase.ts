@@ -3,18 +3,12 @@ import { createClient } from '@supabase/supabase-js';
 
 /**
  * @fileOverview Hardened Supabase Client.
- * Handles both public client and secure admin instances using Vercel environment variables.
+ * Uses NEXT_PUBLIC for client-side Auth/Realtime (Protected by RLS).
+ * Uses secret variables for server-side Admin operations.
  */
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-
-// Defensive check to prevent "Failed to Fetch" on misconfigured environments
-if (!supabaseUrl || !supabaseAnonKey) {
-  if (typeof window !== 'undefined') {
-    console.warn("Supabase Environment Variables are missing. Authentication and Database features will fail until added to Vercel.");
-  }
-}
 
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
@@ -34,18 +28,21 @@ export const supabase = createClient(
 
 /**
  * Creates an Admin client for secure server-side operations (Server Actions only).
- * This client bypasses RLS and allows atomic balance updates.
+ * This client bypasses RLS and handles sensitive economy operations.
+ * Prioritizes non-prefixed variables for maximum security.
  */
 export const getSupabaseAdmin = () => {
   if (typeof window !== 'undefined') {
     throw new Error("Security Violation: Admin client accessed from client-side.");
   }
   
-  const adminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  // Use private variables if available, otherwise fallback to public for dev stability
+  const adminUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const adminAnon = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!adminUrl || !serviceKey) {
-    throw new Error("Missing Supabase credentials. Ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set in Vercel.");
+    throw new Error("Missing Supabase Admin credentials. Ensure SUPABASE_SERVICE_ROLE_KEY is set in Vercel.");
   }
 
   return createClient(adminUrl, serviceKey, {

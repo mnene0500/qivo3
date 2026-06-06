@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getSupabaseAdmin } from '@/lib/supabase';
@@ -527,6 +528,41 @@ export async function requestWithdrawalAction(uid: string, diamonds: number, amo
       timestamp: Date.now() 
     });
     
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function logProfileVisitAction(visitorId: string, visitedId: string) {
+  const supabase = getSupabaseAdmin();
+  try {
+    const { data: existing } = await supabase
+      .from('profile_visits')
+      .select('count')
+      .eq('visitor_id', visitorId)
+      .eq('visited_id', visitedId)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase
+        .from('profile_visits')
+        .update({ 
+          count: existing.count + 1, 
+          last_visit_at: new Date().toISOString() 
+        })
+        .eq('visitor_id', visitorId)
+        .eq('visited_id', visitedId);
+    } else {
+      await supabase
+        .from('profile_visits')
+        .insert({ 
+          visitor_id: visitorId, 
+          visited_id: visitedId, 
+          count: 1, 
+          last_visit_at: new Date().toISOString() 
+        });
+    }
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message };
