@@ -119,11 +119,11 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col w-full bg-white select-none min-h-screen">
-      {/* SCROLLABLE TOP PART (Pale Blue) */}
-      <div className="bg-blue-50/50 pt-8 pb-6 px-4">
+      {/* SCROLLABLE TOP PART (Intense Blue) */}
+      <div className="bg-blue-100/70 pt-8 pb-6 px-4">
         <div className="grid grid-cols-2 gap-3 relative">
-          {/* QIVO STAMP (Subtle) */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[100px] font-black text-blue-200/10 pointer-events-none select-none italic tracking-tighter z-0">
+          {/* QIVO STAMP */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[100px] font-black text-blue-300/10 pointer-events-none select-none italic tracking-tighter z-0">
             QIVO
           </div>
 
@@ -149,8 +149,8 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* STICKY TAB BAR (Pale Blue) */}
-      <div className="sticky top-0 z-[60] bg-blue-50/50 backdrop-blur-md border-b border-black/5">
+      {/* STICKY TAB BAR (Intense Blue) */}
+      <div className="sticky top-0 z-[60] bg-blue-100/70 backdrop-blur-md border-b border-black/5">
         <div className="px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-8">
             {['Recommend', 'Nearby'].map((t) => (
@@ -172,7 +172,7 @@ export default function HomePage() {
           <button 
             onClick={handleManualRefresh} 
             disabled={loading}
-            className="w-10 h-10 flex items-center justify-center text-gray-300 active:bg-blue-100 rounded-full transition-all"
+            className="w-10 h-10 flex items-center justify-center text-gray-400 active:bg-blue-100 rounded-full transition-all"
           >
             <RotateCw className={cn("w-5 h-5", loading && "animate-spin")} />
           </button>
@@ -180,15 +180,15 @@ export default function HomePage() {
       </div>
 
       {/* USER GRID */}
-      <main className="px-3 pt-6 pb-24 bg-white">
+      <main className="px-2 pt-3 pb-24 bg-white">
         {loading && users.length === 0 ? (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             {[1,2,3,4].map(i => <div key={i} className="aspect-[4/5] bg-gray-50 rounded-[1.2rem] animate-pulse" />)}
           </div>
         ) : users.length === 0 ? (
           <div className="py-40 text-center opacity-40 uppercase font-black text-[10px] tracking-widest">No profiles found</div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             {users.map((u) => {
               if (!u) return null;
               return (
