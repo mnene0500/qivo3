@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect } from "react"
@@ -6,7 +7,7 @@ import { savePushSubscriptionAction } from "@/app/actions/matchflow-actions"
 
 /**
  * @fileOverview Manages PWA Web Push subscriptions and permissions.
- * Explicitly requests notification access on mount.
+ * Optimized: Explicitly handles permission lifecycle and background registration.
  */
 export function PushNotificationManager() {
   const { user } = useUser()
@@ -19,27 +20,32 @@ export function PushNotificationManager() {
 
     const initPush = async () => {
       try {
-        // 1. Request Permission explicitly
-        const permission = await Notification.requestPermission();
+        // 1. Check/Request Permission
+        if (Notification.permission === 'default') {
+          console.log("[Push Manager]: Requesting permission...");
+          await Notification.requestPermission();
+        }
         
-        if (permission !== 'granted') {
-          console.warn("[Push Manager]: Permission denied by user.");
+        if (Notification.permission !== 'granted') {
+          console.warn("[Push Manager]: Permission denied. Notifications will not show.");
           return;
         }
 
-        // 2. Wait for Service Worker registration (from layout.tsx)
+        // 2. Wait for Service Worker registration
         const registration = await navigator.serviceWorker.ready;
+        console.log("[Push Manager]: Service Worker ready.");
         
         // 3. Get/Create Subscription
         const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
         if (!vapidPublicKey) {
-          console.error("[Push Manager]: Missing NEXT_PUBLIC_VAPID_PUBLIC_KEY");
+          console.error("[Push Manager]: NEXT_PUBLIC_VAPID_PUBLIC_KEY missing in Environment Variables.");
           return;
         }
 
         let subscription = await registration.pushManager.getSubscription();
 
         if (!subscription) {
+          console.log("[Push Manager]: Creating new subscription...");
           subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
@@ -50,17 +56,17 @@ export function PushNotificationManager() {
         const subJson = subscription.toJSON();
         if (subJson.endpoint) {
           await savePushSubscriptionAction(user.id, subJson.endpoint, subJson);
-          console.log("[Push Manager]: Subscription synced with server.");
+          console.log("[Push Manager]: Subscription synchronized with production database.");
         }
       } catch (err) {
-        console.error("[Push Manager]: Initialization failed:", err);
+        console.error("[Push Manager]: Registration failed:", err);
       }
     }
 
     initPush();
   }, [user?.id]);
 
-  return null
+  return null;
 }
 
 function urlBase64ToUint8Array(base64String: string) {

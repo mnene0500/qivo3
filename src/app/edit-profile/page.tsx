@@ -120,7 +120,6 @@ export default function EditProfilePage() {
         const { blob } = base64ToBlob(formData.photo_url);
         finalPhotoUrl = await uploadProfilePhoto(blob, user.id);
         updatePayload.photo_url = finalPhotoUrl;
-        // Identity Integrity: Revoke verification if photo changes
         updatePayload.is_verified = false;
         updatePayload.claimed_verification_reward = false; 
       }
@@ -258,7 +257,7 @@ export default function EditProfilePage() {
         </div>
       </main>
 
-      <footer className="fixed bottom-0 inset-x-0 p-8 bg-white/90 backdrop-blur-xl border-t border-gray-50 z-[60] pb-[env(safe-area-inset-bottom,20px)] shadow-[0_-10px_30px_rgba(0,0,0,0.04)]">
+      <footer className="fixed bottom-0 inset-x-0 p-8 bg-white/90 backdrop-blur-xl border-t border-gray-50 z-[60] pb-[calc(env(safe-area-inset-bottom,20px)+8px)] shadow-[0_-10px_30px_rgba(0,0,0,0.04)]">
         <Button 
           onClick={handleSave} 
           disabled={saving} 

@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
@@ -21,16 +22,20 @@ interface UserProfile {
 
 const PAGE_SIZE = 12;
 
+// GLOBAL CACHE TO PREVENT BLINKING ON NAVIGATION
+let cachedUsers: UserProfile[] = [];
+let cachedPage = 0;
+let cachedActiveTab: 'Recommend' | 'Nearby' = 'Recommend';
+
 export default function HomePage() {
   const router = useRouter()
   const { user: currentUser, isInitialized } = useUser()
-  const [activeTab, setActiveTab] = useState<'Recommend' | 'Nearby'>('Recommend')
-  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'Recommend' | 'Nearby'>(cachedActiveTab)
+  const [loading, setLoading] = useState(cachedUsers.length === 0)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [users, setUsers] = useState<UserProfile[]>([])
-  const [page, setPage] = useState(0)
+  const [users, setUsers] = useState<UserProfile[]>(cachedUsers)
+  const [page, setPage] = useState(cachedPage)
   const [hasMore, setHasMore] = useState(true)
-  const [profile, setProfile] = useState<any>(null)
 
   const shuffleArray = (array: any[]) => {
     const shuffled = [...array];
@@ -43,8 +48,13 @@ export default function HomePage() {
 
   const fetchUsers = useCallback(async (pageNum = 0, isManualRefresh = false) => {
     if (!currentUser?.id) return;
-    if (pageNum === 0) setLoading(true);
-    else setLoadingMore(true);
+    
+    // Only show loading if we have no cached data or it's a manual refresh
+    if (pageNum === 0 && (cachedUsers.length === 0 || isManualRefresh)) {
+      setLoading(true);
+    } else if (pageNum > 0) {
+      setLoadingMore(true);
+    }
 
     const { data: myProfile } = await supabase
       .from('users')
@@ -53,7 +63,6 @@ export default function HomePage() {
       .single();
 
     if (!myProfile) return;
-    setProfile(myProfile);
 
     const oppositeGender = myProfile.gender === 'male' ? 'female' : 'male';
     const from = pageNum * PAGE_SIZE;
@@ -86,14 +95,18 @@ export default function HomePage() {
 
       if (pageNum === 0) {
         setUsers(finalData);
+        cachedUsers = finalData;
       } else {
         setUsers(prev => {
           const existingIds = new Set(prev.map(u => u.uid));
           const filteredNew = finalData.filter((u: any) => u && !existingIds.has(u.uid));
-          return [...prev, ...filteredNew];
+          const updated = [...prev, ...filteredNew];
+          cachedUsers = updated;
+          return updated;
         });
       }
       setHasMore(data.length === PAGE_SIZE);
+      cachedPage = pageNum;
     }
     setLoading(false);
     setLoadingMore(false);
@@ -101,13 +114,16 @@ export default function HomePage() {
 
   useEffect(() => {
     if (isInitialized) {
-      fetchUsers(0);
+      // ONLY FETCH IF CACHE IS EMPTY OR TAB CHANGED
+      if (cachedUsers.length === 0 || activeTab !== cachedActiveTab) {
+        fetchUsers(0);
+        cachedActiveTab = activeTab;
+      }
     }
   }, [isInitialized, activeTab, fetchUsers]);
 
   const handleManualRefresh = () => {
     setPage(0);
-    setUsers([]);
     fetchUsers(0, true);
   };
 
@@ -156,7 +172,14 @@ export default function HomePage() {
             {['Recommend', 'Nearby'].map((t) => (
               <button 
                 key={t} 
-                onClick={() => { setPage(0); setUsers([]); setActiveTab(t as any); }} 
+                onClick={() => { 
+                  if (activeTab !== t) {
+                    setPage(0); 
+                    setUsers([]); 
+                    cachedUsers = [];
+                    setActiveTab(t as any); 
+                  }
+                }} 
                 className={cn(
                   "text-[11px] font-black transition-all relative py-2 uppercase tracking-[0.15em]", 
                   activeTab === t ? "text-white" : "text-white/60"
