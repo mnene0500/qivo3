@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
@@ -120,52 +119,52 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col w-full bg-white select-none min-h-screen">
-      {/* STATUS BAR AREA */}
-      <div className="h-1 bg-[#00A2FF] w-full shrink-0" />
+      {/* SCROLLABLE TOP PART (Pale Blue) */}
+      <div className="bg-blue-50/50 pt-8 pb-6 px-4">
+        <div className="grid grid-cols-2 gap-3 relative">
+          {/* QIVO STAMP (Subtle) */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[120px] font-black text-blue-200/10 pointer-events-none select-none italic tracking-tighter z-0">
+            QIVO
+          </div>
 
-      {/* TOP ACTION CARDS WITH QIVO STAMP */}
-      <div className="px-4 grid grid-cols-2 gap-3 py-6 bg-white relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[140px] font-black text-black/[0.02] pointer-events-none select-none italic tracking-tighter z-0">
-          QIVO
+          <button 
+            onClick={() => router.push('/mystery-note')} 
+            className="relative z-10 aspect-square bg-gradient-to-br from-blue-600 to-blue-500 rounded-[1.8rem] p-5 flex flex-col items-start justify-between text-white active:scale-95 transition-all shadow-xl shadow-blue-200/40"
+          >
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+              <FileText className="w-5 h-5 text-white" />
+            </div>
+            <p className="text-[13px] font-black leading-tight text-left uppercase tracking-widest">Message<br/>blast</p>
+          </button>
+
+          <button 
+            onClick={() => router.push('/tasks')} 
+            className="relative z-10 aspect-square bg-gradient-to-br from-purple-600 to-fuchsia-500 rounded-[1.8rem] p-5 flex flex-col items-start justify-between text-white active:scale-95 transition-all shadow-xl shadow-purple-200/40"
+          >
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+              <Target className="w-5 h-5 text-white" />
+            </div>
+            <p className="text-[13px] font-black leading-tight text-left uppercase tracking-widest">Task<br/>center</p>
+          </button>
         </div>
-
-        <button 
-          onClick={() => router.push('/mystery-note')} 
-          className="relative z-10 aspect-square bg-gradient-to-br from-blue-600 to-blue-500 rounded-[1.5rem] p-4 flex flex-col items-start justify-between text-white active:scale-95 transition-all shadow-xl shadow-blue-100"
-        >
-          <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-            <FileText className="w-4 h-4 text-white" />
-          </div>
-          <p className="text-xs font-black leading-tight text-left uppercase tracking-tight">Message<br/>blast</p>
-        </button>
-
-        <button 
-          onClick={() => router.push('/tasks')} 
-          className="relative z-10 aspect-square bg-gradient-to-br from-purple-600 to-fuchsia-500 rounded-[1.5rem] p-4 flex flex-col items-start justify-between text-white active:scale-95 transition-all shadow-xl shadow-purple-100"
-        >
-          <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-            <Target className="w-4 h-4 text-white" />
-          </div>
-          <p className="text-xs font-black leading-tight text-left uppercase tracking-tight">Task<br/>center</p>
-        </button>
       </div>
 
-      {/* TABS & REFRESH */}
-      <div className="sticky top-0 z-[60] bg-white border-b border-gray-50">
-        <div className="px-6 h-12 flex items-center justify-between">
+      {/* STICKY TAB BAR (Pale Blue) */}
+      <div className="sticky top-0 z-[60] bg-blue-50/50 backdrop-blur-md border-b border-black/5">
+        <div className="px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-8">
             {['Recommend', 'Nearby'].map((t) => (
               <button 
                 key={t} 
                 onClick={() => { setPage(page => 0); setUsers([]); setActiveTab(t as any); }} 
                 className={cn(
-                  "text-[10px] font-black transition-all relative py-2 uppercase tracking-widest", 
-                  activeTab === t ? "text-[#00A2FF]" : "text-gray-300"
+                  "text-[11px] font-black transition-all relative py-2 uppercase tracking-[0.15em]", 
+                  activeTab === t ? "text-[#00A2FF]" : "text-gray-400"
                 )}
               >
                 {t}
                 {activeTab === t && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00A2FF] rounded-full" />
+                  <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#00A2FF] rounded-full" />
                 )}
               </button>
             ))}
@@ -173,15 +172,15 @@ export default function HomePage() {
           <button 
             onClick={handleManualRefresh} 
             disabled={loading}
-            className="w-8 h-8 flex items-center justify-center text-gray-300 active:bg-gray-50 rounded-full transition-all"
+            className="w-10 h-10 flex items-center justify-center text-gray-300 active:bg-blue-100 rounded-full transition-all"
           >
-            <RotateCw className={cn("w-4 h-4", loading && "animate-spin")} />
+            <RotateCw className={cn("w-5 h-5", loading && "animate-spin")} />
           </button>
         </div>
       </div>
 
-      {/* USER GRID - NATIVE TIER LOOK */}
-      <main className="px-3 pt-4 pb-24">
+      {/* USER GRID */}
+      <main className="px-3 pt-6 pb-24 bg-white">
         {loading && users.length === 0 ? (
           <div className="grid grid-cols-2 gap-3">
             {[1,2,3,4].map(i => <div key={i} className="aspect-[3/4] bg-gray-50 rounded-[1.2rem] animate-pulse" />)}
@@ -195,24 +194,28 @@ export default function HomePage() {
               return (
                 <Card key={u.uid} className="relative overflow-hidden border-none aspect-[3/4] rounded-[1.2rem] shadow-md active:scale-[0.98] transition-all" onClick={() => router.push(`/users/${u.uid}`)}>
                   <Image src={u.photo_url} alt={u.name} fill className="object-cover" sizes="50vw" priority />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                   
-                  <div className="absolute top-2 right-2">
-                    <div className="bg-black/20 backdrop-blur-md text-white text-[7px] font-black uppercase px-2 py-1 rounded-full border border-white/10">
+                  {/* OVERLAY GRADIENT */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                  
+                  {/* CHAT BADGE */}
+                  <div className="absolute top-3 right-3 z-10">
+                    <div className="bg-[#00A2FF] text-white text-[8px] font-black uppercase px-3 py-1.5 rounded-full shadow-lg border border-white/20 tracking-widest">
                       CHAT
                     </div>
                   </div>
 
-                  <div className="absolute bottom-3 left-3 right-3 text-white">
-                    <div className="flex items-center gap-1 mb-0.5">
-                      <h4 className="font-black text-sm truncate leading-none tracking-tight">{u.name}</h4>
-                      {u.is_verified && <BadgeCheck className="w-3 h-3 text-[#00A2FF] fill-white" />}
+                  {/* USER INFO */}
+                  <div className="absolute bottom-3 left-4 right-4 text-white">
+                    <div className="flex items-center gap-1.5 mb-1.5 min-w-0">
+                      <h4 className="font-black text-[15px] truncate leading-none tracking-tight">{u.name}</h4>
+                      {u.is_verified && <BadgeCheck className="w-4 h-4 text-[#00A2FF] fill-white shrink-0" />}
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="bg-[#00D1FF] text-white px-1 py-0.5 rounded flex items-center justify-center min-w-[18px]">
-                        <span className="text-[8px] font-black">{calculateAge(u.dob)}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="bg-[#00D1FF] text-white px-1.5 py-0.5 rounded-md flex items-center justify-center min-w-[20px]">
+                        <span className="text-[10px] font-black">{calculateAge(u.dob)}</span>
                       </div>
-                      <span className="text-[8px] font-bold opacity-70 uppercase truncate tracking-tighter">{u.country}</span>
+                      <span className="text-[10px] font-black opacity-80 uppercase truncate tracking-widest">{u.country}</span>
                     </div>
                   </div>
                 </Card>
@@ -222,7 +225,7 @@ export default function HomePage() {
         )}
         {(loadingMore || (loading && users.length > 0)) && (
           <div className="py-10 flex justify-center w-full">
-            <Loader2 className="w-4 h-4 animate-spin text-[#00A2FF]" />
+            <Loader2 className="w-5 h-5 animate-spin text-[#00A2FF]" />
           </div>
         )}
       </main>
