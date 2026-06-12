@@ -120,7 +120,7 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col w-full bg-white select-none min-h-screen">
-      {/* SCROLLABLE TOP PART (Intense Blue - Increased) */}
+      {/* SCROLLABLE TOP PART (Blue Header) */}
       <div className="bg-blue-100 pt-8 pb-6 px-4">
         <div className="grid grid-cols-2 gap-3 relative">
           {/* QIVO STAMP */}
@@ -150,9 +150,9 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* STICKY TAB BAR (Intense Blue - Increased) */}
+      {/* STICKY TAB BAR (Blue Header) */}
       <div className="sticky top-0 z-[60] bg-blue-100 backdrop-blur-md border-b border-black/5">
-        <div className="px-6 h-14 flex items-center justify-between">
+        <div className="px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-8">
             {['Recommend', 'Nearby'].map((t) => (
               <button 
@@ -180,8 +180,8 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* USER GRID (Tightened) */}
-      <main className="px-2 pt-2 pb-24 bg-white">
+      {/* USER GRID (Aligned with Buttons) */}
+      <main className="px-4 pt-2 pb-24 bg-white">
         {loading && users.length === 0 ? (
           <div className="grid grid-cols-2 gap-1.5">
             {[1,2,3,4].map(i => <div key={i} className="aspect-[4/5] bg-gray-50 rounded-[1.2rem] animate-pulse" />)}
