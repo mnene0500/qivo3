@@ -208,7 +208,7 @@ export default function HomePage() {
                   {/* USER INFO */}
                   <div className="absolute bottom-3 left-4 right-4 text-white">
                     <div className="flex items-center gap-1.5 mb-1.5 min-w-0">
-                      <h4 className="font-black text-[15px] truncate leading-none tracking-tight">{u.name}</h4>
+                      <h4 className="font-semibold text-[15px] truncate leading-none tracking-tight">{u.name}</h4>
                       {u.is_verified && <BadgeCheck className="w-4 h-4 text-[#00A2FF] fill-white shrink-0" />}
                     </div>
                     <div className="flex items-center gap-2">

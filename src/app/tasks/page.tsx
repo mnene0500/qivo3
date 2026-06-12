@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -65,15 +64,15 @@ export default function TaskCenterPage() {
   }
 
   return (
-    <div className="flex-1 bg-white min-h-screen flex flex-col select-none animate-in fade-in duration-500">
-      <header className="px-4 h-16 flex items-center justify-between border-b bg-white sticky top-0 z-50">
+    <div className="flex-1 bg-blue-50 min-h-screen flex flex-col select-none animate-in fade-in duration-500">
+      <header className="px-4 h-16 flex items-center justify-between border-b bg-white sticky top-0 z-50 shadow-sm">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full text-black"><ChevronLeft className="w-6 h-6" /></Button>
         <h1 className="text-sm font-black text-black uppercase tracking-widest">Task Center</h1>
         <div className="w-10" />
       </header>
 
       <main className="flex-1 p-6 space-y-8 overflow-y-auto no-scrollbar pb-32">
-        <div className="p-8 bg-[#00A2FF] rounded-[3rem] text-white shadow-2xl relative overflow-hidden">
+        <div className="p-8 bg-[#00A2FF] rounded-[3rem] text-white shadow-xl relative overflow-hidden">
           <Target className="absolute -right-4 -top-4 w-32 h-32 text-white/10" />
           <div className="relative z-10 space-y-1">
             <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-60">Quest Progress</p>
@@ -93,7 +92,7 @@ export default function TaskCenterPage() {
               const isCollected = hasCheckedInToday ? (i + 1) <= currentCycleDay : (i + 1) <= (profile?.check_in_streak % 7);
               
               return (
-                <div key={i} className={cn("aspect-square rounded-3xl flex flex-col items-center justify-center border-2 transition-all", isCollected ? "bg-green-50 border-green-200" : "bg-gray-50 border-gray-100")}>
+                <div key={i} className={cn("aspect-square rounded-3xl flex flex-col items-center justify-center border-2 transition-all shadow-sm", isCollected ? "bg-green-50 border-green-200" : "bg-white border-gray-100")}>
                   {isCollected ? <CheckCircle2 className="w-6 h-6 text-green-500" /> : <><Coins className="w-5 h-5 text-yellow-500 mb-1" /><span className="text-[10px] font-black text-gray-400">+{d.reward}</span></>}
                   <span className="text-[7px] font-black text-gray-400 mt-1 uppercase">{d.day}</span>
                 </div>
@@ -132,12 +131,12 @@ export default function TaskCenterPage() {
 
 function TaskItem({ icon: Icon, title, reward, desc, onClick, color }: any) {
   return (
-    <div onClick={onClick} className="p-5 bg-gray-50 rounded-[2.5rem] border border-gray-100 flex items-center justify-between active:bg-gray-100 transition-colors">
+    <div onClick={onClick} className="p-5 bg-white rounded-[2.5rem] border border-gray-100 flex items-center justify-between active:bg-gray-50 transition-colors shadow-sm">
       <div className="flex items-center gap-4">
-        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm"><Icon className={cn("w-6 h-6", color)} /></div>
+        <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center shadow-inner"><Icon className={cn("w-6 h-6", color)} /></div>
         <div className="space-y-0.5"><p className="text-sm font-black text-black">{title}</p><p className="text-[10px] font-medium text-gray-400">{desc}</p></div>
       </div>
-      <div className="text-right"><p className="text-[9px] font-black text-blue-500 uppercase tracking-tighter">{reward}</p></div>
+      <div className="text-right"><p className="text-[9px] font-black text-[#00A2FF] uppercase tracking-tighter">{reward}</p></div>
     </div>
   )
 }
