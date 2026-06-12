@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast"
 
 /**
  * @fileOverview Hardened Video/Voice Call Screen.
- * Optimized: Fixed camera switcher and high-fidelity Voice UI.
+ * Optimized: Fixed camera switcher and ringtone integration.
  */
 export default function CallPage({ params }: { params: Promise<{ chatId: string }> }) {
   const { chatId } = use(params)
@@ -31,6 +31,8 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
     localAudioTrack: any, 
     localVideoTrack: any 
   }>({ client: null, localAudioTrack: null, localVideoTrack: null })
+  
+  const ringtoneRef = useRef<HTMLAudioElement | null>(null)
   
   const [joined, setJoined] = useState(false)
   const [muted, setMuted] = useState(false)
@@ -52,6 +54,32 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
   const billingTimer = useRef<NodeJS.Timeout | null>(null)
   const ringingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const mounted = useRef(true)
+
+  // RINGTONE INITIALIZATION
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const audio = new Audio('/ringtone.mp3')
+      audio.loop = true
+      ringtoneRef.current = audio
+    }
+    return () => {
+      if (ringtoneRef.current) {
+        ringtoneRef.current.pause()
+        ringtoneRef.current = null
+      }
+    }
+  }, [])
+
+  // MANAGE RINGTONE PLAYBACK
+  useEffect(() => {
+    if (isRinging && !remoteUser && joined) {
+      ringtoneRef.current?.play().catch(() => {
+        console.warn("Autoplay blocked: user interaction required for ringtone.")
+      })
+    } else {
+      ringtoneRef.current?.pause()
+    }
+  }, [isRinging, !!remoteUser, joined])
 
   useEffect(() => {
     if (!partnerId) return
@@ -178,17 +206,14 @@ export default function CallPage({ params }: { params: Promise<{ chatId: string 
     const newMode = facingMode === 'user' ? 'environment' : 'user';
     
     try {
-      // 1. Unpublish and close old track
       await rtc.current.client.unpublish(rtc.current.localVideoTrack);
       rtc.current.localVideoTrack.stop();
       rtc.current.localVideoTrack.close();
       
-      // 2. Create and play new track
       const newVideoTrack = await AgoraRTC.createCameraVideoTrack({ facingMode: newMode });
       rtc.current.localVideoTrack = newVideoTrack;
       if (localVideoRef.current) newVideoTrack.play(localVideoRef.current);
       
-      // 3. Republish
       await rtc.current.client.publish(newVideoTrack);
       setFacingMode(newMode);
     } catch (e) {
