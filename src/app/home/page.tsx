@@ -120,17 +120,17 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col w-full bg-white select-none min-h-screen">
-      {/* SCROLLABLE TOP PART (Blue Header) */}
-      <div className="bg-blue-100 pt-8 pb-6 px-4">
+      {/* SCROLLABLE TOP PART (Primary Blue Header synced with status bar) */}
+      <div className="bg-[#00A2FF] pt-8 pb-6 px-4">
         <div className="grid grid-cols-2 gap-3 relative">
           {/* QIVO STAMP */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[100px] font-black text-blue-300/10 pointer-events-none select-none italic tracking-tighter z-0">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[100px] font-black text-white/10 pointer-events-none select-none italic tracking-tighter z-0">
             QIVO
           </div>
 
           <button 
             onClick={() => router.push('/mystery-note')} 
-            className="relative z-10 h-32 bg-gradient-to-br from-blue-600 to-blue-500 rounded-[1.5rem] p-5 flex flex-col items-start justify-between text-white active:scale-95 transition-all shadow-xl shadow-blue-200/40"
+            className="relative z-10 h-32 bg-white/15 backdrop-blur-md rounded-[1.5rem] p-5 flex flex-col items-start justify-between text-white active:scale-95 transition-all border border-white/10 shadow-lg"
           >
             <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
               <FileText className="w-5 h-5 text-white" />
@@ -140,7 +140,7 @@ export default function HomePage() {
 
           <button 
             onClick={() => router.push('/tasks')} 
-            className="relative z-10 h-32 bg-gradient-to-br from-purple-600 to-fuchsia-500 rounded-[1.5rem] p-5 flex flex-col items-start justify-between text-white active:scale-95 transition-all shadow-xl shadow-purple-200/40"
+            className="relative z-10 h-32 bg-white/15 backdrop-blur-md rounded-[1.5rem] p-5 flex flex-col items-start justify-between text-white active:scale-95 transition-all border border-white/10 shadow-lg"
           >
             <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
               <Target className="w-5 h-5 text-white" />
@@ -150,22 +150,22 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* STICKY TAB BAR (Blue Header) */}
-      <div className="sticky top-0 z-[60] bg-blue-100 backdrop-blur-md border-b border-black/5">
+      {/* STICKY TAB BAR (Primary Blue synced with status bar) */}
+      <div className="sticky top-0 z-[60] bg-[#00A2FF] backdrop-blur-md border-b border-white/10">
         <div className="px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-8">
             {['Recommend', 'Nearby'].map((t) => (
               <button 
                 key={t} 
-                onClick={() => { setPage(page => 0); setUsers([]); setActiveTab(t as any); }} 
+                onClick={() => { setPage(0); setUsers([]); setActiveTab(t as any); }} 
                 className={cn(
                   "text-[11px] font-black transition-all relative py-2 uppercase tracking-[0.15em]", 
-                  activeTab === t ? "text-[#00A2FF]" : "text-gray-400"
+                  activeTab === t ? "text-white" : "text-white/60"
                 )}
               >
                 {t}
                 {activeTab === t && (
-                  <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#00A2FF] rounded-full" />
+                  <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white rounded-full" />
                 )}
               </button>
             ))}
@@ -173,7 +173,7 @@ export default function HomePage() {
           <button 
             onClick={handleManualRefresh} 
             disabled={loading}
-            className="w-10 h-10 flex items-center justify-center text-gray-400 active:bg-blue-100 rounded-full transition-all"
+            className="w-10 h-10 flex items-center justify-center text-white/80 active:bg-white/10 rounded-full transition-all"
           >
             <RotateCw className={cn("w-5 h-5", loading && "animate-spin")} />
           </button>
@@ -193,15 +193,25 @@ export default function HomePage() {
             {users.map((u) => {
               if (!u) return null;
               return (
-                <Card key={u.uid} className="relative overflow-hidden border-none aspect-[4/5] rounded-[1.2rem] shadow-md active:scale-[0.98] transition-all" onClick={() => router.push(`/users/${u.uid}`)}>
+                <Card 
+                  key={u.uid} 
+                  className="relative overflow-hidden border-none aspect-[4/5] rounded-[1.2rem] shadow-md active:scale-[0.98] transition-all cursor-pointer" 
+                  onClick={() => router.push(`/users/${u.uid}`)}
+                >
                   <Image src={u.photo_url} alt={u.name} fill className="object-cover" sizes="50vw" priority />
                   
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                   
-                  <div className="absolute top-3 right-3 z-10">
-                    <div className="bg-[#00A2FF] text-white text-[12px] font-black uppercase px-3 py-1.5 rounded-full shadow-lg border border-white/20 tracking-widest">
+                  <div className="absolute top-3 right-3 z-20">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/chats?startWith=${u.uid}`);
+                      }}
+                      className="bg-[#00A2FF] text-white text-[12px] font-black uppercase px-3 py-1.5 rounded-full shadow-lg border border-white/20 tracking-widest active:scale-90 transition-transform"
+                    >
                       CHAT
-                    </div>
+                    </button>
                   </div>
 
                   <div className="absolute bottom-3 left-4 right-4 text-white">
